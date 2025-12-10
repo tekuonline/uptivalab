@@ -1,0 +1,57 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: uptivalab
+      POSTGRES_PASSWORD: uptivalab
+      POSTGRES_DB: uptivalab
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://uptivalab:uptivalab@postgres:5432/uptivalab}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      JWT_SECRET: ${JWT_SECRET:-change-me-to-something-longer-than-16-chars}
+      PORT: ${PORT:-8080}
+      NODE_ENV: production
+    depends_on:
+      - postgres
+      - redis
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
+    depends_on:
+      - api
+    ports:
+      - "4173:80"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:

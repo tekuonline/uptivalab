@@ -1,0 +1,183 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(ADMIN)
+  apiKeys      ApiKey[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+enum UserRole {
+  ADMIN
+  VIEWER
+}
+
+model ApiKey {
+  id         String   @id @default(cuid())
+  label      String
+  tokenHash  String
+  lastUsedAt DateTime?
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  createdAt  DateTime @default(now())
+}
+
+model Monitor {
+  id          String          @id @default(cuid())
+  name        String
+  kind        MonitorKind
+  config      Json
+  interval    Int
+  timeout     Int?
+  paused      Boolean         @default(false)
+  group       MonitorGroup?   @relation(fields: [groupId], references: [id])
+  groupId     String?
+  tags        MonitorTag[]
+  incidents   Incident[]
+  checks      CheckResult[]
+  heartbeats  HeartbeatToken?
+  maintenance MaintenanceWindow[] @relation("MaintenanceMonitors")
+  notificationChannels NotificationChannel[] @relation("MonitorNotifications")
+  statusPages PublicStatusPage[] @relation("StatusPageMonitors")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum MonitorKind {
+  http
+  tcp
+  ping
+  dns
+  docker
+  certificate
+  database
+  synthetic
+  grpc
+  push
+}
+
+model MonitorGroup {
+  id        String    @id @default(cuid())
+  name      String
+  color     String?
+  monitors  Monitor[]
+  createdAt DateTime  @default(now())
+}
+
+model Tag {
+  id        String       @id @default(cuid())
+  name      String       @unique
+  monitors  MonitorTag[]
+}
+
+model MonitorTag {
+  monitor   Monitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+  monitorId String
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tagId     String
+
+  @@id([monitorId, tagId])
+}
+
+model NotificationChannel {
+  id        String          @id @default(cuid())
+  name      String
+  type      NotificationType
+  config    Json
+  monitors  Monitor[]       @relation("MonitorNotifications")
+  createdAt DateTime        @default(now())
+}
+
+enum NotificationType {
+  email
+  ntfy
+  discord
+  slack
+  telegram
+  gotify
+  pushover
+  webhook
+  apprise
+}
+
+model MaintenanceWindow {
+  id          String     @id @default(cuid())
+  name        String
+  startsAt    DateTime
+  endsAt      DateTime
+  monitors    Monitor[]  @relation("MaintenanceMonitors")
+  createdAt   DateTime   @default(now())
+}
+
+model Incident {
+  id          String          @id @default(cuid())
+  monitor     Monitor         @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+  monitorId   String
+  status      IncidentStatus  @default(OPEN)
+  startedAt   DateTime        @default(now())
+  resolvedAt  DateTime?
+  events      IncidentEvent[]
+}
+
+enum IncidentStatus {
+  OPEN
+  INVESTIGATING
+  MITIGATED
+  RESOLVED
+}
+
+model IncidentEvent {
+  id         String    @id @default(cuid())
+  incident   Incident  @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  incidentId String
+  message    String
+  createdAt  DateTime  @default(now())
+}
+
+model CheckResult {
+  id          String   @id @default(cuid())
+  monitor     Monitor  @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+  monitorId   String
+  status      String
+  latencyMs   Float?
+  payload     Json?
+  checkedAt   DateTime @default(now())
+}
+
+model PublicStatusPage {
+  id              String   @id @default(cuid())
+  name            String
+  slug            String   @unique
+  monitors        Monitor[] @relation("StatusPageMonitors")
+  theme           Json?
+  passwordHash    String?
+  customDomain    String?
+  heroMessage     String?
+  showIncidents   Boolean  @default(true)
+  showMaintenance Boolean  @default(true)
+  createdAt       DateTime @default(now())
+}
+
+model Setting {
+  key   String @id
+  value Json
+}
+
+model HeartbeatToken {
+  id             String   @id @default(cuid())
+  monitor        Monitor  @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+  monitorId      String   @unique
+  tokenHash      String
+  lastHeartbeat  DateTime?
+  heartbeatEvery Int
+}

@@ -1,0 +1,13 @@
+node_modules
+.pnpm-store
+.git
+.github
+.vscode
+.gitignore
+Dockerfile
+!apps/api/Dockerfile
+!apps/web/Dockerfile
+README.md
+docs
+coverage
+playwright-report

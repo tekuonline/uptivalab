@@ -1,0 +1,51 @@
+{
+  "name": "uptivalab-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host",
+    "lint": "eslint 'src/**/*.{ts,tsx}'",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@radix-ui/react-slot": "1.2.4",
+    "@tanstack/react-query": "5.90.12",
+    "@tanstack/react-table": "8.21.3",
+    "@uptivalab/shared": "workspace:*",
+    "chart.js": "^4.5.1",
+    "class-variance-authority": "0.7.0",
+    "date-fns": "3.6.0",
+    "framer-motion": "11.1.7",
+    "lucide-react": "0.390.0",
+    "react": "19.0.0",
+    "react-chartjs-2": "^5.3.1",
+    "react-dom": "19.0.0",
+    "react-router-dom": "7.0.2",
+    "tailwind-merge": "2.2.1",
+    "tailwindcss-animate": "1.0.7",
+    "valtio": "1.13.1",
+    "zod": "3.23.8"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "6.4.2",
+    "@testing-library/react": "14.2.2",
+    "@testing-library/user-event": "14.5.2",
+    "@types/jsdom": "21.1.7",
+    "@types/react": "19.1.7",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "4.3.1",
+    "autoprefixer": "10.4.19",
+    "eslint": "9.0.0",
+    "jsdom": "25.0.1",
+    "postcss": "8.4.38",
+    "tailwindcss": "3.4.4",
+    "typescript": "5.4.5",
+    "vite": "5.2.10",
+    "vitest": "1.6.0"
+  }
+}

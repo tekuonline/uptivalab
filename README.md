@@ -1,0 +1,653 @@
+# UptivaLab
+
+<div align="center">
+
+**Beautiful monitoring for the modern homelab** 
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue)](https://www.typescriptlang.org/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)](https://www.docker.com/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev/)
+[![Fastify](https://img.shields.io/badge/Fastify-Latest-000000?logo=fastify)](https://fastify.dev/)
+
+</div>
+
+---
+
+## 📖 Table of Contents
+
+- [Features](#-features)
+- [Quick Start](#-quick-start)
+- [Docker Deployment](#-docker-deployment)
+- [Configuration](#-configuration)
+- [Development](#-development)
+- [API Documentation](#-api-documentation)
+- [License](#-license)
+
+---
+
+## 🌟 Features
+
+UptivaLab is a modern, open-source monitoring application built from the ground up for homelab and power users. It combines the reliability of traditional monitoring tools with a beautiful, responsive interface that rivals modern SaaS products.
+
+### **10 Monitor Types** - All Built-In
+
+| Type | Description | Example |
+|------|-------------|---------|
+| 🌐 **HTTP/HTTPS** | Website monitoring with keyword matching, status code validation, custom headers | `https://api.example.com` |
+| 🔌 **TCP Port** | Raw TCP connection checks | `10.0.1.100:22` |
+| 📡 **Ping (ICMP)** | Network connectivity via ICMP | `8.8.8.8` or `google.com` |
+| 🔍 **DNS** | DNS record validation (A, AAAA, MX, TXT, CNAME, NS) | `google.com` |
+| 🐳 **Docker** | Container status + image update detection | `my-container` |
+| 🔐 **SSL Certificate** | Certificate expiry warnings with custom thresholds | `example.com:443` |
+| 🗄️ **Database** | Connection checks for PostgreSQL, MySQL, MariaDB, Redis, MongoDB | `postgres://user:pass@host:5432/db` |
+| 🎭 **Synthetic Journey** | Multi-step browser tests with Playwright | Complex user flows |
+| ⚡ **gRPC Health** | gRPC health check protocol support | `localhost:50051` |
+| 💓 **Push/Heartbeat** | Passive monitoring for cron jobs and scheduled tasks | 300 seconds interval |
+
+### **Beautiful Dashboard**
+
+- 📊 **Real-time graphs** with response time, uptime percentage, and historical trends
+- 🎨 **Modern UI** with Tailwind CSS, glassmorphism accents, smooth animations
+- 📱 **Responsive design** - perfect on desktop, tablet, and mobile
+- 🔄 **Live updates** via WebSocket - no page refresh needed
+- 🎯 **Incident timeline** with detailed event history
+
+### **Advanced Capabilities**
+
+- ✅ **Monitor grouping & tags** - organize your infrastructure
+- 🔧 **Maintenance windows** - suppress alerts during planned downtime
+- 📢 **Multi-channel notifications** - Email (SMTP), ntfy.sh, Discord, Slack, Telegram, Webhooks
+- 🌍 **Public status pages** - shareable, no authentication required
+- 🔑 **API-first** - full REST API for automation and integrations
+
+---
+
+## 🚀 Quick Start
+
+### Using Docker Compose (Recommended)
+
+1. **Create a directory for UptivaLab:**
+   ```bash
+   mkdir uptivalab && cd uptivalab
+   ```
+
+2. **Download the docker-compose.yml:**
+   ```bash
+   wget https://raw.githubusercontent.com/YOUR_USERNAME/uptivalab/main/docker-compose.yml
+   ```
+
+3. **Create environment file:**
+   ```bash
+   cat > .env <<EOF
+   DATABASE_URL=postgresql://uptivalab:uptivalab@postgres:5432/uptivalab
+   REDIS_URL=redis://redis:6379
+   JWT_SECRET=$(openssl rand -base64 32)
+   PORT=3000
+   WEB_PORT=4173
+   EOF
+   ```
+
+4. **Start the services:**
+   ```bash
+   docker compose up -d
+   ```
+
+5. **Access UptivaLab:**
+   - Open your browser to `http://localhost:4173`
+   - Create your admin account on first visit
+
+---
+
+## 🐳 Docker Deployment
+
+### Option 1: Using Pre-built Images from Docker Hub
+
+```bash
+# Pull the images
+docker pull YOUR_DOCKERHUB_USERNAME/uptivalab-web:latest
+docker pull YOUR_DOCKERHUB_USERNAME/uptivalab-api:latest
+
+# Run with docker compose
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: uptivalab
+      POSTGRES_PASSWORD: uptivalab
+      POSTGRES_DB: uptivalab
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U uptivalab"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    image: YOUR_DOCKERHUB_USERNAME/uptivalab-api:latest
+    environment:
+      DATABASE_URL: postgresql://uptivalab:uptivalab@postgres:5432/uptivalab
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: 3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    image: YOUR_DOCKERHUB_USERNAME/uptivalab-web:latest
+    ports:
+      - "4173:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+```
+
+### Option 2: Building from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/YOUR_USERNAME/uptivalab.git
+cd uptivalab
+
+# Build and start
+docker compose up -d --build
+```
+
+### Environment Variables
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `DATABASE_URL` | PostgreSQL connection string | - | ✅ |
+| `REDIS_URL` | Redis connection string | - | ✅ |
+| `JWT_SECRET` | Secret for JWT tokens (use strong random string) | - | ✅ |
+| `PORT` | API server port | `3000` | ❌ |
+| `WEB_PORT` | Web UI port | `4173` | ❌ |
+| `SMTP_HOST` | SMTP server hostname | - | ❌ |
+| `SMTP_PORT` | SMTP server port | `587` | ❌ |
+| `SMTP_USER` | SMTP username | - | ❌ |
+| `SMTP_PASS` | SMTP password | - | ❌ |
+
+### Volumes and Persistence
+
+UptivaLab stores all data in PostgreSQL. Make sure to properly backup the `postgres_data` volume:
+
+```bash
+# Backup database
+docker compose exec postgres pg_dump -U uptivalab uptivalab > backup.sql
+
+# Restore database
+docker compose exec -T postgres psql -U uptivalab uptivalab < backup.sql
+```
+
+---
+
+## ⚙️ Configuration
+
+### SMTP Email Notifications
+
+You can configure email notifications either globally (environment variables) or per notification channel:
+
+**Global Configuration (Environment Variables):**
+```bash
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+```
+
+**Per-Channel Configuration:**
+In the UptivaLab UI, create an email notification channel and specify:
+- SMTP Host (e.g., `smtp.gmail.com`)
+- SMTP Port (e.g., `587` for TLS, `465` for SSL)
+- SMTP Username
+- SMTP Password
+- From Email (optional)
+
+### Push/Heartbeat Monitoring
+
+For cron jobs and scheduled tasks:
+
+1. Create a Push/Heartbeat monitor
+2. Copy the heartbeat URL provided
+3. Send a POST request from your application:
+   ```bash
+   curl -X POST https://your-uptivalab.com/api/heartbeat/YOUR_TOKEN
+   ```
+
+### Public Status Pages
+
+1. Navigate to "Status Pages" in the UI
+2. Create a new status page
+3. Add monitors to display
+4. Share the public URL (no authentication required)
+
+---
+
+## 🛠️ Development
+
+### Prerequisites
+
+- Node.js 20+
+- pnpm 8+
+- Docker & Docker Compose
+- PostgreSQL 16+
+- Redis 7+
+
+### Local Development Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/YOUR_USERNAME/uptivalab.git
+cd uptivalab
+
+# Install dependencies
+pnpm install
+
+# Start database services
+docker compose up -d postgres redis
+
+# Set up environment
+cp .env.example .env
+# Edit .env with your configuration
+
+# Run database migrations
+cd apps/api
+pnpm prisma migrate dev
+
+# Start development servers
+# Terminal 1 - API
+cd apps/api
+pnpm dev
+
+# Terminal 2 - Web
+cd apps/web
+pnpm dev
+```
+
+Visit `http://localhost:5173` for the web UI and `http://localhost:3000` for the API.
+
+### Project Structure
+
+```
+uptivalab/
+├── apps/
+│   ├── api/          # Fastify backend
+│   └── web/          # React frontend
+├── packages/
+│   ├── shared/       # Shared types and schemas
+│   └── monitoring/   # Monitoring engine
+├── docker-compose.yml
+└── README.md
+```
+
+---
+
+## 📚 API Documentation
+
+The API is fully documented with OpenAPI/Swagger.
+
+- **Documentation**: `http://localhost:3000/documentation`
+- **API Base URL**: `http://localhost:3000/api`
+
+### Authentication
+
+All API endpoints (except public status pages) require JWT authentication:
+
+```bash
+# Login
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@example.com", "password": "password"}'
+
+# Use the token
+curl http://localhost:3000/api/monitors \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+---
+
+## 📝 License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+---
+
+## 🐛 Support
+
+- **Issues**: [GitHub Issues](https://github.com/YOUR_USERNAME/uptivalab/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/YOUR_USERNAME/uptivalab/discussions)
+
+---
+
+<div align="center">
+
+**Made with ❤️ for the homelab community**
+
+[⭐ Star on GitHub](https://github.com/YOUR_USERNAME/uptivalab)
+
+</div>
+
+### **Technology Stack**
+
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | React 19, TypeScript, TanStack Query, Tailwind CSS, Recharts |
+| **Backend** | Fastify, TypeScript, Prisma ORM, BullMQ |
+| **Database** | PostgreSQL 14+ |
+| **Cache/Queue** | Redis 7+ |
+| **Real-time** | WebSocket (ws) |
+| **Deployment** | Docker, Docker Compose |
+
+---
+
+## 🔧 **Configuration**
+
+### **Environment Variables**
+
+```bash
+# Database
+DATABASE_URL=postgresql://user:password@localhost:5432/uptivalab
+
+# Redis (for job queue)
+REDIS_URL=redis://localhost:6379
+
+# JWT Secret (generate with: openssl rand -base64 32)
+JWT_SECRET=your-super-secret-jwt-key
+
+# SMTP (optional - for email notifications)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your@email.com
+SMTP_PASS=your-app-password
+
+# API Server
+PORT=8080
+NODE_ENV=production
+
+# Web Server
+VITE_API_URL=http://localhost:8080/api
+```
+
+### **Docker Compose Services**
+
+The `docker-compose.yml` includes:
+- **api** - Fastify backend (port 8080)
+- **web** - React frontend (port 4173)
+- **postgres** - PostgreSQL database (port 5432)
+- **redis** - Redis for job queue (port 6379)
+
+---
+
+## 📊 **API Documentation**
+
+UptivaLab provides a comprehensive REST API for all operations:
+
+### **Authentication**
+
+```bash
+# Register
+POST /api/auth/register
+{
+  "email": "admin@example.com",
+  "password": "secure-password"
+}
+
+# Login
+POST /api/auth/login
+{
+  "email": "admin@example.com",
+  "password": "secure-password"
+}
+# Returns: { "token": "jwt-token", "user": {...} }
+```
+
+### **Monitors**
+
+```bash
+# List all monitors
+GET /api/monitors
+Authorization: Bearer <token>
+
+# Create monitor
+POST /api/monitors
+Authorization: Bearer <token>
+{
+  "name": "My Website",
+  "kind": "http",
+  "interval": 60000,
+  "config": {
+    "url": "https://example.com"
+  }
+}
+
+# Get monitor details
+GET /api/monitors/:id
+
+# Update monitor
+PUT /api/monitors/:id
+
+# Delete monitor
+DELETE /api/monitors/:id
+
+# Get monitor history
+GET /api/monitors/:id/history
+
+# Get monitor uptime
+GET /api/monitors/:id/uptime
+```
+
+### **Status Pages**
+
+```bash
+# Create public status page
+POST /api/status-pages
+{
+  "name": "My Services",
+  "slug": "my-services",
+  "monitorIds": ["monitor-1", "monitor-2"]
+}
+
+# Get public status page (no auth required)
+GET /api/public/:slug
+```
+
+### **Heartbeats**
+
+```bash
+# Create heartbeat token
+POST /api/heartbeats
+{
+  "monitorId": "monitor-id",
+  "heartbeatSeconds": 300
+}
+
+# Ping heartbeat (no auth required)
+GET /api/heartbeat/:token
+```
+
+---
+
+## 🔔 **Notifications**
+
+### **Supported Channels**
+
+| Channel | Status | Configuration |
+|---------|--------|---------------|
+| **Email (SMTP)** | ✅ Available | Configure SMTP_* env variables |
+| **ntfy.sh** | ✅ Available | Topic name only |
+| **Webhook** | ✅ Available | POST URL with JSON payload |
+| **Discord** | 🚧 Planned | Webhook URL |
+| **Slack** | 🚧 Planned | Webhook URL |
+| **Telegram** | 🚧 Planned | Bot token + chat ID |
+| **Gotify** | 🚧 Planned | Server URL + app token |
+| **Pushover** | 🚧 Planned | User key + API token |
+| **Apprise** | 🚧 Planned | Apprise URL syntax |
+
+### **Create Notification Channel**
+
+```bash
+POST /api/notifications
+{
+  "name": "Production Alerts",
+  "type": "email",
+  "config": {
+    "email": "ops@example.com"
+  }
+}
+```
+
+---
+
+## 🐳 **Docker Deployment**
+
+### **With Traefik**
+
+```yaml
+services:
+  uptivalab-web:
+    image: uptivalab/uptivalab:latest
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.uptivalab.rule=Host(`uptime.yourdomain.com`)"
+      - "traefik.http.routers.uptivalab.entrypoints=websecure"
+      - "traefik.http.routers.uptivalab.tls.certresolver=letsencrypt"
+      - "traefik.http.services.uptivalab.loadbalancer.server.port=4173"
+```
+
+### **Health Checks**
+
+```yaml
+healthcheck:
+  test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 40s
+```
+
+---
+
+## 🧪 **Testing**
+
+```bash
+# Run all tests
+pnpm test
+
+# Run tests with coverage
+pnpm coverage
+
+# Run E2E tests
+pnpm e2e
+
+# Lint code
+pnpm lint
+
+# Type check
+pnpm typecheck
+```
+
+---
+
+## 🤝 **Contributing**
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+### **Development Workflow**
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### **Code of Conduct**
+
+Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before contributing.
+
+---
+
+## 📝 **License**
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🎯 **Roadmap**
+
+### **v0.2** (Current)
+- ✅ All 10 monitor types
+- ✅ Public status pages
+- ✅ Incident management
+- ✅ Heartbeat monitoring
+- ✅ Basic notifications (Email, ntfy, Webhook)
+
+### **v0.3** (Next)
+- 🔄 Additional notification channels (Discord, Slack, Telegram, Gotify, Pushover)
+- 🔄 Dark/light mode toggle
+- 🔄 Certificate expiry dashboard widget
+- 🔄 Auto-discovery of Docker containers
+- 🔄 Settings backup/restore (JSON export)
+
+### **v0.4**
+- 🔄 OpenAPI 3.1 spec generation
+- 🔄 Comprehensive test coverage (80%+)
+- 🔄 GitHub Actions CI/CD
+- 🔄 Playwright E2E tests
+
+### **v1.0**
+- 🔄 Role-based access control
+- 🔄 Multi-user support
+- 🔄 API keys for automation
+- 🔄 Custom domain support for status pages
+- 🔄 Advanced alerting rules
+
+---
+
+## 💬 **Community & Support**
+
+- **Documentation**: [docs.uptivalab.dev](https://docs.uptivalab.dev) (Coming Soon)
+- **Discord**: [Join our Discord](https://discord.gg/uptivalab) (Coming Soon)
+- **GitHub Issues**: [Report bugs or request features](https://github.com/yourusername/uptivalab/issues)
+
+---
+
+## 🙏 **Acknowledgments**
+
+Inspired by:
+- [Uptime Kuma](https://github.com/louislam/uptime-kuma) - The spiritual predecessor
+- [Homepage](https://github.com/gethomepage/homepage) - Clean UI design
+- [Traefik](https://traefik.io/) - Docker-first deployment approach
+
+---
+
+<div align="center">
+
+**Built with ❤️ for the homelab community**
+
+[⬆ Back to top](#uptivalab)
+
+</div>

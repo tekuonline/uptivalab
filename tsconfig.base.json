@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "ES2022",
+  "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@uptivalab/monitoring": ["packages/monitoring/src/index.ts"],
+      "@uptivalab/monitoring/*": ["packages/monitoring/src/*"],
+      "@uptivalab/shared": ["packages/shared/src/index.ts"],
+      "@uptivalab/shared/*": ["packages/shared/src/*"]
+    }
+  }
+}

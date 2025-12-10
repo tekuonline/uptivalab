@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: uptivalab-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-uptivalab}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-uptivalab}
+      POSTGRES_DB: ${POSTGRES_DB:-uptivalab}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-uptivalab}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - uptivalab
+
+  redis:
+    image: redis:7-alpine
+    container_name: uptivalab-redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - uptivalab
+
+  api:
+    image: ${DOCKER_USERNAME:-YOUR_DOCKERHUB_USERNAME}/uptivalab-api:${VERSION:-latest}
+    container_name: uptivalab-api
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-uptivalab}:${POSTGRES_PASSWORD:-uptivalab}@postgres:5432/${POSTGRES_DB:-uptivalab}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: ${API_PORT:-3000}
+      NODE_ENV: production
+      # Optional SMTP configuration
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - uptivalab
+
+  web:
+    image: ${DOCKER_USERNAME:-YOUR_DOCKERHUB_USERNAME}/uptivalab-web:${VERSION:-latest}
+    container_name: uptivalab-web
+    ports:
+      - "${WEB_PORT:-4173}:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - uptivalab
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  uptivalab:
+    driver: bridge

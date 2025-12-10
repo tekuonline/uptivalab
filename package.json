@@ -1,0 +1,38 @@
+{
+  "name": "uptivalab",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter uptivalab-api dev --parallel & pnpm --filter uptivalab-web dev",
+    "build": "pnpm run lint && pnpm run typecheck && pnpm --filter uptivalab-api build && pnpm --filter uptivalab-web build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "coverage": "pnpm --filter uptivalab-api coverage && pnpm --filter uptivalab-web coverage",
+    "format": "pnpm -r format",
+    "e2e": "pnpm --filter uptivalab-e2e test",
+    "prepare": "husky install"
+  },
+  "devDependencies": {
+    "@changesets/cli": "2.27.1",
+    "@eslint/js": "9.0.0",
+    "@types/node": "20.12.7",
+    "eslint": "9.0.0",
+    "eslint-config-prettier": "9.1.0",
+    "eslint-plugin-import": "2.29.1",
+    "eslint-plugin-react": "7.34.1",
+    "eslint-plugin-react-hooks": "4.6.0",
+    "husky": "9.0.11",
+    "lint-staged": "15.2.2",
+    "prettier": "3.2.5",
+    "typescript": "5.4.5",
+    "typescript-eslint": "7.11.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,json,md}": [
+      "prettier --write"
+    ]
+  }
+}
