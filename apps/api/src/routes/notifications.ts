@@ -15,12 +15,40 @@ const notificationsPlugin = async (fastify: FastifyInstance) => {
 
   // GET /notifications - List all notification channels (frontend expects this endpoint)
   fastify.get("/notifications", async () => {
-    return prisma.notificationChannel.findMany({ include: { monitors: true }, orderBy: { createdAt: "desc" } });
+    const channels = await prisma.notificationChannel.findMany({ include: { monitors: true }, orderBy: { createdAt: "desc" } });
+    // Mask sensitive fields
+    return channels.map(channel => {
+      const config = channel.config as any;
+      const maskedConfig = { ...config };
+      if (maskedConfig.password) maskedConfig.password = '***MASKED***';
+      if (maskedConfig.apiKey) maskedConfig.apiKey = '***MASKED***';
+      if (maskedConfig.token) maskedConfig.token = '***MASKED***';
+      if (maskedConfig.secret) maskedConfig.secret = '***MASKED***';
+      if (maskedConfig.webhookUrl && maskedConfig.webhookUrl.includes('hooks.slack.com')) {
+        maskedConfig.webhookUrl = maskedConfig.webhookUrl.replace(/(https:\/\/hooks\.slack\.com\/services\/)([^\/]+\/[^\/]+\/)(.+)/, '$1***MASKED***/$3');
+      }
+      if (maskedConfig.botToken) maskedConfig.botToken = '***MASKED***';
+      return { ...channel, config: maskedConfig };
+    });
   });
 
   // GET /notifications/list - Alternative endpoint
   fastify.get("/notifications/list", async () => {
-    return prisma.notificationChannel.findMany({ include: { monitors: true }, orderBy: { createdAt: "desc" } });
+    const channels = await prisma.notificationChannel.findMany({ include: { monitors: true }, orderBy: { createdAt: "desc" } });
+    // Mask sensitive fields
+    return channels.map(channel => {
+      const config = channel.config as any;
+      const maskedConfig = { ...config };
+      if (maskedConfig.password) maskedConfig.password = '***MASKED***';
+      if (maskedConfig.apiKey) maskedConfig.apiKey = '***MASKED***';
+      if (maskedConfig.token) maskedConfig.token = '***MASKED***';
+      if (maskedConfig.secret) maskedConfig.secret = '***MASKED***';
+      if (maskedConfig.webhookUrl && maskedConfig.webhookUrl.includes('hooks.slack.com')) {
+        maskedConfig.webhookUrl = maskedConfig.webhookUrl.replace(/(https:\/\/hooks\.slack\.com\/services\/)([^\/]+\/[^\/]+\/)(.+)/, '$1***MASKED***/$3');
+      }
+      if (maskedConfig.botToken) maskedConfig.botToken = '***MASKED***';
+      return { ...channel, config: maskedConfig };
+    });
   });
 
   fastify.post("/notifications", async (request) => {
@@ -60,6 +88,30 @@ const notificationsPlugin = async (fastify: FastifyInstance) => {
     const params = z.object({ id: z.string() }).parse(request.params);
     await prisma.notificationChannel.delete({ where: { id: params.id } });
     reply.code(204).send();
+  });
+
+  // POST /notifications/test - Test notification channel before saving
+  fastify.post("/notifications/test", async (request, reply) => {
+    const body = channelSchema.parse(request.body);
+    
+    try {
+      // Import notification service
+      const { sendTestNotification } = await import("../services/notifications/test-sender.js");
+      
+      // Send test notification
+      const result = await sendTestNotification(body.type, body.config);
+      
+      if (result.success) {
+        return { success: true, message: "Test notification sent successfully" };
+      } else {
+        return reply.code(400).send({ success: false, error: result.error });
+      }
+    } catch (error: any) {
+      return reply.code(500).send({ 
+        success: false, 
+        error: error.message || "Failed to send test notification" 
+      });
+    }
   });
 };
 

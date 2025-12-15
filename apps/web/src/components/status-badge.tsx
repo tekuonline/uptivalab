@@ -8,5 +8,5 @@ const colorMap: Record<StatusState, string> = {
 };
 
 export const StatusBadge = ({ status }: { status: StatusState }) => (
-  <span className={twMerge("rounded-full px-3 py-1 text-xs font-semibold", colorMap[status])}>{status.toUpperCase()}</span>
+  <span className={twMerge("inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-semibold", colorMap[status])}>{status.toUpperCase()}</span>
 );

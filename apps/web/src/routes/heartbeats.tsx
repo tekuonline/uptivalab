@@ -69,32 +69,32 @@ export const HeartbeatsRoute = () => {
     <div className="space-y-6">
       <Card className="space-y-4">
         <div>
-          <h3 className="text-xl font-semibold text-white">{t("createHeartbeatToken")}</h3>
-          <p className="text-sm text-slate-400">{t("generateHeartbeatUrl")}</p>
+          <h3 className="text-xl font-semibold text-slate-900 dark:text-white">{t("createHeartbeatToken")}</h3>
+          <p className="text-sm text-slate-600 dark:text-slate-400">{t("generateHeartbeatUrl")}</p>
         </div>
         {error && (
-          <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-3">
-            <p className="text-sm text-red-200">{error}</p>
+          <div className="rounded-lg bg-red-500/10 border border-red-500/30 dark:border-red-500/20 p-3">
+            <p className="text-sm text-red-700 dark:text-red-200">{error}</p>
           </div>
         )}
         {pushMonitors.length === 0 ? (
-          <div className="rounded-lg bg-yellow-500/10 border border-yellow-500/20 p-4 text-center">
-            <p className="text-sm text-yellow-200 mb-2">
+          <div className="rounded-lg bg-yellow-500/10 border border-yellow-500/30 dark:border-yellow-500/20 p-4 text-center">
+            <p className="text-sm text-yellow-700 dark:text-yellow-200 mb-2">
               📝 {t("noPushMonitors")}
             </p>
-            <p className="text-xs text-yellow-300/70">
+            <p className="text-xs text-yellow-600 dark:text-yellow-300/70">
               {t("noPushMonitorsDesc")}
             </p>
-            <a href="/monitors" className="text-xs text-blue-400 hover:text-blue-300 underline mt-2 inline-block">
+            <a href="/monitors" className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline mt-2 inline-block">
               {t("goToMonitors")}
             </a>
           </div>
         ) : availableMonitors.length === 0 ? (
-          <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 p-4 text-center">
-            <p className="text-sm text-blue-200 mb-2">
+          <div className="rounded-lg bg-blue-500/10 border border-blue-500/30 dark:border-blue-500/20 p-4 text-center">
+            <p className="text-sm text-blue-700 dark:text-blue-200 mb-2">
               ✅ {t("allPushHaveTokens")}
             </p>
-            <p className="text-xs text-blue-300/70">
+            <p className="text-xs text-blue-600 dark:text-blue-300/70">
               {t("deleteExistingToken")}
             </p>
           </div>
@@ -108,7 +108,7 @@ export const HeartbeatsRoute = () => {
             }}
           >
             <select
-              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+              className="rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-slate-900 dark:text-white h-[46px]"
               value={form.monitorId}
               onChange={(e) => setForm((prev) => ({ ...prev, monitorId: e.target.value }))}
               required
@@ -122,7 +122,7 @@ export const HeartbeatsRoute = () => {
             </select>
             <input
               type="number"
-              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+              className="rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
               placeholder={t("interval")}
               value={form.heartbeatEvery}
               onChange={(e) => setForm((prev) => ({ ...prev, heartbeatEvery: Number(e.target.value) }))}
@@ -138,14 +138,14 @@ export const HeartbeatsRoute = () => {
       </Card>
 
       <Card>
-        <h3 className="mb-4 text-xl font-semibold text-white">{t("activeHeartbeats")}</h3>
+        <h3 className="mb-4 text-xl font-semibold text-slate-900 dark:text-white">{t("activeHeartbeats")}</h3>
         <div className="space-y-4">
           {heartbeats?.map((heartbeat) => (
             <div key={heartbeat.id} className="rounded-lg border border-white/10 bg-white/5 p-4">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <h4 className="font-semibold text-white">{heartbeat.monitor.name}</h4>
-                  <p className="text-sm text-slate-400">
+                  <h4 className="font-semibold text-slate-900 dark:text-white">{heartbeat.monitor.name}</h4>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
                     {t("heartbeatEvery")} {heartbeat.heartbeatEvery}s
                   </p>
                   {heartbeat.lastHeartbeat && (

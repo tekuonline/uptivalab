@@ -10,7 +10,8 @@ import { StatusPagesRoute } from "./status-pages.js";
 import { MaintenanceRoute } from "./maintenance.js";
 import { PublicStatusRoute } from "./public-status.js";
 import { SettingsRoute } from "./settings.js";
-import { LoginRoute, RegisterRoute } from "./login.js";
+import { LoginRoute } from "./login.js";
+import { InviteAcceptRoute } from "./invite.js";
 import { useAuth } from "../providers/auth-context.js";
 import { useSettings } from "../providers/settings-context.js";
 
@@ -46,7 +47,8 @@ const router = createBrowserRouter([
     ],
   },
   { path: "/login", element: <LoginRoute /> },
-  { path: "/register", element: <RegisterRoute /> },
+  { path: "/register", element: <Navigate to="/login" replace /> },
+  { path: "/invite/:token", element: <InviteAcceptRoute /> },
   { path: "/status/:slug", element: <PublicStatusRoute /> }, // Public status page (no auth required)
   { path: "*", element: <DefaultRoute /> },
 ]);

@@ -27,8 +27,8 @@ export const Sidebar = () => {
   return (
     <aside className="glass-panel flex h-full w-64 flex-col rounded-3xl p-6">
       <div className="mb-10">
-        <p className="text-xs uppercase tracking-[0.35em] text-slate-400">UptivaLab</p>
-        <h1 className="text-2xl font-semibold text-white">Command Center</h1>
+        <p className="text-xs uppercase tracking-[0.35em] text-slate-500 dark:text-slate-400">UptivaLab</p>
+        <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Command Center</h1>
       </div>
       <nav className="space-y-2">
         {links.map((link) => (
@@ -37,7 +37,7 @@ export const Sidebar = () => {
             to={link.to}
             className={({ isActive }) =>
               `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition ${
-                isActive ? "bg-white/10 text-white" : "text-slate-400 hover:text-white"
+                isActive ? "bg-slate-200 dark:bg-white/10 text-slate-900 dark:text-white" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
               }`
             }
           >

@@ -19,7 +19,13 @@ import {
   Copy,
   Eye,
   EyeOff,
-  Check
+  Check,
+  CheckCircle,
+  XCircle,
+  RefreshCw,
+  Users,
+  Mail,
+  UserPlus
 } from "lucide-react";
 
 type SettingsTab = 
@@ -33,6 +39,7 @@ type SettingsTab =
   | "remote-browsers" 
   | "security" 
   | "api-keys" 
+  | "users"
   | "proxies" 
   | "about";
 
@@ -90,6 +97,29 @@ interface Proxy {
   };
 }
 
+interface User {
+  id: string;
+  email: string;
+  role: "ADMIN" | "VIEWER";
+  createdAt: string;
+  updatedAt: string;
+  _count?: {
+    apiKeys: number;
+  };
+}
+
+interface Invitation {
+  id: string;
+  email: string;
+  role: "ADMIN" | "VIEWER";
+  token: string;
+  expiresAt: string;
+  createdAt: string;
+  createdBy?: {
+    email: string;
+  };
+}
+
 export const SettingsRoute = () => {
   const { t } = useTranslation();
   const { settings: globalSettings, updateSettings: updateGlobalSettings } = useSettings();
@@ -122,6 +152,8 @@ export const SettingsRoute = () => {
   // Docker Hosts
   const [dockerHosts, setDockerHosts] = useState<DockerHost[]>([]);
   const [newDockerHost, setNewDockerHost] = useState({ name: "", url: "" });
+  const [testingDockerHost, setTestingDockerHost] = useState<string | null>(null);
+  const [dockerHostStatus, setDockerHostStatus] = useState<Record<string, { success?: boolean; version?: string; error?: string; testing?: boolean }>>({});
 
   // Remote Browsers
   const [remoteBrowsers, setRemoteBrowsers] = useState<RemoteBrowser[]>([]);
@@ -137,6 +169,13 @@ export const SettingsRoute = () => {
     auth: { username: "", password: "" },
   });
 
+  // Users
+  const [users, setUsers] = useState<User[]>([]);
+  const [newUser, setNewUser] = useState({ email: "", password: "", role: "VIEWER" as "ADMIN" | "VIEWER" });
+  const [invitations, setInvitations] = useState<Invitation[]>([]);
+  const [newInvitation, setNewInvitation] = useState({ email: "", role: "VIEWER" as "ADMIN" | "VIEWER", expiresInDays: 7 });
+  const [copiedInviteLink, setCopiedInviteLink] = useState("");
+
   useEffect(() => {
     // Initialize local settings from global context
     setLocalSettings(globalSettings);
@@ -144,6 +183,8 @@ export const SettingsRoute = () => {
     loadDockerHosts();
     loadRemoteBrowsers();
     loadProxies();
+    loadUsers();
+    loadInvitations();
   }, [globalSettings]);
 
   const saveSettings = async () => {
@@ -293,8 +334,47 @@ export const SettingsRoute = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       setDockerHosts(dockerHosts.filter((h) => h.id !== id));
+      setDockerHostStatus((prev) => {
+        const newStatus = { ...prev };
+        delete newStatus[id];
+        return newStatus;
+      });
     } catch (error) {
       console.error("Failed to delete docker host:", error);
+    }
+  };
+
+  const testDockerHost = async (id: string) => {
+    setTestingDockerHost(id);
+    setDockerHostStatus((prev) => ({ ...prev, [id]: { testing: true } }));
+    
+    try {
+      const token = localStorage.getItem("uptivalab.token");
+      const res = await fetch(`/api/settings/docker-hosts/${id}/test`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setDockerHostStatus((prev) => ({
+          ...prev,
+          [id]: { success: true, version: data.serverVersion, testing: false }
+        }));
+      } else {
+        const error = await res.text();
+        setDockerHostStatus((prev) => ({
+          ...prev,
+          [id]: { success: false, error, testing: false }
+        }));
+      }
+    } catch (error) {
+      setDockerHostStatus((prev) => ({
+        ...prev,
+        [id]: { success: false, error: String(error), testing: false }
+      }));
+    } finally {
+      setTestingDockerHost(null);
     }
   };
 
@@ -406,6 +486,160 @@ export const SettingsRoute = () => {
     }
   };
 
+  // User management functions
+  const loadUsers = async () => {
+    try {
+      const token = localStorage.getItem("uptivalab.token");
+      const res = await fetch("/api/users", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setUsers(await res.json());
+      }
+    } catch (error) {
+      console.error("Failed to load users:", error);
+    }
+  };
+
+  const createUser = async () => {
+    if (!newUser.email || !newUser.password) return;
+
+    try {
+      const token = localStorage.getItem("uptivalab.token");
+      const res = await fetch("/api/users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(newUser),
+      });
+
+      if (res.ok) {
+        await loadUsers();
+        setNewUser({ email: "", password: "", role: "VIEWER" });
+      } else {
+        const data = await res.json();
+        alert(data.message || "Failed to create user");
+      }
+    } catch (error) {
+      console.error("Failed to create user:", error);
+    }
+  };
+
+  const deleteUser = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this user?")) return;
+
+    try {
+      const token = localStorage.getItem("uptivalab.token");
+      const res = await fetch(`/api/users/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.ok) {
+        setUsers(users.filter((user) => user.id !== id));
+      } else {
+        const data = await res.json();
+        alert(data.message || "Failed to delete user");
+      }
+    } catch (error) {
+      console.error("Failed to delete user:", error);
+    }
+  };
+
+  const updateUserRole = async (id: string, role: "ADMIN" | "VIEWER") => {
+    try {
+      const token = localStorage.getItem("uptivalab.token");
+      const res = await fetch(`/api/users/${id}/role`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ role }),
+      });
+
+      if (res.ok) {
+        setUsers(users.map((user) => (user.id === id ? { ...user, role } : user)));
+      } else {
+        const data = await res.json();
+        alert(data.message || "Failed to update user role");
+      }
+    } catch (error) {
+      console.error("Failed to update user role:", error);
+    }
+  };
+
+  // Invitation management functions
+  const loadInvitations = async () => {
+    try {
+      const token = localStorage.getItem("uptivalab.token");
+      const res = await fetch("/api/invitations", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setInvitations(await res.json());
+      }
+    } catch (error) {
+      console.error("Failed to load invitations:", error);
+    }
+  };
+
+  const createInvitation = async () => {
+    if (!newInvitation.email) return;
+
+    try {
+      const token = localStorage.getItem("uptivalab.token");
+      const res = await fetch("/api/invitations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(newInvitation),
+      });
+
+      if (res.ok) {
+        const invitation = await res.json();
+        await loadInvitations();
+        setNewInvitation({ email: "", role: "VIEWER", expiresInDays: 7 });
+        
+        // Show invitation link
+        const inviteLink = `${window.location.origin}/invite/${invitation.token}`;
+        navigator.clipboard.writeText(inviteLink);
+        setCopiedInviteLink(invitation.id);
+        setTimeout(() => setCopiedInviteLink(""), 3000);
+        alert(`Invitation created! Link copied to clipboard:\n${inviteLink}`);
+      } else {
+        const data = await res.json();
+        alert(data.message || "Failed to create invitation");
+      }
+    } catch (error) {
+      console.error("Failed to create invitation:", error);
+    }
+  };
+
+  const deleteInvitation = async (id: string) => {
+    try {
+      const token = localStorage.getItem("uptivalab.token");
+      await fetch(`/api/invitations/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setInvitations(invitations.filter((inv) => inv.id !== id));
+    } catch (error) {
+      console.error("Failed to delete invitation:", error);
+    }
+  };
+
+  const copyInviteLink = (token: string, id: string) => {
+    const inviteLink = `${window.location.origin}/invite/${token}`;
+    navigator.clipboard.writeText(inviteLink);
+    setCopiedInviteLink(id);
+    setTimeout(() => setCopiedInviteLink(""), 2000);
+  };
+
   const checkForUpdates = async () => {
     setCheckingUpdates(true);
     try {
@@ -433,6 +667,7 @@ export const SettingsRoute = () => {
     { id: "remote-browsers", label: t("remoteBrowsers"), icon: Globe },
     { id: "security", label: t("security"), icon: Shield },
     { id: "api-keys", label: t("apiKeys"), icon: Key },
+    { id: "users", label: "User Management", icon: Users },
     { id: "proxies", label: t("proxies"), icon: Network },
     { id: "about", label: t("about"), icon: Info },
   ];
@@ -440,9 +675,9 @@ export const SettingsRoute = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-white">{t("settings")}</h1>
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">{t("settings")}</h1>
         {activeTab !== "security" && activeTab !== "api-keys" && activeTab !== "docker-hosts" && 
-         activeTab !== "remote-browsers" && activeTab !== "proxies" && (
+         activeTab !== "remote-browsers" && activeTab !== "proxies" && activeTab !== "users" && (
           <Button onClick={saveSettings} disabled={loading} className="gap-2">
             {saved ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
             {saved ? t("saved") : t("save")}
@@ -460,8 +695,8 @@ export const SettingsRoute = () => {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
                   activeTab === tab.id
-                    ? "bg-white/10 text-white"
-                    : "text-slate-400 hover:text-white"
+                    ? "bg-slate-200 dark:bg-white/10 text-slate-900 dark:text-white"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
                 <tab.icon className="h-5 w-5" />
@@ -474,25 +709,99 @@ export const SettingsRoute = () => {
           <div className="col-span-9 space-y-6">
             {activeTab === "general" && (
               <div className="space-y-6">
-                <h2 className="text-2xl font-semibold text-white">{t("general")}</h2>
+                <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">{t("general")}</h2>
                 
                 <div className="space-y-4">
                   <div>
                     <Label>{t("displayTimezone")}</Label>
-                    <Input
-                      value={localSettings.displayTimezone || ""}
+                    <select
+                      value={localSettings.displayTimezone || "UTC"}
                       onChange={(e) => setLocalSettings({ ...localSettings, displayTimezone: e.target.value })}
-                      placeholder={t("displayTimezonePlaceholder")}
-                    />
+                      className="h-[46px] w-full rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 text-slate-900 dark:text-white"
+                    >
+                      <option value="UTC">UTC (Coordinated Universal Time)</option>
+                      <option value="America/New_York">America/New York (EST/EDT)</option>
+                      <option value="America/Chicago">America/Chicago (CST/CDT)</option>
+                      <option value="America/Denver">America/Denver (MST/MDT)</option>
+                      <option value="America/Los_Angeles">America/Los Angeles (PST/PDT)</option>
+                      <option value="America/Phoenix">America/Phoenix (MST)</option>
+                      <option value="America/Toronto">America/Toronto (EST/EDT)</option>
+                      <option value="America/Vancouver">America/Vancouver (PST/PDT)</option>
+                      <option value="Europe/London">Europe/London (GMT/BST)</option>
+                      <option value="Europe/Paris">Europe/Paris (CET/CEST)</option>
+                      <option value="Europe/Berlin">Europe/Berlin (CET/CEST)</option>
+                      <option value="Europe/Rome">Europe/Rome (CET/CEST)</option>
+                      <option value="Europe/Madrid">Europe/Madrid (CET/CEST)</option>
+                      <option value="Europe/Amsterdam">Europe/Amsterdam (CET/CEST)</option>
+                      <option value="Europe/Brussels">Europe/Brussels (CET/CEST)</option>
+                      <option value="Europe/Vienna">Europe/Vienna (CET/CEST)</option>
+                      <option value="Europe/Stockholm">Europe/Stockholm (CET/CEST)</option>
+                      <option value="Europe/Warsaw">Europe/Warsaw (CET/CEST)</option>
+                      <option value="Europe/Athens">Europe/Athens (EET/EEST)</option>
+                      <option value="Europe/Moscow">Europe/Moscow (MSK)</option>
+                      <option value="Asia/Dubai">Asia/Dubai (GST)</option>
+                      <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
+                      <option value="Asia/Bangkok">Asia/Bangkok (ICT)</option>
+                      <option value="Asia/Singapore">Asia/Singapore (SGT)</option>
+                      <option value="Asia/Hong_Kong">Asia/Hong Kong (HKT)</option>
+                      <option value="Asia/Shanghai">Asia/Shanghai (CST)</option>
+                      <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+                      <option value="Asia/Seoul">Asia/Seoul (KST)</option>
+                      <option value="Australia/Sydney">Australia/Sydney (AEDT/AEST)</option>
+                      <option value="Australia/Melbourne">Australia/Melbourne (AEDT/AEST)</option>
+                      <option value="Australia/Brisbane">Australia/Brisbane (AEST)</option>
+                      <option value="Australia/Perth">Australia/Perth (AWST)</option>
+                      <option value="Pacific/Auckland">Pacific/Auckland (NZDT/NZST)</option>
+                      <option value="Pacific/Fiji">Pacific/Fiji (FJT)</option>
+                      <option value="Pacific/Honolulu">Pacific/Honolulu (HST)</option>
+                    </select>
+                    <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">Timezone for displaying dates and times in the UI</p>
                   </div>
 
                   <div>
                     <Label>{t("serverTimezone")}</Label>
-                    <Input
-                      value={localSettings.serverTimezone || ""}
+                    <select
+                      value={localSettings.serverTimezone || "UTC"}
                       onChange={(e) => setLocalSettings({ ...localSettings, serverTimezone: e.target.value })}
-                      placeholder={t("serverTimezonePlaceholder")}
-                    />
+                      className="h-[46px] w-full rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 text-slate-900 dark:text-white"
+                    >
+                      <option value="UTC">UTC (Coordinated Universal Time)</option>
+                      <option value="America/New_York">America/New York (EST/EDT)</option>
+                      <option value="America/Chicago">America/Chicago (CST/CDT)</option>
+                      <option value="America/Denver">America/Denver (MST/MDT)</option>
+                      <option value="America/Los_Angeles">America/Los Angeles (PST/PDT)</option>
+                      <option value="America/Phoenix">America/Phoenix (MST)</option>
+                      <option value="America/Toronto">America/Toronto (EST/EDT)</option>
+                      <option value="America/Vancouver">America/Vancouver (PST/PDT)</option>
+                      <option value="Europe/London">Europe/London (GMT/BST)</option>
+                      <option value="Europe/Paris">Europe/Paris (CET/CEST)</option>
+                      <option value="Europe/Berlin">Europe/Berlin (CET/CEST)</option>
+                      <option value="Europe/Rome">Europe/Rome (CET/CEST)</option>
+                      <option value="Europe/Madrid">Europe/Madrid (CET/CEST)</option>
+                      <option value="Europe/Amsterdam">Europe/Amsterdam (CET/CEST)</option>
+                      <option value="Europe/Brussels">Europe/Brussels (CET/CEST)</option>
+                      <option value="Europe/Vienna">Europe/Vienna (CET/CEST)</option>
+                      <option value="Europe/Stockholm">Europe/Stockholm (CET/CEST)</option>
+                      <option value="Europe/Warsaw">Europe/Warsaw (CET/CEST)</option>
+                      <option value="Europe/Athens">Europe/Athens (EET/EEST)</option>
+                      <option value="Europe/Moscow">Europe/Moscow (MSK)</option>
+                      <option value="Asia/Dubai">Asia/Dubai (GST)</option>
+                      <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
+                      <option value="Asia/Bangkok">Asia/Bangkok (ICT)</option>
+                      <option value="Asia/Singapore">Asia/Singapore (SGT)</option>
+                      <option value="Asia/Hong_Kong">Asia/Hong Kong (HKT)</option>
+                      <option value="Asia/Shanghai">Asia/Shanghai (CST)</option>
+                      <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+                      <option value="Asia/Seoul">Asia/Seoul (KST)</option>
+                      <option value="Australia/Sydney">Australia/Sydney (AEDT/AEST)</option>
+                      <option value="Australia/Melbourne">Australia/Melbourne (AEDT/AEST)</option>
+                      <option value="Australia/Brisbane">Australia/Brisbane (AEST)</option>
+                      <option value="Australia/Perth">Australia/Perth (AWST)</option>
+                      <option value="Pacific/Auckland">Pacific/Auckland (NZDT/NZST)</option>
+                      <option value="Pacific/Fiji">Pacific/Fiji (FJT)</option>
+                      <option value="Pacific/Honolulu">Pacific/Honolulu (HST)</option>
+                    </select>
+                    <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">Timezone for the server. Requires API restart to take effect.</p>
                   </div>
 
                   <div>
@@ -500,7 +809,7 @@ export const SettingsRoute = () => {
                     <select
                       value={localSettings.searchEngineVisibility || "allow"}
                       onChange={(e) => setLocalSettings({ ...localSettings, searchEngineVisibility: e.target.value as any })}
-                      className="h-[46px] w-full rounded-xl border border-white/10 bg-white/5 px-4 text-white"
+                      className="h-[46px] w-full rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 text-slate-900 dark:text-white"
                     >
                       <option value="allow">{t("allowIndexing")}</option>
                       <option value="discourage">{t("discourageIndexing")}</option>
@@ -512,7 +821,7 @@ export const SettingsRoute = () => {
                     <select
                       value={localSettings.entryPage || "dashboard"}
                       onChange={(e) => setLocalSettings({ ...localSettings, entryPage: e.target.value as any })}
-                      className="h-[46px] w-full rounded-xl border border-white/10 bg-white/5 px-4 text-white"
+                      className="h-[46px] w-full rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 text-slate-900 dark:text-white"
                     >
                       <option value="dashboard">{t("dashboard")}</option>
                       <option value="status">{t("statusPage")}</option>
@@ -526,7 +835,7 @@ export const SettingsRoute = () => {
                       onChange={(e) => setLocalSettings({ ...localSettings, primaryBaseUrl: e.target.value })}
                       placeholder={t("primaryBaseUrlPlaceholder")}
                     />
-                    <p className="mt-1 text-sm text-slate-400">{t("primaryBaseUrlDescription")}</p>
+                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t("primaryBaseUrlDescription")}</p>
                   </div>
 
                   <div>
@@ -536,7 +845,7 @@ export const SettingsRoute = () => {
                       onChange={(e) => setLocalSettings({ ...localSettings, steamApiKey: e.target.value })}
                       placeholder={t("steamApiKeyPlaceholder")}
                     />
-                    <p className="mt-1 text-sm text-slate-400">
+                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
                       {t("steamApiKeyDescription")}{" "}
                       <a
                         href="https://steamcommunity.com/dev"
@@ -551,11 +860,11 @@ export const SettingsRoute = () => {
 
                   <div>
                     <Label>{t("enableNscd")}</Label>
-                    <p className="mb-2 text-sm text-slate-400">{t("enableNscdDescription")}</p>
+                    <p className="mb-2 text-sm text-slate-600 dark:text-slate-400">{t("enableNscdDescription")}</p>
                     <select
                       value={localSettings.enableNscd ? "true" : "false"}
                       onChange={(e) => setLocalSettings({ ...localSettings, enableNscd: e.target.value === "true" })}
-                      className="h-[46px] w-full rounded-xl border border-white/10 bg-white/5 px-4 text-white"
+                      className="h-[46px] w-full rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 text-slate-900 dark:text-white"
                     >
                       <option value="true">{t("enable")}</option>
                       <option value="false">{t("disable")}</option>
@@ -569,7 +878,7 @@ export const SettingsRoute = () => {
                       onChange={(e) => setLocalSettings({ ...localSettings, chromeExecutable: e.target.value })}
                       placeholder={t("chromeExecutablePlaceholder")}
                     />
-                    <p className="mt-1 text-sm text-slate-400">{t("chromeExecutableDescription")}</p>
+                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t("chromeExecutableDescription")}</p>
                   </div>
                 </div>
               </div>
@@ -577,7 +886,7 @@ export const SettingsRoute = () => {
 
             {activeTab === "appearance" && (
               <div className="space-y-6">
-                <h2 className="text-2xl font-semibold text-white">{t("appearance")}</h2>
+                <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">{t("appearance")}</h2>
                 
                 <div className="space-y-4">
                   <div>
@@ -585,7 +894,7 @@ export const SettingsRoute = () => {
                     <select
                       value={localSettings.language || "en"}
                       onChange={(e) => setLocalSettings({ ...localSettings, language: e.target.value })}
-                      className="h-[46px] w-full rounded-xl border border-white/10 bg-white/5 px-4 text-white"
+                      className="h-[46px] w-full rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 text-slate-900 dark:text-white"
                     >
                       <option value="en">English</option>
                       <option value="es">Español</option>
@@ -600,8 +909,17 @@ export const SettingsRoute = () => {
                     <Label>{t("theme")}</Label>
                     <select
                       value={localSettings.theme || "auto"}
-                      onChange={(e) => setLocalSettings({ ...localSettings, theme: e.target.value as any })}
-                      className="h-[46px] w-full rounded-xl border border-white/10 bg-white/5 px-4 text-white"
+                      onChange={async (e) => {
+                        const newSettings = { ...localSettings, theme: e.target.value as any };
+                        setLocalSettings(newSettings);
+                        // Auto-save theme setting
+                        try {
+                          await updateGlobalSettings(newSettings);
+                        } catch (error) {
+                          console.error("Failed to save theme setting:", error);
+                        }
+                      }}
+                      className="h-[46px] w-full rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 text-slate-900 dark:text-slate-900 dark:text-white dark:bg-white/5 dark:text-slate-900 dark:text-white bg-slate-100 text-slate-900"
                     >
                       <option value="auto">{t("autoFollowSystem")}</option>
                       <option value="light">{t("light")}</option>
@@ -614,7 +932,7 @@ export const SettingsRoute = () => {
                     <select
                       value={localSettings.heartbeatBarTheme || "normal"}
                       onChange={(e) => setLocalSettings({ ...localSettings, heartbeatBarTheme: e.target.value as any })}
-                      className="h-[46px] w-full rounded-xl border border-white/10 bg-white/5 px-4 text-white"
+                      className="h-[46px] w-full rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 text-slate-900 dark:text-white"
                     >
                       <option value="normal">{t("normal")}</option>
                       <option value="bottom-up">{t("bottomUp")}</option>
@@ -627,7 +945,7 @@ export const SettingsRoute = () => {
                       id="showElapsedTime"
                       checked={localSettings.showElapsedTime || false}
                       onChange={(e) => setLocalSettings({ ...localSettings, showElapsedTime: e.target.checked })}
-                      className="h-5 w-5 rounded border-white/10 bg-white/5"
+                      className="h-5 w-5 rounded border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5"
                     />
                     <Label htmlFor="showElapsedTime" className="cursor-pointer">
                       {t("showElapsedTimeDescription")}
@@ -639,46 +957,59 @@ export const SettingsRoute = () => {
 
             {activeTab === "reverse-proxy" && (
               <div className="space-y-6">
-                <h2 className="text-2xl font-semibold text-white">{t("reverseProxy")}</h2>
+                <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">{t("reverseProxy")}</h2>
                 
                 <div className="space-y-6">
-                  <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 p-4">
-                    <h3 className="mb-2 font-semibold text-blue-400">{t("cloudflareTunnel")}</h3>
-                    <div className="mb-3 space-y-1 text-sm text-slate-300">
-                      <p>{t("cloudflared")}: {localSettings.cloudflaredInstalled ? `✓ ${t("installed")}` : `✗ ${t("notInstalled")}`}</p>
-                      <p>{t("status")}: {localSettings.cloudflaredRunning ? `✓ ${t("running")}` : `✗ ${t("notRunning")}`}</p>
-                    </div>
+                  <div className="rounded-xl border border-blue-500/30 dark:border-blue-500/20 bg-blue-500/10 p-4">
+                    <h3 className="mb-2 font-semibold text-blue-600 dark:text-blue-400">{t("cloudflareTunnel")}</h3>
+                    <p className="mb-3 text-sm text-slate-600 dark:text-slate-300">
+                      Configure Cloudflare Tunnel to securely expose your UptivaLab instance without opening ports.
+                    </p>
                     <Label>{t("cloudflareTunnelToken")}</Label>
                     <Input
+                      type="password"
                       value={localSettings.cloudflareTunnelToken || ""}
                       onChange={(e) => setLocalSettings({ ...localSettings, cloudflareTunnelToken: e.target.value })}
-                      placeholder={t("tunnelTokenPlaceholder")}
+                      placeholder="Enter your Cloudflare Tunnel token"
                     />
-                    <p className="mt-2 text-sm text-slate-400">
-                      {t("dontKnowToken")}{" "}
-                      <a
-                        href="https://github.com/louislam/uptime-kuma/wiki/Reverse-Proxy-with-Cloudflare-Tunnel"
+                    <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
+                      💡 To get a tunnel token:
+                    </p>
+                    <ol className="mt-1 ml-4 list-decimal text-xs text-slate-600 dark:text-slate-400 space-y-1">
+                      <li>Visit <a href="https://one.dash.cloudflare.com/" target="_blank" rel="noopener" className="text-blue-600 dark:text-blue-400 hover:underline">Cloudflare Zero Trust Dashboard</a></li>
+                      <li>Go to Networks → Tunnels</li>
+                      <li>Create a new tunnel or use existing one</li>
+                      <li>Copy the tunnel token and paste it above</li>
+                    </ol>
+                    <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
+                      📚 <a
+                        href="https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-400 hover:underline"
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline"
                       >
-                        {t("guide")}
+                        Official Cloudflare Tunnel Documentation
                       </a>
                     </p>
+                    <div className="mt-3 rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3">
+                      <p className="text-xs text-yellow-700 dark:text-yellow-300">
+                        ⚠️ <strong>Note:</strong> Cloudflare Tunnel must be installed and configured separately on your server. This setting only stores the token for reference.
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="rounded-xl border border-slate-500/20 bg-slate-500/10 p-4">
-                    <h3 className="mb-2 font-semibold text-white">{t("otherSoftware")}</h3>
-                    <p className="mb-3 text-sm text-slate-300">
+                  <div className="rounded-xl border border-slate-300 dark:border-slate-500/20 bg-slate-100 dark:bg-slate-500/10 p-4">
+                    <h3 className="mb-2 font-semibold text-slate-900 dark:text-white">{t("otherSoftware")}</h3>
+                    <p className="mb-3 text-sm text-slate-600 dark:text-slate-300">
                       {t("otherSoftwareExample")}
                     </p>
-                    <p className="text-sm text-slate-400">
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
                       {t("pleaseRead")}{" "}
                       <a
                         href="https://github.com/louislam/uptime-kuma/wiki/Reverse-Proxy"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-400 hover:underline"
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline"
                       >
                         https://github.com/louislam/uptime-kuma/wiki/Reverse-Proxy
                       </a>
@@ -692,7 +1023,7 @@ export const SettingsRoute = () => {
                       onChange={(e) => setLocalSettings({ ...localSettings, reverseProxyHeaders: e.target.value })}
                       placeholder={t("headerPlaceholder")}
                       rows={4}
-                      className="w-full rounded-xl border border-white/10 bg-white/5 p-4 text-white"
+                      className="w-full rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-4 text-slate-900 dark:text-white"
                     />
                   </div>
 
@@ -701,12 +1032,12 @@ export const SettingsRoute = () => {
                     <select
                       value={localSettings.trustProxy ? "yes" : "no"}
                       onChange={(e) => setLocalSettings({ ...localSettings, trustProxy: e.target.value === "yes" })}
-                      className="h-[46px] w-full rounded-xl border border-white/10 bg-white/5 px-4 text-white"
+                      className="h-[46px] w-full rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 text-slate-900 dark:text-white"
                     >
                       <option value="yes">{t("yes")}</option>
                       <option value="no">{t("no")}</option>
                     </select>
-                    <p className="mt-1 text-sm text-slate-400">
+                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
                       {t("trustProxyDescription")}
                     </p>
                   </div>
@@ -716,7 +1047,7 @@ export const SettingsRoute = () => {
 
             {activeTab === "docker-hosts" && (
               <div className="space-y-6">
-                <h2 className="text-2xl font-semibold text-white">{t("dockerHosts")}</h2>
+                <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">{t("dockerHosts")}</h2>
                 
                 {dockerHosts.length === 0 ? (
                   <div className="rounded-xl border border-slate-500/20 bg-slate-500/10 p-8 text-center">
@@ -727,37 +1058,89 @@ export const SettingsRoute = () => {
                     {dockerHosts.map((host) => (
                       <div
                         key={host.id}
-                        className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-4"
+                        className="flex items-start justify-between rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-4"
                       >
-                        <div>
-                          <p className="font-medium text-white">{host.name}</p>
-                          <p className="text-sm text-slate-400">{host.url}</p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-medium text-slate-900 dark:text-white">{host.name}</p>
+                            {dockerHostStatus[host.id]?.success && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
+                                <CheckCircle className="w-3 h-3" />
+                                Connected
+                              </span>
+                            )}
+                            {dockerHostStatus[host.id]?.success === false && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">
+                                <XCircle className="w-3 h-3" />
+                                Failed
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-slate-600 dark:text-slate-400 break-all">{host.url}</p>
+                          {dockerHostStatus[host.id]?.version && (
+                            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                              Docker {dockerHostStatus[host.id].version}
+                            </p>
+                          )}
+                          {dockerHostStatus[host.id]?.error && (
+                            <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                              Error: {dockerHostStatus[host.id].error}
+                            </p>
+                          )}
                         </div>
-                        <Button
-                          variant="ghost"
-                          onClick={() => deleteDockerHost(host.id)}
-                          className="text-red-400 hover:text-red-300"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-2 ml-4 shrink-0">
+                          <Button
+                            variant="ghost"
+                            onClick={() => testDockerHost(host.id)}
+                            disabled={testingDockerHost === host.id}
+                            className="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 disabled:opacity-50 gap-2"
+                          >
+                            {testingDockerHost === host.id ? (
+                              <>
+                                <RefreshCw className="h-4 w-4 animate-spin" />
+                                Testing...
+                              </>
+                            ) : (
+                              <>
+                                <Network className="h-4 w-4" />
+                                Test
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            onClick={() => deleteDockerHost(host.id)}
+                            className="text-red-400 hover:text-red-300"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
                 )}
 
-                <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                  <h3 className="mb-4 font-semibold text-white">{t("addDockerHost")}</h3>
+                <div className="rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-4">
+                  <h3 className="mb-4 font-semibold text-slate-900 dark:text-white">{t("addDockerHost")}</h3>
                   <div className="space-y-3">
                     <Input
                       placeholder={t("namePlaceholder")}
                       value={newDockerHost.name}
                       onChange={(e) => setNewDockerHost({ ...newDockerHost, name: e.target.value })}
                     />
-                    <Input
-                      placeholder={t("dockerSocketUrl")}
-                      value={newDockerHost.url}
-                      onChange={(e) => setNewDockerHost({ ...newDockerHost, url: e.target.value })}
-                    />
+                    <div>
+                      <Input
+                        placeholder={t("dockerSocketUrl")}
+                        value={newDockerHost.url}
+                        onChange={(e) => setNewDockerHost({ ...newDockerHost, url: e.target.value })}
+                      />
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
+                        Examples: http://localhost:2375, tcp://192.168.1.10:2375, unix:///var/run/docker.sock
+                      </p>
+                      <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+                        Note: Docker daemon must expose TCP port (edit /etc/docker/daemon.json)
+                      </p>
+                    </div>
                     <Button onClick={addDockerHost} className="gap-2">
                       <Plus className="h-4 w-4" />
                       {t("addDockerHost")}
@@ -769,7 +1152,7 @@ export const SettingsRoute = () => {
 
             {activeTab === "remote-browsers" && (
               <div className="space-y-6">
-                <h2 className="text-2xl font-semibold text-white">{t("remoteBrowsers")}</h2>
+                <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">{t("remoteBrowsers")}</h2>
                 
                 {remoteBrowsers.length === 0 ? (
                   <div className="rounded-xl border border-slate-500/20 bg-slate-500/10 p-8 text-center">
@@ -780,11 +1163,11 @@ export const SettingsRoute = () => {
                     {remoteBrowsers.map((browser) => (
                       <div
                         key={browser.id}
-                        className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-4"
+                        className="flex items-center justify-between rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-4"
                       >
                         <div>
-                          <p className="font-medium text-white">{browser.name}</p>
-                          <p className="text-sm text-slate-400">{browser.url}</p>
+                          <p className="font-medium text-slate-900 dark:text-white">{browser.name}</p>
+                          <p className="text-sm text-slate-600 dark:text-slate-400">{browser.url}</p>
                         </div>
                         <Button
                           variant="ghost"
@@ -798,8 +1181,8 @@ export const SettingsRoute = () => {
                   </div>
                 )}
 
-                <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                  <h3 className="mb-4 font-semibold text-white">{t("addRemoteBrowser")}</h3>
+                <div className="rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-4">
+                  <h3 className="mb-4 font-semibold text-slate-900 dark:text-white">{t("addRemoteBrowser")}</h3>
                   <div className="space-y-3">
                     <Input
                       placeholder={t("namePlaceholder")}
@@ -822,10 +1205,10 @@ export const SettingsRoute = () => {
 
             {activeTab === "security" && (
               <div className="space-y-6">
-                <h2 className="text-2xl font-semibold text-white">{t("security")}</h2>
+                <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">{t("security")}</h2>
                 
-                <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                  <h3 className="mb-4 font-semibold text-white">{t("changePassword")}</h3>
+                <div className="rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-4">
+                  <h3 className="mb-4 font-semibold text-slate-900 dark:text-white">{t("changePassword")}</h3>
                   <div className="space-y-3">
                     <div className="relative">
                       <Label>{t("currentPassword")}</Label>
@@ -858,7 +1241,7 @@ export const SettingsRoute = () => {
                       <button
                         type="button"
                         onClick={() => setShowPasswords(!showPasswords)}
-                        className="flex items-center gap-2 text-sm text-slate-400 hover:text-white"
+                        className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-white"
                       >
                         {showPasswords ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         {showPasswords ? t("hidePasswords") : t("showPasswords")}
@@ -871,37 +1254,37 @@ export const SettingsRoute = () => {
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 p-4">
-                  <h3 className="mb-2 font-semibold text-blue-400">{t("twoFactorAuth")}</h3>
-                  <p className="text-sm text-slate-400">{t("comingSoon")}</p>
+                <div className="rounded-xl border border-blue-500/30 dark:border-blue-500/20 bg-blue-500/10 p-4">
+                  <h3 className="mb-2 font-semibold text-blue-600 dark:text-blue-400">{t("twoFactorAuth")}</h3>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">{t("comingSoon")}</p>
                 </div>
 
-                <div className="rounded-xl border border-slate-500/20 bg-slate-500/10 p-4">
-                  <h3 className="mb-2 font-semibold text-white">{t("advanced")}</h3>
-                  <p className="text-sm text-slate-400">{t("additionalSecurity")}</p>
+                <div className="rounded-xl border border-slate-300 dark:border-slate-500/20 bg-slate-100 dark:bg-slate-500/10 p-4">
+                  <h3 className="mb-2 font-semibold text-slate-900 dark:text-white">{t("advanced")}</h3>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">{t("additionalSecurity")}</p>
                 </div>
               </div>
             )}
 
             {activeTab === "api-keys" && (
               <div className="space-y-6">
-                <h2 className="text-2xl font-semibold text-white">{t("apiKeys")}</h2>
+                <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">{t("apiKeys")}</h2>
                 
                 <div className="space-y-2">
                   {apiKeys.map((key) => (
                     <div
                       key={key.id}
-                      className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-4"
+                      className="flex items-center justify-between rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-4"
                     >
                       <div className="flex-1">
-                        <p className="font-medium text-white">{key.label}</p>
-                        <div className="mt-1 flex items-center gap-2 text-sm text-slate-400">
+                        <p className="font-medium text-slate-900 dark:text-white">{key.label}</p>
+                        <div className="mt-1 flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
                           {key.token ? (
                             <>
                               <code className="rounded bg-black/30 px-2 py-1 font-mono">{key.token}</code>
                               <button
                                 onClick={() => copyToClipboard(key.token!)}
-                                className="text-blue-400 hover:text-blue-300"
+                                className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
                               >
                                 {copiedKey === key.token ? (
                                   <Check className="h-4 w-4" />
@@ -909,7 +1292,7 @@ export const SettingsRoute = () => {
                                   <Copy className="h-4 w-4" />
                                 )}
                               </button>
-                              <span className="text-xs text-yellow-400">
+                              <span className="text-xs text-yellow-600 dark:text-yellow-400">
                                 {t("wontBeShownAgain")}
                               </span>
                             </>
@@ -934,8 +1317,8 @@ export const SettingsRoute = () => {
                   ))}
                 </div>
 
-                <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                  <h3 className="mb-4 font-semibold text-white">{t("generateNewApiKey")}</h3>
+                <div className="rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-4">
+                  <h3 className="mb-4 font-semibold text-slate-900 dark:text-white">{t("generateNewApiKey")}</h3>
                   <div className="flex gap-2">
                     <Input
                       placeholder={t("keyLabelPlaceholder")}
@@ -953,7 +1336,7 @@ export const SettingsRoute = () => {
 
             {activeTab === "proxies" && (
               <div className="space-y-6">
-                <h2 className="text-2xl font-semibold text-white">{t("proxies")}</h2>
+                <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">{t("proxies")}</h2>
                 
                 {proxies.length === 0 ? (
                   <div className="rounded-xl border border-slate-500/20 bg-slate-500/10 p-8 text-center">
@@ -964,11 +1347,11 @@ export const SettingsRoute = () => {
                     {proxies.map((proxy) => (
                       <div
                         key={proxy.id}
-                        className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-4"
+                        className="flex items-center justify-between rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-4"
                       >
                         <div>
-                          <p className="font-medium text-white">{proxy.name}</p>
-                          <p className="text-sm text-slate-400">
+                          <p className="font-medium text-slate-900 dark:text-white">{proxy.name}</p>
+                          <p className="text-sm text-slate-600 dark:text-slate-400">
                             {proxy.protocol}://{proxy.host}:{proxy.port}
                             {proxy.auth?.username && ` (${t("authenticated")})`}
                           </p>
@@ -985,8 +1368,8 @@ export const SettingsRoute = () => {
                   </div>
                 )}
 
-                <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                  <h3 className="mb-4 font-semibold text-white">Add Proxy</h3>
+                <div className="rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-4">
+                  <h3 className="mb-4 font-semibold text-slate-900 dark:text-white">Add Proxy</h3>
                   <div className="space-y-3">
                     <Input
                       placeholder="Name"
@@ -999,7 +1382,7 @@ export const SettingsRoute = () => {
                         <select
                           value={newProxy.protocol}
                           onChange={(e) => setNewProxy({ ...newProxy, protocol: e.target.value })}
-                          className="h-[46px] w-full rounded-xl border border-white/10 bg-white/5 px-4 text-white"
+                          className="h-[46px] w-full rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 text-slate-900 dark:text-white"
                         >
                           <option value="http">HTTP</option>
                           <option value="https">HTTPS</option>
@@ -1022,8 +1405,8 @@ export const SettingsRoute = () => {
                       value={newProxy.host}
                       onChange={(e) => setNewProxy({ ...newProxy, host: e.target.value })}
                     />
-                    <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                      <p className="mb-2 text-sm font-medium text-white">{t("authenticationOptional")}</p>
+                    <div className="rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-3">
+                      <p className="mb-2 text-sm font-medium text-slate-900 dark:text-white">{t("authenticationOptional")}</p>
                       <div className="space-y-2">
                         <Input
                           placeholder={t("usernamePlaceholder")}
@@ -1057,38 +1440,213 @@ export const SettingsRoute = () => {
               </div>
             )}
 
+            {activeTab === "users" && (
+              <div className="space-y-6">
+                <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">User Management</h2>
+                
+                {/* Users List */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Users</h3>
+                  {users.length === 0 ? (
+                    <div className="rounded-xl border border-slate-500/20 bg-slate-500/10 p-8 text-center">
+                      <p className="text-slate-400">No users found</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {users.map((user) => (
+                        <div
+                          key={user.id}
+                          className="flex items-center justify-between rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-4"
+                        >
+                          <div className="flex-1">
+                            <p className="font-medium text-slate-900 dark:text-white">{user.email}</p>
+                            <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
+                              <span>Created: {new Date(user.createdAt).toLocaleDateString()}</span>
+                              {user._count && <span>• {user._count.apiKeys} API key{user._count.apiKeys !== 1 ? 's' : ''}</span>}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={user.role}
+                              onChange={(e) => updateUserRole(user.id, e.target.value as "ADMIN" | "VIEWER")}
+                              className="rounded-lg border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-1.5 text-sm text-slate-900 dark:text-white"
+                            >
+                              <option value="ADMIN">Admin</option>
+                              <option value="VIEWER">Viewer</option>
+                            </select>
+                            <Button
+                              variant="ghost"
+                              onClick={() => deleteUser(user.id)}
+                              className="text-red-400 hover:text-red-300"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Create User Form */}
+                <div className="rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-4">
+                  <h3 className="mb-4 font-semibold text-slate-900 dark:text-white">Create New User</h3>
+                  <div className="space-y-3">
+                    <Input
+                      type="email"
+                      placeholder="Email"
+                      value={newUser.email}
+                      onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                    />
+                    <Input
+                      type="password"
+                      placeholder="Password (min 8 characters)"
+                      value={newUser.password}
+                      onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                    />
+                    <div>
+                      <Label>Role</Label>
+                      <select
+                        value={newUser.role}
+                        onChange={(e) => setNewUser({ ...newUser, role: e.target.value as "ADMIN" | "VIEWER" })}
+                        className="h-[46px] w-full rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 text-slate-900 dark:text-white"
+                      >
+                        <option value="VIEWER">Viewer</option>
+                        <option value="ADMIN">Admin</option>
+                      </select>
+                    </div>
+                    <Button onClick={createUser} className="gap-2">
+                      <UserPlus className="h-4 w-4" />
+                      Create User
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Invitations Section */}
+                <div className="space-y-4 border-t border-slate-300 dark:border-white/10 pt-6">
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Pending Invitations</h3>
+                  {invitations.length === 0 ? (
+                    <div className="rounded-xl border border-slate-500/20 bg-slate-500/10 p-8 text-center">
+                      <p className="text-slate-400">No pending invitations</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {invitations.map((invitation) => (
+                        <div
+                          key={invitation.id}
+                          className="flex items-center justify-between rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-4"
+                        >
+                          <div className="flex-1">
+                            <p className="font-medium text-slate-900 dark:text-white">{invitation.email}</p>
+                            <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
+                              <span>Role: {invitation.role}</span>
+                              <span>• Expires: {new Date(invitation.expiresAt).toLocaleDateString()}</span>
+                              {invitation.createdBy && <span>• By: {invitation.createdBy.email}</span>}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              onClick={() => copyInviteLink(invitation.token, invitation.id)}
+                              className={copiedInviteLink === invitation.id ? "text-green-400" : ""}
+                            >
+                              {copiedInviteLink === invitation.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              onClick={() => deleteInvitation(invitation.id)}
+                              className="text-red-400 hover:text-red-300"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Create Invitation Form */}
+                <div className="rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-4">
+                  <h3 className="mb-4 font-semibold text-slate-900 dark:text-white">Send Email Invitation</h3>
+                  <div className="space-y-3">
+                    <Input
+                      type="email"
+                      placeholder="Email address"
+                      value={newInvitation.email}
+                      onChange={(e) => setNewInvitation({ ...newInvitation, email: e.target.value })}
+                    />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label>Role</Label>
+                        <select
+                          value={newInvitation.role}
+                          onChange={(e) => setNewInvitation({ ...newInvitation, role: e.target.value as "ADMIN" | "VIEWER" })}
+                          className="h-[46px] w-full rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 text-slate-900 dark:text-white"
+                        >
+                          <option value="VIEWER">Viewer</option>
+                          <option value="ADMIN">Admin</option>
+                        </select>
+                      </div>
+                      <div>
+                        <Label>Expires In</Label>
+                        <select
+                          value={newInvitation.expiresInDays}
+                          onChange={(e) => setNewInvitation({ ...newInvitation, expiresInDays: parseInt(e.target.value) })}
+                          className="h-[46px] w-full rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 text-slate-900 dark:text-white"
+                        >
+                          <option value="1">1 day</option>
+                          <option value="3">3 days</option>
+                          <option value="7">7 days</option>
+                          <option value="14">14 days</option>
+                          <option value="30">30 days</option>
+                        </select>
+                      </div>
+                    </div>
+                    <Button onClick={createInvitation} className="gap-2">
+                      <Mail className="h-4 w-4" />
+                      Create Invitation
+                    </Button>
+                    <p className="text-xs text-slate-600 dark:text-slate-400">
+                      An invitation link will be generated and copied to your clipboard
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {activeTab === "about" && (
               <div className="space-y-6">
-                <h2 className="text-2xl font-semibold text-white">{t("about")}</h2>
+                <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">{t("about")}</h2>
                 
-                <div className="space-y-4 rounded-xl border border-white/10 bg-white/5 p-6">
+                <div className="space-y-4 rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-6">
                   <div className="flex items-center justify-between">
                     <span className="text-slate-400">{t("version")}:</span>
-                    <span className="font-mono text-white">2.0.2</span>
+                    <span className="font-mono text-slate-900 dark:text-white">2.0.2</span>
                   </div>
                   {versionInfo && (
                     <>
                       <div className="flex items-center justify-between">
                         <span className="text-slate-400">{t("latestVersion")}:</span>
-                        <span className="font-mono text-white">{versionInfo.latest}</span>
+                        <span className="font-mono text-slate-900 dark:text-white">{versionInfo.latest}</span>
                       </div>
                       {versionInfo.updateAvailable && (
-                        <div className="rounded-lg border border-green-500/20 bg-green-500/10 p-3">
-                          <p className="text-sm font-medium text-green-400">
+                        <div className="rounded-lg border border-green-500/30 dark:border-green-500/20 bg-green-500/10 p-3">
+                          <p className="text-sm font-medium text-green-600 dark:text-green-400">
                             {t("updateAvailable")} - v{versionInfo.latest}
                           </p>
                         </div>
                       )}
                       {!versionInfo.updateAvailable && (
-                        <div className="rounded-lg border border-blue-500/20 bg-blue-500/10 p-3">
-                          <p className="text-sm font-medium text-blue-400">
+                        <div className="rounded-lg border border-blue-500/30 dark:border-blue-500/20 bg-blue-500/10 p-3">
+                          <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
                             {t("upToDate")}
                           </p>
                         </div>
                       )}
                       {versionInfo.betaAvailable && versionInfo.latestBeta && (
-                        <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-3">
-                          <p className="text-sm font-medium text-yellow-400">
+                        <div className="rounded-lg border border-yellow-500/30 dark:border-yellow-500/20 bg-yellow-500/10 p-3">
+                          <p className="text-sm font-medium text-yellow-600 dark:text-yellow-400">
                             Beta {t("updateAvailable")}: v{versionInfo.latestBeta}
                           </p>
                         </div>
@@ -1110,8 +1668,17 @@ export const SettingsRoute = () => {
                       type="checkbox"
                       id="checkUpdates"
                       checked={localSettings.checkUpdates || false}
-                      onChange={(e) => setLocalSettings({ ...localSettings, checkUpdates: e.target.checked })}
-                      className="h-5 w-5 rounded border-white/10 bg-white/5"
+                      onChange={async (e) => {
+                        const newSettings = { ...localSettings, checkUpdates: e.target.checked };
+                        setLocalSettings(newSettings);
+                        // Auto-save this setting
+                        try {
+                          await updateGlobalSettings(newSettings);
+                        } catch (error) {
+                          console.error("Failed to save checkUpdates setting:", error);
+                        }
+                      }}
+                      className="h-5 w-5 rounded border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5"
                     />
                     <Label htmlFor="checkUpdates" className="cursor-pointer text-sm">
                       {t("showUpdateIfAvailable")}
@@ -1122,8 +1689,17 @@ export const SettingsRoute = () => {
                       type="checkbox"
                       id="checkBeta"
                       checked={localSettings.checkBetaReleases || false}
-                      onChange={(e) => setLocalSettings({ ...localSettings, checkBetaReleases: e.target.checked })}
-                      className="h-5 w-5 rounded border-white/10 bg-white/5"
+                      onChange={async (e) => {
+                        const newSettings = { ...localSettings, checkBetaReleases: e.target.checked };
+                        setLocalSettings(newSettings);
+                        // Auto-save this setting
+                        try {
+                          await updateGlobalSettings(newSettings);
+                        } catch (error) {
+                          console.error("Failed to save checkBetaReleases setting:", error);
+                        }
+                      }}
+                      className="h-5 w-5 rounded border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5"
                     />
                     <Label htmlFor="checkBeta" className="cursor-pointer text-sm">
                       {t("alsoCheckBetaRelease")}
@@ -1131,9 +1707,9 @@ export const SettingsRoute = () => {
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 p-6 text-center">
-                  <h3 className="mb-2 text-lg font-semibold text-white">UptivaLab</h3>
-                  <p className="text-sm text-slate-300">
+                <div className="rounded-xl border border-blue-500/30 dark:border-blue-500/20 bg-blue-500/10 p-6 text-center">
+                  <h3 className="mb-2 text-lg font-semibold text-slate-900 dark:text-white">UptivaLab</h3>
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
                     {t("comprehensiveMonitoring")}
                   </p>
                   <p className="mt-4 text-xs text-slate-400">
@@ -1145,16 +1721,16 @@ export const SettingsRoute = () => {
 
             {activeTab === "notifications" && (
               <div className="space-y-6">
-                <h2 className="text-2xl font-semibold text-white">{t("notifications")}</h2>
-                <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 p-6">
-                  <p className="text-slate-300">
+                <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">{t("notifications")}</h2>
+                <div className="rounded-xl border border-blue-500/30 dark:border-blue-500/20 bg-blue-500/10 p-6">
+                  <p className="text-slate-600 dark:text-slate-300">
                     Notification channels are configured in the{" "}
-                    <a href="/notifications" className="text-blue-400 hover:underline">
+                    <a href="/notifications" className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline">
                       Notifications
                     </a>{" "}
                     page.
                   </p>
-                  <p className="mt-2 text-sm text-slate-400">
+                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
                     Global notification settings coming soon...
                   </p>
                 </div>

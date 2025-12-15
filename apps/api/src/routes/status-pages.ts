@@ -10,7 +10,7 @@ const baseSchema = z.object({
   heroMessage: z.string().max(280).optional(),
   customDomain: z.string().url().optional(),
   monitorIds: z.array(z.string()).default([]),
-  theme: z.record(z.any()).optional(),
+  theme: z.union([z.string(), z.record(z.any())]).optional(),
   password: z.string().min(8).optional(),
   showIncidents: z.boolean().default(true),
   showMaintenance: z.boolean().default(true),
@@ -178,6 +178,15 @@ const publicStatusPagePlugin = async (fastify: FastifyInstance) => {
       // Get last 90 checks for uptime graph
       const last90 = checks.slice(0, 90).reverse();
       
+      // Extract certificate metadata from latest check
+      const latestCheck = checks[0];
+      const payload = latestCheck?.payload as any;
+      // Certificate data is directly in payload, not payload.meta
+      const certificateMeta = monitor.kind === 'certificate' && payload ? {
+        certificateExpiresAt: payload.certificateExpiresAt,
+        certificateDaysLeft: payload.certificateDaysLeft,
+      } : null;
+      
       return {
         id: monitor.id,
         name: monitor.name,
@@ -187,6 +196,7 @@ const publicStatusPagePlugin = async (fastify: FastifyInstance) => {
         lastCheck: checks[0]?.checkedAt || null,
         responseTime: checks[0]?.responseTime || null,
         incidents: monitor.incidents,
+        meta: certificateMeta || null,
         uptimeData: last90.map((c: any) => ({
           timestamp: c.checkedAt,
           status: c.status,

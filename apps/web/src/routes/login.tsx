@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { useAuth } from "../providers/auth-context.js";
 import { Button } from "../components/ui/button.js";
 import { useTranslation } from "../hooks/use-translation.js";
@@ -37,8 +37,8 @@ const AuthForm = ({ mode }: { mode: "login" | "register" }) => {
       <div className="glass-panel w-full max-w-md space-y-6 rounded-3xl p-8">
         <div>
           <p className="text-xs uppercase tracking-[0.35em] text-slate-400">{t("uptivalab")}</p>
-          <h1 className="text-3xl font-semibold text-white">{mode === "login" ? t("welcomeBack") : t("createAccount")}</h1>
-          <p className="text-sm text-slate-400">
+          <h1 className="text-3xl font-semibold text-slate-900 dark:text-white">{mode === "login" ? t("welcomeBack") : t("createAccount")}</h1>
+          <p className="text-sm text-slate-600 dark:text-slate-400">
             {mode === "login" ? t("useEmailPassword") : t("provisionCredentials")}
           </p>
         </div>
@@ -46,7 +46,7 @@ const AuthForm = ({ mode }: { mode: "login" | "register" }) => {
           <div className="space-y-2">
             <label className="text-xs uppercase tracking-[0.4em] text-slate-400">{t("email")}</label>
             <input
-              className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+              className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
               type="email"
               value={form.email}
               onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
@@ -56,7 +56,7 @@ const AuthForm = ({ mode }: { mode: "login" | "register" }) => {
           <div className="space-y-2">
             <label className="text-xs uppercase tracking-[0.4em] text-slate-400">{t("password")}</label>
             <input
-              className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+              className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
               type="password"
               value={form.password}
               onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
@@ -68,21 +68,14 @@ const AuthForm = ({ mode }: { mode: "login" | "register" }) => {
             {loading ? t("working") : mode === "login" ? t("signIn") : t("register")}
           </Button>
         </form>
-        <p className="text-center text-sm text-slate-400">
-          {mode === "login" ? (
-            <>
-              {t("needAccount")} <Link className="text-primary" to="/register">{t("register")}</Link>
-            </>
-          ) : (
-            <>
-              {t("alreadyOnboard")} <Link className="text-primary" to="/login">{t("signIn")}</Link>
-            </>
-          )}
-        </p>
+        {mode === "login" && (
+          <p className="text-center text-sm text-slate-600 dark:text-slate-400">
+            Need an account? Contact your administrator.
+          </p>
+        )}
       </div>
     </div>
   );
 };
 
 export const LoginRoute = () => <AuthForm mode="login" />;
-export const RegisterRoute = () => <AuthForm mode="register" />;

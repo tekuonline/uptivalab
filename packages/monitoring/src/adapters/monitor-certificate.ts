@@ -5,8 +5,15 @@ const toConfig = (config: Record<string, unknown>): CertificateConfig => {
   if (typeof config.host !== "string") {
     throw new Error("Certificate monitor requires host");
   }
+  
+  // Strip http:// or https:// protocol from host
+  let cleanHost = config.host;
+  cleanHost = cleanHost.replace(/^https?:\/\//, '');
+  // Remove any trailing slashes or paths
+  cleanHost = cleanHost.split('/')[0];
+  
   return {
-    host: config.host,
+    host: cleanHost,
     port: typeof config.port === "number" ? config.port : 443,
     warningDays: typeof config.warningDays === "number" ? config.warningDays : 7,
   };
@@ -35,7 +42,7 @@ export const certificateAdapter: MonitorAdapter = {
           const status = !expiresAt || daysLeft === undefined || daysLeft > 0 ? "up" : "down";
           const warning = config.warningDays ?? 7;
           const message = expiresAt
-            ? `Certificate expires in ${daysLeft} day(s)`
+            ? `Certificate expires in ${daysLeft} day(s) (${expiresAt.toLocaleDateString()})`
             : "Certificate info unavailable";
 
           resolve({
@@ -45,6 +52,7 @@ export const certificateAdapter: MonitorAdapter = {
             checkedAt: new Date().toISOString(),
             meta: {
               certificateExpiresAt: expiresAt?.toISOString(),
+              certificateDaysLeft: daysLeft,
               dockerAvailableUpdates: undefined,
             },
           });

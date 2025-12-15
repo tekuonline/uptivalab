@@ -10,10 +10,16 @@ import maintenanceRoutes from "./maintenance.js";
 import statusPagesRoutes from "./status-pages.js";
 import settingsRoutes from "./settings.js";
 import robotsRoutes from "./robots.js";
+// Dynamic imports for users and invitations to avoid bundling issues
+// import usersRoutes from "./users.js";
+// import invitationsRoutes from "./invitations.js";
 
 const registerRoutesPlugin = async (fastify: FastifyInstance) => {
+  // Register auth and robots routes
   await fastify.register(authRoutes);
   await fastify.register(robotsRoutes);
+  
+  // Register monitoring and status routes
   await fastify.register(monitorsRoutes);
   await fastify.register(statusRoutes);
   await fastify.register(heartbeatRoutes);
@@ -22,6 +28,23 @@ const registerRoutesPlugin = async (fastify: FastifyInstance) => {
   await fastify.register(maintenanceRoutes);
   await fastify.register(statusPagesRoutes);
   await fastify.register(settingsRoutes);
+  
+  // Register user management routes dynamically
+  try {
+    const { default: usersRoutes } = await import("./users.js");
+    await fastify.register(usersRoutes);
+    console.log("✓ Users routes loaded successfully");
+  } catch (error) {
+    console.error("✗ Failed to load users routes:", error);
+  }
+  
+  try {
+    const { default: invitationsRoutes } = await import("./invitations.js");
+    await fastify.register(invitationsRoutes);
+    console.log("✓ Invitations routes loaded successfully");
+  } catch (error) {
+    console.error("✗ Failed to load invitations routes:", error);
+  }
 };
 
 export const registerRoutes = fp(registerRoutesPlugin);

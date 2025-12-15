@@ -1,0 +1,1855 @@
+openapi: 3.0.3
+info:
+  title: UptivaLab API
+  description: |
+    Comprehensive uptime monitoring and status page platform API.
+    
+    ## Authentication
+    Most endpoints require JWT authentication. Include the token in the Authorization header:
+    ```
+    Authorization: Bearer <your-jwt-token>
+    ```
+    
+    ## Features
+    - HTTP/HTTPS monitoring
+    - TCP port monitoring
+    - Ping monitoring
+    - DNS monitoring
+    - Certificate expiry tracking
+    - Synthetic browser testing
+    - Docker container monitoring
+    - gRPC service monitoring
+    - Push-based heartbeat monitoring
+    - Incident management
+    - Maintenance windows
+    - Public status pages
+    - Multi-channel notifications
+    
+  version: 1.0.0
+  contact:
+    name: UptivaLab Support
+    url: https://github.com/tekuonline/uptivaLab
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080/api
+    description: Development server
+  - url: https://api.uptivalab.com/api
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User authentication and registration
+  - name: Users
+    description: User management (admin only)
+  - name: Invitations
+    description: User invitation system
+  - name: Monitors
+    description: Monitor management and configuration
+  - name: Status
+    description: Monitor status and health information
+  - name: Heartbeats
+    description: Push-based heartbeat monitoring
+  - name: Incidents
+    description: Incident tracking and management
+  - name: Maintenance
+    description: Scheduled maintenance windows
+  - name: Notifications
+    description: Notification channel configuration
+  - name: Status Pages
+    description: Public status page management
+  - name: Settings
+    description: Application settings and configuration
+
+security:
+  - bearerAuth: []
+
+paths:
+  # Authentication
+  /auth/register:
+    post:
+      tags: [Authentication]
+      summary: Register new user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: user@example.com
+                password:
+                  type: string
+                  format: password
+                  minLength: 8
+                  example: SecurePass123!
+      responses:
+        '200':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: JWT authentication token
+                  user:
+                    $ref: '#/components/schemas/User'
+        '409':
+          description: User already exists
+        '400':
+          description: Invalid request data
+
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: Login user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Invalid credentials
+
+  /auth/me:
+    get:
+      tags: [Authentication]
+      summary: Get current user
+      responses:
+        '200':
+          description: Current user information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Users
+  /users:
+    get:
+      tags: [Users]
+      summary: List all users (admin only)
+      responses:
+        '200':
+          description: List of users with API key counts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    email:
+                      type: string
+                      format: email
+                    role:
+                      type: string
+                      enum: [ADMIN, VIEWER]
+                    apiKeyCount:
+                      type: number
+                    createdAt:
+                      type: string
+                      format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Forbidden - Admin access required
+
+    post:
+      tags: [Users]
+      summary: Create new user (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, role]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: newuser@example.com
+                password:
+                  type: string
+                  format: password
+                  minLength: 8
+                  example: SecurePass123!
+                role:
+                  type: string
+                  enum: [ADMIN, VIEWER]
+                  default: VIEWER
+      responses:
+        '200':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  email:
+                    type: string
+                  role:
+                    type: string
+        '400':
+          description: Invalid input or email already exists
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Forbidden - Admin access required
+
+  /users/{id}:
+    delete:
+      tags: [Users]
+      summary: Delete user (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          description: Cannot delete yourself or last admin
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Forbidden - Admin access required
+        '404':
+          description: User not found
+
+  /users/{id}/role:
+    put:
+      tags: [Users]
+      summary: Update user role (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role:
+                  type: string
+                  enum: [ADMIN, VIEWER]
+      responses:
+        '200':
+          description: Role updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  email:
+                    type: string
+                  role:
+                    type: string
+        '400':
+          description: Cannot change role of last admin
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Forbidden - Admin access required
+        '404':
+          description: User not found
+
+  # Invitations
+  /invitations:
+    get:
+      tags: [Invitations]
+      summary: List pending invitations (admin only)
+      responses:
+        '200':
+          description: List of pending invitations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    email:
+                      type: string
+                      format: email
+                    role:
+                      type: string
+                      enum: [ADMIN, VIEWER]
+                    expiresAt:
+                      type: string
+                      format: date-time
+                    createdAt:
+                      type: string
+                      format: date-time
+                    createdBy:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        email:
+                          type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Forbidden - Admin access required
+
+    post:
+      tags: [Invitations]
+      summary: Create invitation (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, role]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: invite@example.com
+                role:
+                  type: string
+                  enum: [ADMIN, VIEWER]
+                  default: VIEWER
+                expiresInDays:
+                  type: number
+                  minimum: 1
+                  maximum: 30
+                  default: 7
+                  description: Number of days until invitation expires
+      responses:
+        '200':
+          description: Invitation created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  email:
+                    type: string
+                  token:
+                    type: string
+                    description: Unique invitation token
+                  expiresAt:
+                    type: string
+                    format: date-time
+        '400':
+          description: User already exists or pending invitation exists
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Forbidden - Admin access required
+
+  /invitations/{id}:
+    delete:
+      tags: [Invitations]
+      summary: Delete invitation (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Invitation deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Forbidden - Admin access required
+        '404':
+          description: Invitation not found
+
+  /invitations/verify/{token}:
+    get:
+      tags: [Invitations]
+      summary: Verify invitation token
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Valid invitation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  email:
+                    type: string
+                  role:
+                    type: string
+                  expiresAt:
+                    type: string
+                    format: date-time
+        '400':
+          description: Invalid or expired invitation
+        '404':
+          description: Invitation not found
+
+  /invitations/accept:
+    post:
+      tags: [Invitations]
+      summary: Accept invitation and create account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token:
+                  type: string
+                  description: Invitation token
+                password:
+                  type: string
+                  format: password
+                  minLength: 8
+                  example: SecurePass123!
+      responses:
+        '200':
+          description: Account created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: JWT authentication token
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      email:
+                        type: string
+                      role:
+                        type: string
+        '400':
+          description: Invalid or expired invitation, or user already exists
+        '404':
+          description: Invitation not found
+
+  # Monitors
+  /monitors:
+    get:
+      tags: [Monitors]
+      summary: List all monitors with latest status
+      responses:
+        '200':
+          description: List of monitors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MonitorWithStatus'
+
+    post:
+      tags: [Monitors]
+      summary: Create new monitor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MonitorInput'
+      responses:
+        '200':
+          description: Monitor created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Monitor'
+
+  /monitors/list:
+    get:
+      tags: [Monitors]
+      summary: List monitors (simple list without status)
+      responses:
+        '200':
+          description: Simple list of monitors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Monitor'
+
+  /monitors/{id}:
+    get:
+      tags: [Monitors]
+      summary: Get monitor by ID
+      parameters:
+        - $ref: '#/components/parameters/MonitorId'
+      responses:
+        '200':
+          description: Monitor details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonitorWithStatus'
+        '404':
+          description: Monitor not found
+
+    put:
+      tags: [Monitors]
+      summary: Update monitor
+      parameters:
+        - $ref: '#/components/parameters/MonitorId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MonitorInput'
+      responses:
+        '200':
+          description: Monitor updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Monitor'
+
+    delete:
+      tags: [Monitors]
+      summary: Delete monitor
+      parameters:
+        - $ref: '#/components/parameters/MonitorId'
+      responses:
+        '200':
+          description: Monitor deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+
+  /monitors/{id}/history:
+    get:
+      tags: [Monitors]
+      summary: Get monitor check history
+      parameters:
+        - $ref: '#/components/parameters/MonitorId'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+      responses:
+        '200':
+          description: Monitor history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CheckResult'
+
+  /monitors/{id}/uptime:
+    get:
+      tags: [Monitors]
+      summary: Get monitor uptime statistics
+      parameters:
+        - $ref: '#/components/parameters/MonitorId'
+      responses:
+        '200':
+          description: Uptime statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UptimeStats'
+
+  /monitors/{id}/pause:
+    post:
+      tags: [Monitors]
+      summary: Pause monitor
+      parameters:
+        - $ref: '#/components/parameters/MonitorId'
+      responses:
+        '200':
+          description: Monitor paused
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Monitor'
+
+  /monitors/{id}/resume:
+    post:
+      tags: [Monitors]
+      summary: Resume monitor
+      parameters:
+        - $ref: '#/components/parameters/MonitorId'
+      responses:
+        '200':
+          description: Monitor resumed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Monitor'
+
+  /{id}/run:
+    post:
+      tags: [Monitors]
+      summary: Manually trigger monitor check
+      parameters:
+        - $ref: '#/components/parameters/MonitorId'
+      responses:
+        '200':
+          description: Check result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckResult'
+
+  # Status
+  /status:
+    get:
+      tags: [Status]
+      summary: Get overall status
+      responses:
+        '200':
+          description: Overall status
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StatusSnapshot'
+
+  /status/list:
+    get:
+      tags: [Status]
+      summary: Get status list
+      responses:
+        '200':
+          description: Status list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StatusSnapshot'
+
+  /status/public/{slug}:
+    get:
+      tags: [Status]
+      summary: Get public status page
+      security: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Public status page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicStatus'
+
+  # Heartbeats
+  /heartbeat/{token}:
+    post:
+      tags: [Heartbeats]
+      summary: Send heartbeat ping
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+            description: Unique heartbeat token
+      responses:
+        '200':
+          description: Heartbeat received
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+
+  /heartbeats:
+    get:
+      tags: [Heartbeats]
+      summary: List all heartbeat monitors
+      responses:
+        '200':
+          description: List of heartbeat monitors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HeartbeatMonitor'
+
+    post:
+      tags: [Heartbeats]
+      summary: Create heartbeat monitor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, interval]
+              properties:
+                name:
+                  type: string
+                interval:
+                  type: integer
+                  description: Expected interval in seconds
+                grace:
+                  type: integer
+                  description: Grace period in seconds
+      responses:
+        '200':
+          description: Heartbeat monitor created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HeartbeatMonitor'
+
+  /heartbeats/{id}:
+    delete:
+      tags: [Heartbeats]
+      summary: Delete heartbeat monitor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Heartbeat monitor deleted
+
+  /heartbeats/{id}/history:
+    get:
+      tags: [Heartbeats]
+      summary: Get heartbeat history
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Heartbeat history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HeartbeatPing'
+
+  # Incidents
+  /incidents:
+    get:
+      tags: [Incidents]
+      summary: List all incidents
+      parameters:
+        - name: monitorId
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of incidents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Incident'
+
+  /incidents/list:
+    get:
+      tags: [Incidents]
+      summary: List incidents (simple)
+      responses:
+        '200':
+          description: Simple incident list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Incident'
+
+  /incidents/{id}:
+    get:
+      tags: [Incidents]
+      summary: Get incident details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Incident details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentWithEvents'
+
+    patch:
+      tags: [Incidents]
+      summary: Update incident
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [investigating, identified, monitoring, resolved]
+      responses:
+        '200':
+          description: Incident updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+
+  /incidents/{id}/events:
+    post:
+      tags: [Incidents]
+      summary: Add event to incident
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message, status]
+              properties:
+                message:
+                  type: string
+                status:
+                  type: string
+                  enum: [investigating, identified, monitoring, resolved]
+      responses:
+        '200':
+          description: Event added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentEvent'
+
+  # Maintenance
+  /maintenance:
+    get:
+      tags: [Maintenance]
+      summary: List maintenance windows
+      responses:
+        '200':
+          description: List of maintenance windows
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MaintenanceWindow'
+
+    post:
+      tags: [Maintenance]
+      summary: Create maintenance window
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaintenanceWindowInput'
+      responses:
+        '200':
+          description: Maintenance window created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceWindow'
+
+  /maintenance/{id}:
+    put:
+      tags: [Maintenance]
+      summary: Update maintenance window
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaintenanceWindowInput'
+      responses:
+        '200':
+          description: Maintenance window updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceWindow'
+
+    delete:
+      tags: [Maintenance]
+      summary: Delete maintenance window
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Maintenance window deleted
+
+  # Notifications
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: List notification channels
+      description: Sensitive fields (passwords, API keys, tokens) are masked in the response
+      responses:
+        '200':
+          description: List of notification channels
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NotificationChannel'
+
+    post:
+      tags: [Notifications]
+      summary: Create notification channel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationChannelInput'
+      responses:
+        '200':
+          description: Notification channel created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationChannel'
+
+  /notifications/{id}:
+    put:
+      tags: [Notifications]
+      summary: Update notification channel
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationChannelInput'
+      responses:
+        '200':
+          description: Notification channel updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationChannel'
+
+    delete:
+      tags: [Notifications]
+      summary: Delete notification channel
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Notification channel deleted
+
+  /notifications/test:
+    post:
+      tags: [Notifications]
+      summary: Test notification channel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [channelId]
+              properties:
+                channelId:
+                  type: string
+      responses:
+        '200':
+          description: Test notification sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+
+  # Status Pages
+  /status-pages:
+    get:
+      tags: [Status Pages]
+      summary: List status pages
+      responses:
+        '200':
+          description: List of status pages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StatusPage'
+
+    post:
+      tags: [Status Pages]
+      summary: Create status page
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatusPageInput'
+      responses:
+        '200':
+          description: Status page created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusPage'
+
+  /status-pages/{id}:
+    get:
+      tags: [Status Pages]
+      summary: Get status page
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Status page details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusPage'
+
+    put:
+      tags: [Status Pages]
+      summary: Update status page
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatusPageInput'
+      responses:
+        '200':
+          description: Status page updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusPage'
+
+    delete:
+      tags: [Status Pages]
+      summary: Delete status page
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Status page deleted
+
+  /public/status/{slug}:
+    get:
+      tags: [Status Pages]
+      summary: Get public status page
+      security: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Public status page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicStatusPage'
+
+  # Settings
+  /settings:
+    get:
+      tags: [Settings]
+      summary: Get application settings
+      responses:
+        '200':
+          description: Application settings
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /settings/api-keys:
+    get:
+      tags: [Settings]
+      summary: List API keys
+      description: Returns only metadata, tokens are never exposed after creation
+      responses:
+        '200':
+          description: List of API keys
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApiKey'
+
+    post:
+      tags: [Settings]
+      summary: Create API key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [label]
+              properties:
+                label:
+                  type: string
+      responses:
+        '200':
+          description: API key created (token only shown once)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  label:
+                    type: string
+                  token:
+                    type: string
+                    description: This is the only time the token will be shown
+
+  /settings/api-keys/{id}:
+    delete:
+      tags: [Settings]
+      summary: Delete API key
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: API key deleted
+
+  /settings/docker-hosts:
+    get:
+      tags: [Settings]
+      summary: List Docker hosts
+      responses:
+        '200':
+          description: List of Docker hosts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DockerHost'
+
+    post:
+      tags: [Settings]
+      summary: Add Docker host
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, socketPath]
+              properties:
+                name:
+                  type: string
+                socketPath:
+                  type: string
+      responses:
+        '200':
+          description: Docker host added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DockerHost'
+
+  /settings/remote-browsers:
+    get:
+      tags: [Settings]
+      summary: List remote browsers
+      responses:
+        '200':
+          description: List of remote browsers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RemoteBrowser'
+
+    post:
+      tags: [Settings]
+      summary: Add remote browser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, url]
+              properties:
+                name:
+                  type: string
+                url:
+                  type: string
+                  format: uri
+      responses:
+        '200':
+          description: Remote browser added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RemoteBrowser'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    MonitorId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Monitor ID
+
+  responses:
+    Unauthorized:
+      description: Unauthorized - Invalid or missing authentication token
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: Unauthorized
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [user, admin]
+        createdAt:
+          type: string
+          format: date-time
+
+    Monitor:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        kind:
+          type: string
+          enum: [http, tcp, ping, dns, certificate, docker, grpc, synthetic]
+        url:
+          type: string
+        interval:
+          type: integer
+          description: Check interval in seconds
+        timeout:
+          type: integer
+          description: Timeout in milliseconds
+        config:
+          type: object
+          additionalProperties: true
+        paused:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    MonitorInput:
+      type: object
+      required: [name, kind, url, interval]
+      properties:
+        name:
+          type: string
+          example: My Website
+        kind:
+          type: string
+          enum: [http, tcp, ping, dns, certificate, docker, grpc, synthetic]
+          example: http
+        url:
+          type: string
+          example: https://example.com
+        interval:
+          type: integer
+          minimum: 30
+          example: 60
+          description: Check interval in seconds
+        timeout:
+          type: integer
+          minimum: 1000
+          example: 10000
+          description: Timeout in milliseconds
+        config:
+          type: object
+          description: Monitor-specific configuration
+          additionalProperties: true
+
+    MonitorWithStatus:
+      allOf:
+        - $ref: '#/components/schemas/Monitor'
+        - type: object
+          properties:
+            latestCheck:
+              $ref: '#/components/schemas/CheckResult'
+            meta:
+              type: object
+              properties:
+                certificateExpiresAt:
+                  type: string
+                  format: date-time
+                certificateDaysLeft:
+                  type: integer
+
+    CheckResult:
+      type: object
+      properties:
+        id:
+          type: string
+        monitorId:
+          type: string
+        status:
+          type: string
+          enum: [up, down]
+        message:
+          type: string
+        latencyMs:
+          type: integer
+        checkedAt:
+          type: string
+          format: date-time
+        payload:
+          type: object
+          additionalProperties: true
+
+    UptimeStats:
+      type: object
+      properties:
+        uptime24h:
+          type: number
+          format: float
+          description: Uptime percentage for last 24 hours
+        uptime7d:
+          type: number
+          format: float
+          description: Uptime percentage for last 7 days
+        uptime30d:
+          type: number
+          format: float
+          description: Uptime percentage for last 30 days
+        avgLatency:
+          type: integer
+          description: Average latency in milliseconds
+
+    StatusSnapshot:
+      type: object
+      properties:
+        monitor:
+          $ref: '#/components/schemas/Monitor'
+        status:
+          type: string
+          enum: [up, down]
+        lastCheck:
+          type: string
+          format: date-time
+        uptime:
+          type: number
+          format: float
+
+    HeartbeatMonitor:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        token:
+          type: string
+          description: Unique token for sending heartbeats
+        interval:
+          type: integer
+          description: Expected interval in seconds
+        grace:
+          type: integer
+          description: Grace period in seconds
+        lastPing:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [up, down]
+
+    HeartbeatPing:
+      type: object
+      properties:
+        id:
+          type: string
+        heartbeatId:
+          type: string
+        receivedAt:
+          type: string
+          format: date-time
+
+    Incident:
+      type: object
+      properties:
+        id:
+          type: string
+        monitorId:
+          type: string
+        title:
+          type: string
+        status:
+          type: string
+          enum: [investigating, identified, monitoring, resolved]
+        severity:
+          type: string
+          enum: [minor, major, critical]
+        startedAt:
+          type: string
+          format: date-time
+        resolvedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    IncidentWithEvents:
+      allOf:
+        - $ref: '#/components/schemas/Incident'
+        - type: object
+          properties:
+            events:
+              type: array
+              items:
+                $ref: '#/components/schemas/IncidentEvent'
+
+    IncidentEvent:
+      type: object
+      properties:
+        id:
+          type: string
+        incidentId:
+          type: string
+        message:
+          type: string
+        status:
+          type: string
+          enum: [investigating, identified, monitoring, resolved]
+        createdAt:
+          type: string
+          format: date-time
+
+    MaintenanceWindow:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        monitorIds:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    MaintenanceWindowInput:
+      type: object
+      required: [title, startsAt, endsAt, monitorIds]
+      properties:
+        title:
+          type: string
+          example: Database Migration
+        description:
+          type: string
+          example: Upgrading database to version 2.0
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        monitorIds:
+          type: array
+          items:
+            type: string
+
+    NotificationChannel:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum: [email, slack, discord, telegram, webhook, apprise]
+        config:
+          type: object
+          description: Sensitive fields are masked with ***MASKED***
+          additionalProperties: true
+        enabled:
+          type: boolean
+
+    NotificationChannelInput:
+      type: object
+      required: [name, type, config]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [email, slack, discord, telegram, webhook, apprise]
+        config:
+          type: object
+          description: Configuration varies by notification type
+          additionalProperties: true
+        enabled:
+          type: boolean
+          default: true
+
+    StatusPage:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+        monitorIds:
+          type: array
+          items:
+            type: string
+        public:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    StatusPageInput:
+      type: object
+      required: [title, slug, monitorIds]
+      properties:
+        title:
+          type: string
+        slug:
+          type: string
+          pattern: '^[a-z0-9-]+$'
+        description:
+          type: string
+        monitorIds:
+          type: array
+          items:
+            type: string
+        public:
+          type: boolean
+          default: true
+
+    PublicStatusPage:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        monitors:
+          type: array
+          items:
+            $ref: '#/components/schemas/MonitorWithStatus'
+        incidents:
+          type: array
+          items:
+            $ref: '#/components/schemas/Incident'
+        maintenance:
+          type: array
+          items:
+            $ref: '#/components/schemas/MaintenanceWindow'
+
+    PublicStatus:
+      type: object
+      properties:
+        overall:
+          type: string
+          enum: [operational, degraded, down]
+        monitors:
+          type: array
+          items:
+            $ref: '#/components/schemas/StatusSnapshot'
+
+    ApiKey:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        lastUsedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    DockerHost:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        socketPath:
+          type: string
+
+    RemoteBrowser:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        url:
+          type: string
+          format: uri
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique user identifier
+        email:
+          type: string
+          format: email
+          description: User email address
+        role:
+          type: string
+          enum: [ADMIN, VIEWER]
+          description: User role
+        createdAt:
+          type: string
+          format: date-time
+          description: Account creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    UserInvitation:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique invitation identifier
+        email:
+          type: string
+          format: email
+          description: Invited user email
+        token:
+          type: string
+          description: Unique invitation token
+        role:
+          type: string
+          enum: [ADMIN, VIEWER]
+          description: Role to be assigned
+        expiresAt:
+          type: string
+          format: date-time
+          description: Invitation expiration time
+        usedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp when invitation was accepted
+        createdAt:
+          type: string
+          format: date-time
+          description: Invitation creation timestamp
+        createdBy:
+          $ref: '#/components/schemas/User'
+          description: User who created the invitation
+

@@ -220,6 +220,83 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
     return { success: true };
   });
 
+  // Docker API - Test connection
+  fastify.post<{ Body: { dockerHostId: string } }>("/settings/docker-hosts/:id/test", async (request, reply) => {
+    await request.jwtVerify();
+
+    try {
+      const setting = await prisma.setting.findUnique({
+        where: { key: "dockerHosts" },
+      });
+
+      const hosts = (setting?.value as any[]) || [];
+      const host = hosts.find((h: any) => h.id === request.params.id);
+
+      if (!host) {
+        return reply.code(404).send({ message: "Docker host not found" });
+      }
+
+      const { createDockerClient } = await import("../services/docker/client.js");
+      const client = createDockerClient(host.url);
+      
+      const isAlive = await client.ping();
+      if (!isAlive) {
+        return reply.code(503).send({ message: "Docker host is not reachable" });
+      }
+
+      const version = await client.version();
+      return { success: true, version: version.Version, apiVersion: version.ApiVersion };
+    } catch (error: any) {
+      return reply.code(500).send({ message: error.message || "Failed to connect to Docker host" });
+    }
+  });
+
+  // Docker API - Get containers, networks, volumes
+  fastify.get<{ Params: { id: string } }>("/settings/docker-hosts/:id/resources", async (request, reply) => {
+    await request.jwtVerify();
+
+    try {
+      const setting = await prisma.setting.findUnique({
+        where: { key: "dockerHosts" },
+      });
+
+      const hosts = (setting?.value as any[]) || [];
+      const host = hosts.find((h: any) => h.id === request.params.id);
+
+      if (!host) {
+        return reply.code(404).send({ message: "Docker host not found" });
+      }
+
+      const { createDockerClient } = await import("../services/docker/client.js");
+      const client = createDockerClient(host.url);
+      
+      const info = await client.getInfo();
+      
+      return {
+        containers: info.containers.map((c: any) => ({
+          id: c.Id.substring(0, 12),
+          name: c.Names[0]?.replace(/^\//, '') || 'unknown',
+          image: c.Image,
+          state: c.State,
+          status: c.Status,
+        })),
+        networks: info.networks.map((n: any) => ({
+          id: n.Id.substring(0, 12),
+          name: n.Name,
+          driver: n.Driver,
+          scope: n.Scope,
+        })),
+        volumes: info.volumes.map((v: any) => ({
+          name: v.Name,
+          driver: v.Driver,
+        })),
+        serverVersion: info.serverVersion,
+      };
+    } catch (error: any) {
+      return reply.code(500).send({ message: error.message || "Failed to get Docker resources" });
+    }
+  });
+
   // Remote Browsers management (similar to Docker Hosts)
   fastify.get("/settings/remote-browsers", async (request) => {
     await request.jwtVerify();

@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
 import { prisma } from "../db/prisma.js";
 import { z } from "zod";
+import { maintenanceService } from "../services/maintenance/suppressor.js";
 
 const statusPlugin = async (fastify: FastifyInstance) => {
   // GET /status - List monitor statuses (frontend expects this endpoint)
@@ -12,13 +13,31 @@ const statusPlugin = async (fastify: FastifyInstance) => {
         incidents: { orderBy: { startedAt: "desc" }, take: 1 },
       },
     });
-    return monitors.map((monitor: typeof monitors[number]) => ({
-      id: monitor.id,
-      name: monitor.name,
-      status: monitor.checks[0]?.status ?? "pending",
-      lastCheck: monitor.checks[0]?.checkedAt ?? null,
-      incident: monitor.incidents[0] ?? null,
-    }));
+    
+    const results = await Promise.all(
+      monitors.map(async (monitor: typeof monitors[number]) => {
+        const inMaintenance = await maintenanceService.isSuppressed(monitor.id);
+        const latestCheck = monitor.checks[0];
+        const payload = latestCheck?.payload as any;
+        // Extract certificate metadata - it's directly in payload, not payload.meta
+        const meta = monitor.kind === 'certificate' && payload ? {
+          certificateExpiresAt: payload.certificateExpiresAt,
+          certificateDaysLeft: payload.certificateDaysLeft,
+        } : null;
+        return {
+          id: monitor.id,
+          name: monitor.name,
+          kind: monitor.kind,
+          status: latestCheck?.status ?? "pending",
+          lastCheck: latestCheck?.checkedAt ?? null,
+          incident: monitor.incidents[0] ?? null,
+          inMaintenance,
+          meta,
+        };
+      })
+    );
+    
+    return results;
   });
 
   // GET /status/list - Alternative endpoint
@@ -29,13 +48,31 @@ const statusPlugin = async (fastify: FastifyInstance) => {
         incidents: { orderBy: { startedAt: "desc" }, take: 1 },
       },
     });
-    return monitors.map((monitor: typeof monitors[number]) => ({
-      id: monitor.id,
-      name: monitor.name,
-      status: monitor.checks[0]?.status ?? "pending",
-      lastCheck: monitor.checks[0]?.checkedAt ?? null,
-      incident: monitor.incidents[0] ?? null,
-    }));
+    
+    const results = await Promise.all(
+      monitors.map(async (monitor: typeof monitors[number]) => {
+        const inMaintenance = await maintenanceService.isSuppressed(monitor.id);
+        const latestCheck = monitor.checks[0];
+        const payload = latestCheck?.payload as any;
+        // Extract certificate metadata - it's directly in payload, not payload.meta
+        const meta = monitor.kind === 'certificate' && payload ? {
+          certificateExpiresAt: payload.certificateExpiresAt,
+          certificateDaysLeft: payload.certificateDaysLeft,
+        } : null;
+        return {
+          id: monitor.id,
+          name: monitor.name,
+          kind: monitor.kind,
+          status: latestCheck?.status ?? "pending",
+          lastCheck: latestCheck?.checkedAt ?? null,
+          incident: monitor.incidents[0] ?? null,
+          inMaintenance,
+          meta,
+        };
+      })
+    );
+    
+    return results;
   });
 
   fastify.get("/status/:id/history", { preHandler: fastify.authenticate }, async (request) => {

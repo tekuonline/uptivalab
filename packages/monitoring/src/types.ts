@@ -29,6 +29,7 @@ export interface MonitorResultMeta {
   keywordMatched?: boolean;
   resolvedIp?: string;
   certificateExpiresAt?: string;
+  certificateDaysLeft?: number;
   docker?: {
     containerId?: string;
     state?: string;
@@ -120,6 +121,8 @@ export interface SyntheticConfig {
   steps: SyntheticStep[];
   browser?: "chromium" | "firefox" | "webkit";
   baseUrl?: string;
+  remoteBrowserId?: string; // ID of remote browser from settings
+  useLocalBrowser?: boolean; // Force local browser usage
 }
 
 export interface GrpcConfig {

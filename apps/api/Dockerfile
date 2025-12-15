@@ -18,6 +18,8 @@ RUN pnpm install --frozen-lockfile
 
 # Copy full workspace and build
 COPY . .
+# Generate Prisma Client with the new schema BEFORE building
+RUN cd apps/api && npx prisma generate
 RUN pnpm --filter @uptivalab/shared build \
     && pnpm --filter @uptivalab/monitoring build \
     && pnpm --filter uptivalab-api build \

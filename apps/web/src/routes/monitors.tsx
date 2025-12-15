@@ -1,5 +1,5 @@
 import type { Monitor } from "@uptivalab/shared";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api.js";
@@ -9,7 +9,7 @@ import { Card } from "../components/ui/card.js";
 import { Button } from "../components/ui/button.js";
 import { StatusBadge } from "../components/status-badge.js";
 import { UptimeBar } from "../components/uptime-bar.js";
-import { Eye, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Eye, Trash2, ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
 
 export const MonitorsRoute = () => {
   const { token } = useAuth();
@@ -20,6 +20,12 @@ export const MonitorsRoute = () => {
   
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showHttpOptions, setShowHttpOptions] = useState(false);
+  
+  // Docker state
+  const [dockerHosts, setDockerHosts] = useState<any[]>([]);
+  const [selectedDockerHost, setSelectedDockerHost] = useState("");
+  const [dockerResources, setDockerResources] = useState<any>(null);
+  const [loadingDockerResources, setLoadingDockerResources] = useState(false);
   
   const [form, setForm] = useState({ 
     name: "", 
@@ -59,6 +65,7 @@ export const MonitorsRoute = () => {
     variant: "postgres",  // database
     target: "",        // grpc
     heartbeatSeconds: "300", // push
+    dockerHostId: "",  // docker - selected host
   });
   
   const buildConfig = (formData: typeof form) => {
@@ -148,12 +155,11 @@ export const MonitorsRoute = () => {
       containerName: "", 
       connectionString: "", 
       variant: "postgres",
-      target: "", 
+      target: "",
       heartbeatSeconds: "300",
+      dockerHostId: "",
     });
-  };
-
-  const mutation = useMutation({
+  };  const mutation = useMutation({
     mutationFn: () => {
       const config = buildConfig(form);
       return api.createMonitor(token, {
@@ -170,6 +176,62 @@ export const MonitorsRoute = () => {
       resetForm();
     },
   });
+
+  // Load Docker hosts on mount
+  useEffect(() => {
+    loadDockerHosts();
+  }, [token]);
+
+  const loadDockerHosts = async () => {
+    try {
+      const res = await fetch("/api/settings/docker-hosts", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setDockerHosts(await res.json());
+      }
+    } catch (error) {
+      console.error("Failed to load Docker hosts:", error);
+    }
+  };
+
+  const loadDockerResources = async (dockerHostId: string) => {
+    if (!dockerHostId) return;
+    
+    setLoadingDockerResources(true);
+    try {
+      const res = await fetch(`/api/settings/docker-hosts/${dockerHostId}/resources`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setDockerResources(data);
+        console.log("Docker resources loaded:", data);
+      } else {
+        const errorText = await res.text();
+        console.error("Docker API error:", res.status, errorText);
+        alert(`Failed to connect to Docker host (${res.status}): ${errorText}\n\nPlease verify:\n- Docker host URL is correct\n- Docker daemon is running and exposing TCP port\n- Network connectivity to Docker host`);
+        setDockerResources(null);
+      }
+    } catch (error) {
+      console.error("Failed to load Docker resources:", error);
+      alert(`Failed to load Docker resources: ${error}\n\nCheck:\n- Docker host settings in Settings → Docker Hosts\n- Browser console for detailed errors\n- Docker daemon configuration`);
+      setDockerResources(null);
+    } finally {
+      setLoadingDockerResources(false);
+    }
+  };
+
+  const handleDockerHostChange = (hostId: string) => {
+    setSelectedDockerHost(hostId);
+    setForm((prev) => ({ ...prev, dockerHostId: hostId, containerName: "" }));
+    if (hostId) {
+      loadDockerResources(hostId);
+    } else {
+      setDockerResources(null);
+    }
+  };
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.deleteMonitor(token, id),
@@ -188,8 +250,8 @@ export const MonitorsRoute = () => {
     <div className="space-y-6">
       <Card className="space-y-6">
         <div>
-          <h3 className="text-xl font-semibold text-white">{t("createNewMonitor")}</h3>
-          <p className="text-sm text-slate-400">{t("createMonitorDescription")}</p>
+          <h3 className="text-xl font-semibold text-slate-900 dark:text-white">{t("createNewMonitor")}</h3>
+          <p className="text-sm text-slate-600 dark:text-slate-400">{t("createMonitorDescription")}</p>
         </div>
         <form
           className="space-y-6"
@@ -200,13 +262,13 @@ export const MonitorsRoute = () => {
         >
           {/* General Section */}
           <div className="space-y-4">
-            <h4 className="text-sm font-semibold text-white uppercase tracking-wider">{t("general")}</h4>
+            <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-900 dark:text-white uppercase tracking-wider">{t("general")}</h4>
             
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <label className="mb-2 block text-xs font-medium text-slate-400">{t("monitorType")}</label>
+                <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("monitorType")}</label>
                 <select
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white h-[46px]"
+                  className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-slate-900 dark:text-white h-[46px]"
                   value={form.kind}
                   onChange={(e) => setForm((prev) => ({ ...prev, kind: e.target.value }))}
                 >
@@ -223,9 +285,9 @@ export const MonitorsRoute = () => {
               </div>
               
               <div>
-                <label className="mb-2 block text-xs font-medium text-slate-400">{t("friendlyName")}</label>
+                <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("friendlyName")}</label>
                 <input
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+                  className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                   placeholder={t("monitorNamePlaceholder")}
                   value={form.name}
                   onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
@@ -237,9 +299,9 @@ export const MonitorsRoute = () => {
             {/* URL/Host Field */}
             {form.kind === "http" && (
               <div>
-                <label className="mb-2 block text-xs font-medium text-slate-400">{t("url")}</label>
+                <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("url")}</label>
                 <input
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+                  className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                   placeholder="https://example.com"
                   value={form.url}
                   onChange={(e) => setForm((prev) => ({ ...prev, url: e.target.value }))}
@@ -251,9 +313,9 @@ export const MonitorsRoute = () => {
             {form.kind === "tcp" && (
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-slate-400">{t("hostname")}</label>
+                  <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("hostname")}</label>
                   <input
-                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+                    className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                     placeholder="example.com"
                     value={form.host}
                     onChange={(e) => setForm((prev) => ({ ...prev, host: e.target.value }))}
@@ -261,10 +323,10 @@ export const MonitorsRoute = () => {
                   />
                 </div>
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-slate-400">{t("port")}</label>
+                  <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("port")}</label>
                   <input
                     type="number"
-                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+                    className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                     placeholder="80"
                     value={form.port}
                     onChange={(e) => setForm((prev) => ({ ...prev, port: e.target.value }))}
@@ -278,9 +340,9 @@ export const MonitorsRoute = () => {
             
             {form.kind === "ping" && (
               <div>
-                <label className="mb-2 block text-xs font-medium text-slate-400">{t("hostname")}</label>
+                <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("hostname")}</label>
                 <input
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+                  className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                   placeholder="example.com or 8.8.8.8"
                   value={form.host}
                   onChange={(e) => setForm((prev) => ({ ...prev, host: e.target.value }))}
@@ -292,9 +354,9 @@ export const MonitorsRoute = () => {
             {form.kind === "dns" && (
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-slate-400">{t("hostname")}</label>
+                  <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("hostname")}</label>
                   <input
-                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+                    className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                     placeholder="example.com"
                     value={form.record}
                     onChange={(e) => setForm((prev) => ({ ...prev, record: e.target.value }))}
@@ -302,9 +364,9 @@ export const MonitorsRoute = () => {
                   />
                 </div>
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-slate-400">{t("dnsRecordType")}</label>
+                  <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("dnsRecordType")}</label>
                   <select
-                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white h-[46px]"
+                    className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-slate-900 dark:text-white h-[46px]"
                     value={form.recordType}
                     onChange={(e) => setForm((prev) => ({ ...prev, recordType: e.target.value }))}
                   >
@@ -319,24 +381,91 @@ export const MonitorsRoute = () => {
             )}
             
             {form.kind === "docker" && (
-              <div>
-                <label className="mb-2 block text-xs font-medium text-slate-400">{t("containerNameId")}</label>
-                <input
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
-                  placeholder="my-container"
-                  value={form.containerName}
-                  onChange={(e) => setForm((prev) => ({ ...prev, containerName: e.target.value }))}
-                  required
-                />
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">
+                    Docker Host {dockerHosts.length === 0 && <span className="text-red-600 dark:text-red-400">(No hosts configured)</span>}
+                  </label>
+                  <select
+                    className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white h-[46px]"
+                    value={form.dockerHostId}
+                    onChange={(e) => handleDockerHostChange(e.target.value)}
+                    required
+                  >
+                    <option value="">Select Docker Host</option>
+                    {dockerHosts.map((host) => (
+                      <option key={host.id} value={host.id}>
+                        {host.name} ({host.url})
+                      </option>
+                    ))}
+                  </select>
+                  {dockerHosts.length === 0 && (
+                    <p className="mt-2 text-xs text-yellow-600 dark:text-yellow-400">
+                      ⚠️ Please add a Docker host in Settings &gt; Proxies first
+                    </p>
+                  )}
+                </div>
+
+                {loadingDockerResources && (
+                  <div className="rounded-lg bg-blue-500/10 border border-blue-500/30 dark:border-blue-500/20 p-3">
+                    <p className="text-sm text-blue-600 dark:text-blue-400">
+                      <RefreshCw className="inline h-4 w-4 animate-spin mr-2" />
+                      Loading Docker resources...
+                    </p>
+                  </div>
+                )}
+
+                {dockerResources && (
+                  <div className="rounded-lg bg-green-500/10 border border-green-500/30 dark:border-green-500/20 p-3 space-y-2">
+                    <p className="text-xs font-semibold text-green-700 dark:text-green-300">
+                      ✓ Connected to Docker v{dockerResources.serverVersion}
+                    </p>
+                    <p className="text-xs text-green-600 dark:text-green-400">
+                      Found {dockerResources.containers.length} containers, {dockerResources.networks.length} networks, {dockerResources.volumes.length} volumes
+                    </p>
+                  </div>
+                )}
+
+                <div>
+                  <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">
+                    Container Name/ID
+                  </label>
+                  {dockerResources && dockerResources.containers.length > 0 ? (
+                    <select
+                      className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white h-[46px]"
+                      value={form.containerName}
+                      onChange={(e) => setForm((prev) => ({ ...prev, containerName: e.target.value }))}
+                      required
+                    >
+                      <option value="">Select a container</option>
+                      {dockerResources.containers.map((container: any) => (
+                        <option key={container.id} value={container.name}>
+                          {container.name} ({container.image}) - {container.state}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
+                      placeholder="my-container or container-id"
+                      value={form.containerName}
+                      onChange={(e) => setForm((prev) => ({ ...prev, containerName: e.target.value }))}
+                      required
+                    />
+                  )}
+                  <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                    {dockerResources ? "Select from running containers" : "Enter container name or ID manually"}
+                  </p>
+                </div>
               </div>
             )}
             
             {form.kind === "certificate" && (
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-slate-400">{t("hostname")}</label>
+                  <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("hostname")}</label>
                   <input
-                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+                    className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                     placeholder="example.com"
                     value={form.host}
                     onChange={(e) => setForm((prev) => ({ ...prev, host: e.target.value }))}
@@ -344,10 +473,10 @@ export const MonitorsRoute = () => {
                   />
                 </div>
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-slate-400">{t("port")}</label>
+                  <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("port")}</label>
                   <input
                     type="number"
-                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+                    className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                     placeholder="443"
                     value={form.port}
                     onChange={(e) => setForm((prev) => ({ ...prev, port: e.target.value }))}
@@ -361,9 +490,9 @@ export const MonitorsRoute = () => {
             {form.kind === "database" && (
               <div className="grid gap-4 md:grid-cols-3">
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-slate-400">{t("databaseType")}</label>
+                  <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("databaseType")}</label>
                   <select
-                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white h-[46px]"
+                    className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-slate-900 dark:text-white h-[46px]"
                     value={form.variant}
                     onChange={(e) => setForm((prev) => ({ ...prev, variant: e.target.value }))}
                   >
@@ -373,9 +502,9 @@ export const MonitorsRoute = () => {
                   </select>
                 </div>
                 <div className="md:col-span-2">
-                  <label className="mb-2 block text-xs font-medium text-slate-400">{t("connectionString")}</label>
+                  <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("connectionString")}</label>
                   <input
-                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+                    className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                     placeholder="postgresql://user:pass@host:5432/db"
                     value={form.connectionString}
                     onChange={(e) => setForm((prev) => ({ ...prev, connectionString: e.target.value }))}
@@ -387,9 +516,9 @@ export const MonitorsRoute = () => {
             
             {form.kind === "grpc" && (
               <div>
-                <label className="mb-2 block text-xs font-medium text-slate-400">{t("hostPort")}</label>
+                <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("hostPort")}</label>
                 <input
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+                  className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                   placeholder="localhost:50051"
                   value={form.target}
                   onChange={(e) => setForm((prev) => ({ ...prev, target: e.target.value }))}
@@ -400,11 +529,11 @@ export const MonitorsRoute = () => {
             
             {form.kind === "push" && (
               <>
-                <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 p-4">
+                <div className="rounded-lg bg-blue-500/10 border border-blue-500/30 dark:border-blue-500/20 p-4">
                   <div className="flex items-start gap-2">
-                    <div className="text-blue-400 mt-0.5">ℹ️</div>
-                    <div className="flex-1 text-sm text-slate-300">
-                      <p className="font-semibold text-white mb-1">{t("pushHeartbeatTitle")}</p>
+                    <div className="text-blue-600 dark:text-blue-400 mt-0.5">ℹ️</div>
+                    <div className="flex-1 text-sm text-slate-600 dark:text-slate-300">
+                      <p className="font-semibold text-slate-900 dark:text-slate-900 dark:text-white mb-1">{t("pushHeartbeatTitle")}</p>
                       <p className="mb-2">
                         {t("pushHeartbeatDescription")}
                       </p>
@@ -415,10 +544,10 @@ export const MonitorsRoute = () => {
                   </div>
                 </div>
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-slate-400">{t("heartbeatInterval")} ({t("seconds")})</label>
+                  <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("heartbeatInterval")} ({t("seconds")})</label>
                   <input
                     type="number"
-                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+                    className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                     placeholder="300"
                     value={form.heartbeatSeconds}
                     onChange={(e) => setForm((prev) => ({ ...prev, heartbeatSeconds: e.target.value }))}
@@ -433,13 +562,13 @@ export const MonitorsRoute = () => {
             {/* Interval and Timeout Settings */}
             <div className="grid gap-4 md:grid-cols-3">
               <div>
-                <label className="mb-2 block text-xs font-medium text-slate-400">
+                <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">
                   {t("heartbeatInterval")}
                   <span className="ml-2 text-slate-500">({t("checkEvery")} {form.interval} {t("seconds")})</span>
                 </label>
                 <input
                   type="number"
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+                  className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                   value={form.interval}
                   onChange={(e) => setForm((prev) => ({ ...prev, interval: Number(e.target.value) }))}
                   min="30"
@@ -449,12 +578,12 @@ export const MonitorsRoute = () => {
               </div>
               
               <div>
-                <label className="mb-2 block text-xs font-medium text-slate-400">
+                <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">
                   {t("retries")}
                 </label>
                 <input
                   type="number"
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+                  className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                   placeholder="0"
                   value={form.retries}
                   onChange={(e) => setForm((prev) => ({ ...prev, retries: Number(e.target.value) }))}
@@ -465,13 +594,13 @@ export const MonitorsRoute = () => {
               </div>
               
               <div>
-                <label className="mb-2 block text-xs font-medium text-slate-400">
+                <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">
                   {t("requestTimeout")}
                   <span className="ml-2 text-slate-500">({t("timeoutAfter")} {form.timeout} {t("seconds")})</span>
                 </label>
                 <input
                   type="number"
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+                  className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                   value={form.timeout}
                   onChange={(e) => setForm((prev) => ({ ...prev, timeout: Number(e.target.value) }))}
                   min="1"
@@ -488,7 +617,7 @@ export const MonitorsRoute = () => {
               <button
                 type="button"
                 onClick={() => setShowAdvanced(!showAdvanced)}
-                className="flex items-center gap-2 text-sm font-semibold text-white uppercase tracking-wider hover:text-slate-300 transition"
+                className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-900 dark:text-white uppercase tracking-wider hover:text-slate-300 transition"
               >
                 {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 {t("advancedOptions")}
@@ -504,7 +633,7 @@ export const MonitorsRoute = () => {
                         onChange={(e) => setForm((prev) => ({ ...prev, ignoreTls: e.target.checked }))}
                         className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-500"
                       />
-                      <span className="text-sm text-white">{t("ignoreTls")}</span>
+                      <span className="text-sm text-slate-900 dark:text-white">{t("ignoreTls")}</span>
                     </label>
                     
                     <label className="flex items-center gap-2 cursor-pointer">
@@ -514,17 +643,17 @@ export const MonitorsRoute = () => {
                         onChange={(e) => setForm((prev) => ({ ...prev, upsideDown: e.target.checked }))}
                         className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-500"
                       />
-                      <span className="text-sm text-white">{t("upsideDownMode")}</span>
+                      <span className="text-sm text-slate-900 dark:text-white">{t("upsideDownMode")}</span>
                       <span className="text-xs text-slate-400">({t("upsideDownHelp")})</span>
                     </label>
                   </div>
                   
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
-                      <label className="mb-2 block text-xs font-medium text-slate-400">{t("maxRedirects")}</label>
+                      <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("maxRedirects")}</label>
                       <input
                         type="number"
-                        className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+                        className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                         value={form.maxRedirects}
                         onChange={(e) => setForm((prev) => ({ ...prev, maxRedirects: Number(e.target.value) }))}
                         min="0"
@@ -534,9 +663,9 @@ export const MonitorsRoute = () => {
                     </div>
                     
                     <div>
-                      <label className="mb-2 block text-xs font-medium text-slate-400">{t("acceptedStatusCodes")}</label>
+                      <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("acceptedStatusCodes")}</label>
                       <input
-                        className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+                        className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                         placeholder="200-299"
                         value={form.acceptedStatusCodes}
                         onChange={(e) => setForm((prev) => ({ ...prev, acceptedStatusCodes: e.target.value }))}
@@ -555,7 +684,7 @@ export const MonitorsRoute = () => {
               <button
                 type="button"
                 onClick={() => setShowHttpOptions(!showHttpOptions)}
-                className="flex items-center gap-2 text-sm font-semibold text-white uppercase tracking-wider hover:text-slate-300 transition"
+                className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-900 dark:text-white uppercase tracking-wider hover:text-slate-300 transition"
               >
                 {showHttpOptions ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 {t("httpOptions")}
@@ -564,9 +693,9 @@ export const MonitorsRoute = () => {
               {showHttpOptions && (
                 <div className="space-y-4 border-l-2 border-white/10 pl-4">
                   <div>
-                    <label className="mb-2 block text-xs font-medium text-slate-400">{t("method")}</label>
+                    <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("method")}</label>
                     <select
-                      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white h-[46px]"
+                      className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-slate-900 dark:text-white h-[46px]"
                       value={form.method}
                       onChange={(e) => setForm((prev) => ({ ...prev, method: e.target.value }))}
                     >
@@ -583,9 +712,9 @@ export const MonitorsRoute = () => {
                   {(form.method === "POST" || form.method === "PUT" || form.method === "PATCH") && (
                     <>
                       <div>
-                        <label className="mb-2 block text-xs font-medium text-slate-400">{t("bodyEncoding")}</label>
+                        <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("bodyEncoding")}</label>
                         <select
-                          className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white h-[46px]"
+                          className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-slate-900 dark:text-white h-[46px]"
                           value={form.bodyEncoding}
                           onChange={(e) => setForm((prev) => ({ ...prev, bodyEncoding: e.target.value }))}
                         >
@@ -596,9 +725,9 @@ export const MonitorsRoute = () => {
                       </div>
                       
                       <div>
-                        <label className="mb-2 block text-xs font-medium text-slate-400">{t("body")}</label>
+                        <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("body")}</label>
                         <textarea
-                          className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white font-mono"
+                          className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-slate-900 dark:text-white font-mono"
                           placeholder='{"key": "value"}'
                           value={form.body}
                           onChange={(e) => setForm((prev) => ({ ...prev, body: e.target.value }))}
@@ -609,9 +738,9 @@ export const MonitorsRoute = () => {
                   )}
                   
                   <div>
-                    <label className="mb-2 block text-xs font-medium text-slate-400">{t("headers")} (JSON)</label>
+                    <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("headers")} (JSON)</label>
                     <textarea
-                      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white font-mono"
+                      className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-slate-900 dark:text-white font-mono"
                       placeholder='{"Authorization": "Bearer token", "Content-Type": "application/json"}'
                       value={form.headers}
                       onChange={(e) => setForm((prev) => ({ ...prev, headers: e.target.value }))}
@@ -621,9 +750,9 @@ export const MonitorsRoute = () => {
                   </div>
                   
                   <div>
-                    <label className="mb-2 block text-xs font-medium text-slate-400">{t("authMethod")}</label>
+                    <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("authMethod")}</label>
                     <select
-                      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white h-[46px]"
+                      className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-slate-900 dark:text-white h-[46px]"
                       value={form.authMethod}
                       onChange={(e) => setForm((prev) => ({ ...prev, authMethod: e.target.value }))}
                     >
@@ -636,21 +765,21 @@ export const MonitorsRoute = () => {
                   {form.authMethod !== "none" && (
                     <div className="grid gap-4 md:grid-cols-2">
                       <div>
-                        <label className="mb-2 block text-xs font-medium text-slate-400">
+                        <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">
                           {form.authMethod === "basic" ? t("username") : t("token")}
                         </label>
                         <input
-                          className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+                          className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                           value={form.authUsername}
                           onChange={(e) => setForm((prev) => ({ ...prev, authUsername: e.target.value }))}
                         />
                       </div>
                       {form.authMethod === "basic" && (
                         <div>
-                          <label className="mb-2 block text-xs font-medium text-slate-400">{t("password")}</label>
+                          <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("password")}</label>
                           <input
                             type="password"
-                            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+                            className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                             value={form.authPassword}
                             onChange={(e) => setForm((prev) => ({ ...prev, authPassword: e.target.value }))}
                           />
@@ -666,9 +795,9 @@ export const MonitorsRoute = () => {
           {/* Description and Tags */}
           <div className="space-y-4">
             <div>
-              <label className="mb-2 block text-xs font-medium text-slate-400">{t("description")} ({t("optional")})</label>
+              <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("description")} ({t("optional")})</label>
               <textarea
-                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+                className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                 placeholder={t("descriptionPlaceholder")}
                 value={form.description}
                 onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
@@ -702,7 +831,7 @@ export const MonitorsRoute = () => {
                       }}
                       className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-500"
                     />
-                    <span className="text-sm text-white">{channel.name}</span>
+                    <span className="text-sm text-slate-900 dark:text-white">{channel.name}</span>
                     <span className="ml-auto text-xs text-slate-400 capitalize">{channel.type}</span>
                   </label>
                 ))}
@@ -717,7 +846,7 @@ export const MonitorsRoute = () => {
       </Card>
 
       <Card>
-        <h3 className="mb-4 text-xl font-semibold text-white">{t("existingMonitors")}</h3>
+        <h3 className="mb-4 text-xl font-semibold text-slate-900 dark:text-white">{t("existingMonitors")}</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-slate-300">
             <thead>
@@ -731,13 +860,31 @@ export const MonitorsRoute = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {data?.map((monitor: Monitor & { recentChecks?: Array<{ status: string; checkedAt: string }> }) => (
+              {data?.map((monitor: Monitor & { recentChecks?: Array<{ status: string; checkedAt: string }>; inMaintenance?: boolean }) => (
                 <tr key={monitor.id}>
-                  <td className="py-3 font-semibold text-white">{monitor.name}</td>
+                  <td className="py-3 font-semibold text-slate-900 dark:text-white">{monitor.name}</td>
                   <td className="py-3 capitalize text-slate-400">{monitor.kind}</td>
                   <td className="py-3">{Math.round(monitor.interval / 1000)}s</td>
                   <td className="py-3">
-                    <StatusBadge status={monitor.status ?? "pending"} />
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={monitor.status ?? "pending"} />
+                      {monitor.inMaintenance && (
+                        <span className="rounded-full bg-yellow-500/20 px-2 py-0.5 text-xs font-semibold text-yellow-600 dark:text-yellow-400">
+                          {t("maintenance")}
+                        </span>
+                      )}
+                      {monitor.kind === "certificate" && (monitor as any).meta?.certificateDaysLeft !== undefined && (
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                          (monitor as any).meta.certificateDaysLeft < 7
+                            ? 'bg-red-500/20 text-red-600 dark:text-red-400'
+                            : (monitor as any).meta.certificateDaysLeft < 30
+                              ? 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400'
+                              : 'bg-green-500/20 text-green-600 dark:text-green-400'
+                        }`}>
+                          🔒 {(monitor as any).meta.certificateDaysLeft}d
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="py-3">
                     <div className="w-48">

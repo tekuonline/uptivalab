@@ -31,6 +31,22 @@ services:
     networks:
       - uptivalab
 
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.45.0-jammy
+    container_name: uptivalab-playwright
+    command: ["npx", "playwright", "run-server", "--port", "9222"]
+    environment:
+      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+    shm_size: 2gb
+    restart: unless-stopped
+    networks:
+      - uptivalab
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9222/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   api:
     image: ${DOCKER_USERNAME:-YOUR_DOCKERHUB_USERNAME}/uptivalab-api:${VERSION:-latest}
     container_name: uptivalab-api
@@ -40,6 +56,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       PORT: ${API_PORT:-3000}
       NODE_ENV: production
+      PLAYWRIGHT_WS_ENDPOINT: ws://playwright:9222/
       # Optional SMTP configuration
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
@@ -49,6 +66,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      playwright:
         condition: service_healthy
     restart: unless-stopped
     networks:

@@ -8,18 +8,34 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  role         UserRole @default(ADMIN)
-  apiKeys      ApiKey[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                 String           @id @default(cuid())
+  email              String           @unique
+  passwordHash       String
+  role               UserRole         @default(ADMIN)
+  apiKeys            ApiKey[]
+  createdInvitations UserInvitation[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
 }
 
 enum UserRole {
   ADMIN
   VIEWER
+}
+
+model UserInvitation {
+  id          String    @id @default(cuid())
+  email       String
+  token       String    @unique
+  role        UserRole  @default(VIEWER)
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdBy   User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdById String
+  createdAt   DateTime  @default(now())
+  
+  @@index([email])
+  @@index([token])
 }
 
 model ApiKey {

@@ -13,10 +13,10 @@ import { useTranslation } from "../hooks/use-translation.js";
 const badgeStatus = (incident: IncidentWithRelations) => (incident.status === "RESOLVED" ? "up" : "down");
 
 const statusColors = {
-  OPEN: "bg-red-500/20 text-red-400 border-red-500/30",
-  INVESTIGATING: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
-  MITIGATED: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  RESOLVED: "bg-green-500/20 text-green-400 border-green-500/30",
+  OPEN: "bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30",
+  INVESTIGATING: "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border-yellow-500/30",
+  MITIGATED: "bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/30",
+  RESOLVED: "bg-green-500/20 text-green-600 dark:text-green-400 border-green-500/30",
 };
 
 export const IncidentsRoute = () => {
@@ -78,13 +78,13 @@ export const IncidentsRoute = () => {
       {/* Filters and Actions Bar */}
       <Card>
         <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2 text-white">
+          <div className="flex items-center gap-2 text-slate-900 dark:text-white">
             <Filter className="h-4 w-4" />
             <span className="text-sm font-medium">{t("filters")}:</span>
           </div>
           
           <select
-            className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+            className="rounded-lg border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-2 text-sm text-slate-900 dark:text-slate-900 dark:text-white h-[42px]"
             value={filters.status}
             onChange={(e) => setFilters({ ...filters, status: e.target.value })}
           >
@@ -96,7 +96,7 @@ export const IncidentsRoute = () => {
           </select>
           
           <select
-            className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+            className="rounded-lg border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-2 text-sm text-slate-900 dark:text-slate-900 dark:text-white h-[42px]"
             value={filters.monitorId}
             onChange={(e) => setFilters({ ...filters, monitorId: e.target.value })}
           >
@@ -107,7 +107,7 @@ export const IncidentsRoute = () => {
           </select>
           
           <select
-            className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+            className="rounded-lg border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-2 text-sm text-slate-900 dark:text-slate-900 dark:text-white h-[42px]"
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as "date" | "duration")}
           >
@@ -129,7 +129,7 @@ export const IncidentsRoute = () => {
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <h4 className="text-lg font-semibold text-white">
+                    <h4 className="text-lg font-semibold text-slate-900 dark:text-white">
                       {incident.monitor?.name ?? incident.monitorId}
                     </h4>
                     <span className={`px-3 py-1 rounded-full text-xs font-medium border ${statusColors[incident.status as keyof typeof statusColors]}`}>
@@ -137,7 +137,7 @@ export const IncidentsRoute = () => {
                     </span>
                   </div>
                   
-                  <p className="text-sm text-slate-400 mb-3">{latestMessage(incident)}</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">{latestMessage(incident)}</p>
                   
                   <div className="flex items-center gap-6 text-xs text-slate-500">
                     <div className="flex items-center gap-2">
@@ -150,7 +150,7 @@ export const IncidentsRoute = () => {
                         {t("resolved")} {format(new Date(incident.resolvedAt), "PPp")}
                       </div>
                     )}
-                    <div className="font-medium text-white">
+                    <div className="font-medium text-slate-900 dark:text-white">
                       {t("duration")}: {duration < 60 ? `${duration}m` : `${Math.floor(duration / 60)}h ${duration % 60}m`}
                     </div>
                   </div>
@@ -197,8 +197,8 @@ export const IncidentsRoute = () => {
       {selectedIncident && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <Card className="max-w-md w-full mx-4">
-            <h3 className="text-xl font-semibold text-white mb-4">{t("updateStatus")}</h3>
-            <p className="text-sm text-slate-400 mb-4">{selectedIncident.monitor?.name}</p>
+            <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-900 dark:text-white mb-4">{t("updateStatus")}</h3>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">{selectedIncident.monitor?.name}</p>
             <div className="space-y-2">
               {["INVESTIGATING", "MITIGATED", "RESOLVED"].map((status) => (
                 <Button

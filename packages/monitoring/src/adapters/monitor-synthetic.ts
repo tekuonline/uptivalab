@@ -1,4 +1,4 @@
-import { chromium, firefox, webkit, type BrowserType, type Page } from "playwright-core";
+import { chromium, firefox, webkit, type BrowserType, type Page, type Browser } from "playwright-core";
 import type {
   BaseMonitor,
   MonitorAdapter,
@@ -23,7 +23,58 @@ const toConfig = (config: Record<string, unknown>): SyntheticConfig => {
     steps,
     browser: (config.browser as SyntheticConfig["browser"]) ?? "chromium",
     baseUrl: typeof config.baseUrl === "string" ? config.baseUrl : undefined,
+    remoteBrowserId: typeof config.remoteBrowserId === "string" ? config.remoteBrowserId : undefined,
+    useLocalBrowser: typeof config.useLocalBrowser === "boolean" ? config.useLocalBrowser : false,
   };
+};
+
+// Helper to get remote browser WebSocket endpoint
+const getRemoteBrowserEndpoint = async (remoteBrowserId?: string): Promise<string | null> => {
+  if (!remoteBrowserId) return null;
+  
+  try {
+    // Get remote browsers from environment or settings
+    const playwrightWsEndpoint = process.env.PLAYWRIGHT_WS_ENDPOINT;
+    if (playwrightWsEndpoint && !remoteBrowserId) {
+      return playwrightWsEndpoint;
+    }
+    
+    // For now, return the default endpoint if configured
+    // In the future, this could fetch from database based on remoteBrowserId
+    return playwrightWsEndpoint || null;
+  } catch (error) {
+    console.error("Failed to get remote browser endpoint:", error);
+    return null;
+  }
+};
+
+// Helper to connect to browser (remote or local)
+const connectToBrowser = async (
+  config: SyntheticConfig,
+  launchTimeout: number
+): Promise<{ browser: Browser; isRemote: boolean }> => {
+  const browserType = browsers[config.browser ?? "chromium"] ?? chromium;
+  
+  // Try remote browser first if configured and not explicitly disabled
+  if (!config.useLocalBrowser) {
+    const wsEndpoint = await getRemoteBrowserEndpoint(config.remoteBrowserId);
+    
+    if (wsEndpoint) {
+      try {
+        console.log(`Attempting to connect to remote browser at ${wsEndpoint}`);
+        const browser = await browserType.connect(wsEndpoint, { timeout: launchTimeout });
+        console.log("Successfully connected to remote browser");
+        return { browser, isRemote: true };
+      } catch (error) {
+        console.warn("Failed to connect to remote browser, falling back to local:", error);
+      }
+    }
+  }
+  
+  // Fall back to local browser
+  console.log("Launching local browser");
+  const browser = await browserType.launch({ headless: true, timeout: launchTimeout });
+  return { browser, isRemote: false };
 };
 
 export const syntheticAdapter: MonitorAdapter = {
@@ -31,14 +82,13 @@ export const syntheticAdapter: MonitorAdapter = {
   supports: () => true,
   async execute(monitor: BaseMonitor): Promise<MonitorResult> {
     const config = toConfig(monitor.config);
-    const browserType = browsers[config.browser ?? "chromium"] ?? chromium;
     const launchTimeout = monitor.timeout ?? 30000;
 
   const journeySteps: NonNullable<MonitorResultMeta["journeySteps"]> = [];
     const start = Date.now();
 
     try {
-      const browser = await browserType.launch({ headless: true, timeout: launchTimeout });
+      const { browser, isRemote } = await connectToBrowser(config, launchTimeout);
       const context = await browser.newContext();
       const page = await context.newPage();
 
@@ -65,10 +115,12 @@ export const syntheticAdapter: MonitorAdapter = {
       }
 
       await browser.close();
+      
+      const browserInfo = isRemote ? " (remote)" : " (local)";
       return {
         monitorId: monitor.id,
         status: "up",
-        message: `Synthetic journey ok (${Date.now() - start}ms)` ,
+        message: `Synthetic journey ok (${Date.now() - start}ms)${browserInfo}` ,
         checkedAt: new Date().toISOString(),
         meta: { journeySteps },
       };

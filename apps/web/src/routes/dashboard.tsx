@@ -14,11 +14,27 @@ import { useTranslation } from "../hooks/use-translation.js";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler);
 
+interface Monitor {
+  id: string;
+  name: string;
+  kind: string;
+  meta?: {
+    certificateExpiresAt?: string;
+    certificateDaysLeft?: number;
+  };
+}
+
 interface StatusSnapshot {
   id: string;
   name: string;
+  kind: string;
   status: StatusState;
   lastCheck: string | null;
+  inMaintenance?: boolean;
+  meta?: {
+    certificateExpiresAt?: string;
+    certificateDaysLeft?: number;
+  } | null;
 }
 
 const summaryLabels: Record<StatusState, string> = {
@@ -36,7 +52,7 @@ const MiniGraph = ({ monitorId, status }: { monitorId: string; status: StatusSta
   });
 
   if (!data?.checks || data.checks.length === 0) {
-    return <div className="h-8 w-16 rounded bg-white/5" />;
+    return <div className="h-8 w-16 rounded bg-slate-200 dark:bg-white/5" />;
   }
 
   // Take last 24 checks for mini sparkline
@@ -89,9 +105,9 @@ const CertificateExpiryWidget = () => {
 
   const certificateMonitors = useMemo(() => {
     if (!monitors) return [];
-    return monitors
-      .filter((m: any) => m.kind === "certificate")
-      .map((m: any) => {
+    return (monitors as Monitor[])
+      .filter((m) => m.kind === "certificate")
+      .map((m) => {
         const expiresAt = m.meta?.certificateExpiresAt;
         if (!expiresAt) return null;
         
@@ -115,18 +131,18 @@ const CertificateExpiryWidget = () => {
     <Card>
       <div className="mb-4 flex items-center gap-3">
         <AlertTriangle className="h-5 w-5 text-yellow-400" />
-        <h3 className="text-lg font-semibold text-white">SSL Certificate Expiry</h3>
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">SSL Certificate Expiry</h3>
       </div>
       <div className="space-y-3">
         {certificateMonitors.slice(0, 5).map((cert) => (
           <Link
             key={cert.id}
             to={`/monitors/${cert.id}`}
-            className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 p-3 transition hover:bg-white/10"
+            className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-3 transition hover:bg-slate-200 dark:hover:bg-white/10"
           >
             <div>
-              <p className="font-medium text-white">{cert.name}</p>
-              <p className="text-xs text-slate-400">
+              <p className="font-medium text-slate-900 dark:text-white">{cert.name}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 Expires {cert.expiryDate.toLocaleDateString()}
               </p>
             </div>
@@ -149,6 +165,8 @@ export const DashboardRoute = () => {
 
   useEffect(() => {
     if (data) {
+      console.log('Dashboard data received:', data);
+      console.log('Certificate monitors:', data.filter((m: any) => m.kind === 'certificate'));
       setSnapshots(data as StatusSnapshot[]);
     }
   }, [data]);
@@ -160,7 +178,11 @@ export const DashboardRoute = () => {
       if (!existing) return prev;
       return prev.map((item) =>
         item.id === event.payload.monitorId
-          ? { ...item, status: event.payload.status as StatusState, lastCheck: event.payload.checkedAt }
+          ? { 
+              ...item, 
+              status: event.payload.status as StatusState, 
+              lastCheck: event.payload.checkedAt
+            }
           : item
       );
     });
@@ -177,7 +199,7 @@ export const DashboardRoute = () => {
   }, [snapshots]);
 
   if (isLoading && snapshots.length === 0) {
-    return <p className="text-slate-400">Loading telemetry...</p>;
+    return <p className="text-slate-600 dark:text-slate-400">Loading telemetry...</p>;
   }
 
   return (
@@ -185,11 +207,11 @@ export const DashboardRoute = () => {
       <div className="grid gap-4 md:grid-cols-3">
         {(Object.keys(counts) as StatusState[]).map((status) => (
           <Card key={status} className="space-y-3">
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">{summaryLabels[status]}</p>
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">{summaryLabels[status]}</p>
             <div className="flex items-end justify-between">
               <div>
-                <div className="text-4xl font-semibold text-white">{counts[status]}</div>
-                <p className="text-sm text-slate-400">monitors {status}</p>
+                <div className="text-4xl font-semibold text-slate-900 dark:text-white">{counts[status]}</div>
+                <p className="text-sm text-slate-600 dark:text-slate-400">monitors {status}</p>
               </div>
               <StatusBadge status={status} />
             </div>
@@ -202,28 +224,59 @@ export const DashboardRoute = () => {
       <Card>
         <div className="mb-6 flex items-center gap-3">
           <Sparkles className="h-5 w-5 text-primary" />
-          <h3 className="text-lg font-semibold text-white">{t("monitorsTitle")}</h3>
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{t("monitorsTitle")}</h3>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           {snapshots.map((monitor) => (
             <Link
               key={monitor.id}
               to={`/monitors/${monitor.id}`}
-              className="rounded-2xl border border-white/5 bg-white/5 p-4 transition hover:bg-white/10"
+              className="rounded-2xl border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/5 p-4 transition hover:bg-slate-200 dark:hover:bg-white/10"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <p className="text-sm text-slate-400">{monitor.id}</p>
-                  <p className="text-xl font-semibold text-white">{monitor.name}</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">{monitor.id}</p>
+                  <p className="text-xl font-semibold text-slate-900 dark:text-white">{monitor.name}</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <MiniGraph monitorId={monitor.id} status={monitor.status} />
-                  <StatusBadge status={monitor.status} />
+                  <div className="flex flex-col items-end gap-2">
+                    <StatusBadge status={monitor.status} />
+                    {monitor.inMaintenance && (
+                      <span className="rounded-full bg-yellow-500 px-2 py-0.5 text-xs font-semibold text-black">
+                        Maintenance
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-              <div className="mt-3 flex items-center gap-2 text-xs text-slate-400">
-                <Clock className="h-3 w-3" />
-                {monitor.lastCheck ? new Date(monitor.lastCheck).toLocaleTimeString() : "Pending"}
+              <div className="mt-3 space-y-1">
+                <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+                  <Clock className="h-3 w-3" />
+                  {monitor.lastCheck ? new Date(monitor.lastCheck).toLocaleTimeString() : "Pending"}
+                </div>
+                {monitor.kind === "certificate" && (
+                  <div className="text-xs">
+                    {monitor.meta?.certificateDaysLeft ? (
+                      <div className={`flex items-center gap-2 font-medium ${
+                        monitor.meta.certificateDaysLeft < 7
+                          ? 'text-red-600 dark:text-red-400'
+                          : monitor.meta.certificateDaysLeft < 30
+                            ? 'text-yellow-600 dark:text-yellow-400'
+                            : 'text-green-600 dark:text-green-400'
+                      }`}>
+                        🔒 Expires in {monitor.meta.certificateDaysLeft} days
+                        {monitor.meta.certificateExpiresAt && (
+                          <span className="text-slate-500 dark:text-slate-400">
+                            ({new Date(monitor.meta.certificateExpiresAt).toLocaleDateString()})
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-slate-400">Certificate monitor - awaiting check</span>
+                    )}
+                  </div>
+                )}
               </div>
             </Link>
           ))}

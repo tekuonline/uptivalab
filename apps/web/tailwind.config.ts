@@ -7,22 +7,31 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: "hsl(240 11% 9%)",
-        foreground: "hsl(210 40% 98%)",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "#5B8DEE",
-          foreground: "#fff",
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
         },
         accent: {
-          DEFAULT: "#1F2933",
-          foreground: "#E2E8F0",
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
         },
         success: "#34D399",
         warning: "#FBBF24",
         danger: "#F87171",
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+        border: "hsl(var(--border))",
       },
       boxShadow: {
-        glass: "0 8px 32px rgba(15, 23, 42, 0.35)",
+        glass: "var(--shadow-glass)",
       },
       backdropBlur: {
         xs: "2px",

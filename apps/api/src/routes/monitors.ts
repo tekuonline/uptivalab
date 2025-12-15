@@ -3,6 +3,7 @@ import fp from "fastify-plugin";
 import { z } from "zod";
 import { prisma } from "../db/prisma.js";
 import { monitorOrchestrator } from "../services/monitor-engine/orchestrator.js";
+import { maintenanceService } from "../services/maintenance/suppressor.js";
 
 const monitorSchema = z.object({
   name: z.string(),
@@ -27,14 +28,44 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
       orderBy: { createdAt: "desc" },
     });
 
-    // Add status and lastCheck from latest check
-    return monitors.map((monitor: any) => ({
-      ...monitor,
-      status: monitor.checks[0]?.status ?? "pending",
-      lastCheck: monitor.checks[0]?.checkedAt ?? null,
-      recentChecks: monitor.checks, // Keep checks for uptime bar
-      checks: undefined, // Remove original checks field
-    }));
+    // Add status, lastCheck, and maintenance status from latest check
+    const results = await Promise.all(
+      monitors.map(async (monitor: any) => {
+        const inMaintenance = await maintenanceService.isSuppressed(monitor.id);
+        const latestCheck = monitor.checks[0];
+        const payload = latestCheck?.payload as any;
+        // Extract certificate metadata for certificate monitors
+        const meta = monitor.kind === 'certificate' && payload ? {
+          certificateExpiresAt: payload.certificateExpiresAt,
+          certificateDaysLeft: payload.certificateDaysLeft,
+        } : null;
+        
+        // Mask sensitive fields in config
+        const config = monitor.config as any;
+        const maskedConfig = { ...config };
+        if (maskedConfig.password) maskedConfig.password = '***MASKED***';
+        if (maskedConfig.authPassword) maskedConfig.authPassword = '***MASKED***';
+        if (maskedConfig.apiKey) maskedConfig.apiKey = '***MASKED***';
+        if (maskedConfig.token) maskedConfig.token = '***MASKED***';
+        if (maskedConfig.secret) maskedConfig.secret = '***MASKED***';
+        if (maskedConfig.connectionString && maskedConfig.connectionString.includes('password=')) {
+          maskedConfig.connectionString = maskedConfig.connectionString.replace(/password=[^;\s]+/gi, 'password=***MASKED***');
+        }
+        
+        return {
+          ...monitor,
+          config: maskedConfig,
+          status: latestCheck?.status ?? "pending",
+          lastCheck: latestCheck?.checkedAt ?? null,
+          recentChecks: monitor.checks, // Keep checks for uptime bar
+          checks: undefined, // Remove original checks field
+          inMaintenance,
+          meta,
+        };
+      })
+    );
+    
+    return results;
   });
 
   // GET /monitors/list - Alternative endpoint for listing monitors
@@ -48,13 +79,21 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
       orderBy: { createdAt: "desc" },
     });
 
-    // Add status and lastCheck from latest check result
-    return monitors.map((monitor: any) => ({
-      ...monitor,
-      status: monitor.checks[0]?.status ?? "pending",
-      lastCheck: monitor.checks[0]?.checkedAt ?? null,
-      checks: undefined, // Remove checks from response
-    }));
+    // Add status, lastCheck, and maintenance status from latest check result
+    const results = await Promise.all(
+      monitors.map(async (monitor: any) => {
+        const inMaintenance = await maintenanceService.isSuppressed(monitor.id);
+        return {
+          ...monitor,
+          status: monitor.checks[0]?.status ?? "pending",
+          lastCheck: monitor.checks[0]?.checkedAt ?? null,
+          checks: undefined, // Remove checks from response
+          inMaintenance,
+        };
+      })
+    );
+    
+    return results;
   });
 
   // GET /monitors/:id - Get a single monitor with details
@@ -74,9 +113,31 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
     // Compute status from latest check
     const status = monitor.checks[0]?.status ?? "pending";
     
+    // Extract certificate metadata for certificate monitors
+    const latestCheck = monitor.checks[0];
+    const payload = latestCheck?.payload as any;
+    const meta = monitor.kind === 'certificate' && payload ? {
+      certificateExpiresAt: payload.certificateExpiresAt,
+      certificateDaysLeft: payload.certificateDaysLeft,
+    } : null;
+    
+    // Mask sensitive fields in config
+    const config = monitor.config as any;
+    const maskedConfig = { ...config };
+    if (maskedConfig.password) maskedConfig.password = '***MASKED***';
+    if (maskedConfig.authPassword) maskedConfig.authPassword = '***MASKED***';
+    if (maskedConfig.apiKey) maskedConfig.apiKey = '***MASKED***';
+    if (maskedConfig.token) maskedConfig.token = '***MASKED***';
+    if (maskedConfig.secret) maskedConfig.secret = '***MASKED***';
+    if (maskedConfig.connectionString && maskedConfig.connectionString.includes('password=')) {
+      maskedConfig.connectionString = maskedConfig.connectionString.replace(/password=[^;\s]+/gi, 'password=***MASKED***');
+    }
+    
     return {
       ...monitor,
       status,
+      meta,
+      config: maskedConfig,
     };
   });
 

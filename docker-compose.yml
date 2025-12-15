@@ -21,6 +21,16 @@ services:
     volumes:
       - redisdata:/data
 
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.45.0-jammy
+    restart: unless-stopped
+    command: ["npx", "playwright", "run-server", "--port", "9222"]
+    ports:
+      - "9222:9222"
+    environment:
+      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+    shm_size: 2gb
+
   api:
     build:
       context: .
@@ -38,6 +48,8 @@ services:
       - redis
     ports:
       - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
 
   web:

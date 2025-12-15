@@ -6,6 +6,7 @@ import { type NotificationAdapter, readChannelConfig } from "./base.js";
 
 interface EmailConfig {
   email?: string;
+  emails?: string;
   smtpHost?: string;
   smtpPort?: string;
   smtpUser?: string;
@@ -63,9 +64,12 @@ const send = async (channel: NotificationChannel, result: MonitorResult) => {
   }
 
   const fromEmail = config.smtpFrom || config.smtpUser || appConfig.SMTP_USER || "uptivalab@localhost";
+  
+  // Support multiple email recipients
+  const toEmails = config.emails || config.email || channel.name;
 
   await transport.sendMail({
-    to: config.email ?? channel.name,
+    to: toEmails,
     from: fromEmail,
     subject: `[UptivaLab] ${result.status.toUpperCase()} - ${result.monitorId}`,
     text: result.message,

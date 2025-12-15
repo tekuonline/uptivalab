@@ -81,6 +81,12 @@ export const createServer = async () => {
     await fastify.register(robotsRoutes);
   }, { prefix: "/api" });
 
+  // Register public invitation routes (no authentication)
+  await fastify.register(async (fastify) => {
+    const { publicInvitations } = await import("./routes/invitations.js");
+    await fastify.register(publicInvitations);
+  }, { prefix: "/api" });
+
   // Register protected routes with authentication
   await fastify.register(async (fastify) => {
     const { default: monitorsRoutes } = await import("./routes/monitors.js");
@@ -91,6 +97,8 @@ export const createServer = async () => {
     const { default: maintenanceRoutes } = await import("./routes/maintenance.js");
     const { default: statusPagesRoutes } = await import("./routes/status-pages.js");
     const { default: settingsRoutes } = await import("./routes/settings.js");
+    const { default: usersRoutes } = await import("./routes/users.js");
+    const { default: invitationsRoutes } = await import("./routes/invitations.js");
     
     await fastify.register(monitorsRoutes);
     await fastify.register(statusRoutes);
@@ -100,6 +108,8 @@ export const createServer = async () => {
     await fastify.register(maintenanceRoutes);
     await fastify.register(statusPagesRoutes);
     await fastify.register(settingsRoutes);
+    await fastify.register(usersRoutes);
+    await fastify.register(invitationsRoutes);
   }, { prefix: "/api" });
 
   fastify.get("/health", async () => ({ status: "ok", timestamp: new Date().toISOString() }));
