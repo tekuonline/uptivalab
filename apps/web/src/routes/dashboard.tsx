@@ -37,10 +37,13 @@ interface StatusSnapshot {
   } | null;
 }
 
-const summaryLabels: Record<StatusState, string> = {
-  up: "All systems thriving",
-  down: "Incident active",
-  pending: "Awaiting data",
+const getSummaryLabel = (t: any, status: StatusState): string => {
+  const labels: Record<StatusState, string> = {
+    up: t("allSystemsThriving"),
+    down: t("incidentActive"),
+    pending: t("awaitingData"),
+  };
+  return labels[status];
 };
 
 const MiniGraph = ({ monitorId, status }: { monitorId: string; status: StatusState }) => {
@@ -207,7 +210,7 @@ export const DashboardRoute = () => {
       <div className="grid gap-4 md:grid-cols-3">
         {(Object.keys(counts) as StatusState[]).map((status) => (
           <Card key={status} className="space-y-3">
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">{summaryLabels[status]}</p>
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">{getSummaryLabel(t, status)}</p>
             <div className="flex items-end justify-between">
               <div>
                 <div className="text-4xl font-semibold text-slate-900 dark:text-white">{counts[status]}</div>

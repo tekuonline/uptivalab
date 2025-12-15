@@ -20,6 +20,7 @@
 - [Quick Start](#-quick-start)
 - [Docker Deployment](#-docker-deployment)
 - [Configuration](#-configuration)
+- [Synthetic Monitoring Guide](#-synthetic-monitoring)
 - [Development](#-development)
 - [API Documentation](#-api-documentation)
 - [License](#-license)
@@ -238,6 +239,79 @@ For cron jobs and scheduled tasks:
 2. Create a new status page
 3. Add monitors to display
 4. Share the public URL (no authentication required)
+
+### Cloudflare Tunnel Integration
+
+UptivaLab includes built-in Cloudflare Tunnel support - **cloudflared runs inside the API container** automatically when you provide a token:
+
+1. **Add your tunnel token to `.env`:**
+   ```bash
+   CLOUDFLARE_TUNNEL_TOKEN=your-token-here
+   ```
+
+2. **Start normally:**
+   ```bash
+   docker compose up -d
+   ```
+
+3. **Configure in Cloudflare Dashboard:**
+   - Create a tunnel at [Cloudflare Zero Trust](https://one.dash.cloudflare.com/)
+   - Add public hostname: `your-subdomain.yourdomain.com` → `http://web:80`
+   - Access via `https://your-subdomain.yourdomain.com`
+
+The API container automatically runs both your application and cloudflared using Supervisor. No separate containers or profiles needed!
+
+📖 **[Complete Cloudflare Tunnel Setup Guide](CLOUDFLARE_TUNNEL.md)**
+
+---
+
+## 🎭 Synthetic Monitoring
+
+UptivaLab includes powerful browser-based synthetic monitoring using Playwright. Create multi-step user journeys to test complex workflows like login flows, form submissions, and e-commerce checkouts.
+
+### Features
+- ✅ **Multi-step browser automation** - Navigate, click, fill forms, wait for elements
+- ✅ **Three browser engines** - Chromium, Firefox, WebKit
+- ✅ **Local & remote browsers** - Flexible deployment options
+- ✅ **Detailed step results** - See exactly which step failed
+- ✅ **Screenshot capture** - Visual debugging
+- ✅ **Automatic fallback** - Remote → Local if connection fails
+
+### Quick Example
+
+Create a login flow monitor:
+```json
+{
+  "name": "Login Test",
+  "type": "SYNTHETIC",
+  "config": {
+    "browser": "chromium",
+    "steps": [
+      {"action": "goto", "url": "https://example.com/login"},
+      {"action": "fill", "selector": "#email", "value": "test@example.com"},
+      {"action": "fill", "selector": "#password", "value": "secret"},
+      {"action": "click", "selector": "button[type=submit]"},
+      {"action": "waitForSelector", "selector": ".dashboard"}
+    ]
+  }
+}
+```
+
+### 📖 Complete Guide
+
+For detailed configuration, remote browser setup, troubleshooting, and advanced examples, see:
+
+**[→ Synthetic Monitoring Guide (SYNTHETIC_MONITORING.md)](./SYNTHETIC_MONITORING.md)**
+
+Topics covered:
+- Local vs Remote browser comparison
+- Setting up the built-in Playwright container
+- Configuring remote browsers via UI
+- Running standalone Playwright servers
+- Step actions reference
+- Performance tuning
+- Troubleshooting common issues
+- Real-world examples
 
 ---
 

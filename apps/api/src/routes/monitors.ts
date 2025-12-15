@@ -24,6 +24,7 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
         tags: { include: { tag: true } },
         group: true,
         checks: { orderBy: { checkedAt: "desc" }, take: 90 }, // Get 90 most recent checks for uptime bar
+        notificationChannels: { select: { id: true } },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -52,16 +53,22 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
           maskedConfig.connectionString = maskedConfig.connectionString.replace(/password=[^;\s]+/gi, 'password=***MASKED***');
         }
         
-        return {
+        const result = {
           ...monitor,
           config: maskedConfig,
           status: latestCheck?.status ?? "pending",
           lastCheck: latestCheck?.checkedAt ?? null,
           recentChecks: monitor.checks, // Keep checks for uptime bar
-          checks: undefined, // Remove original checks field
           inMaintenance,
           meta,
+          notificationIds: monitor.notificationChannels?.map((nc: any) => nc.id) || [],
         };
+        
+        // Remove fields we don't want in response
+        delete (result as any).checks;
+        delete (result as any).notificationChannels;
+        
+        return result;
       })
     );
     

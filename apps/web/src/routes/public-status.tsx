@@ -1,6 +1,7 @@
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api.js";
+import { useTranslation } from "../lib/i18n.js";
 import { Card } from "../components/ui/card.js";
 import { StatusBadge } from "../components/status-badge.js";
 import { format } from "date-fns";
@@ -8,6 +9,7 @@ import { CheckCircle, XCircle, Clock, AlertTriangle, Wrench } from "lucide-react
 import { useEffect } from "react";
 
 export const PublicStatusRoute = () => {
+  const { t } = useTranslation();
   const { slug } = useParams<{ slug: string }>();
   
   const { data, isLoading, error } = useQuery({
@@ -93,9 +95,9 @@ export const PublicStatusRoute = () => {
           <div className="flex items-center justify-center gap-3">
             {getStatusIcon(data.overallStatus)}
             <span className={`text-2xl font-semibold ${getStatusColor(data.overallStatus)}`}>
-              {data.overallStatus === "operational" && "All Systems Operational"}
-              {data.overallStatus === "degraded" && "Partial System Outage"}
-              {data.overallStatus === "down" && "Major Outage"}
+              {data.overallStatus === "operational" && t("allSystemsOperational")}
+              {data.overallStatus === "degraded" && t("partialSystemOutage")}
+              {data.overallStatus === "down" && t("majorOutage")}
             </span>
           </div>
           <p className="text-sm text-slate-600 dark:text-slate-400">

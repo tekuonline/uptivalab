@@ -1,7 +1,7 @@
 import type { Monitor } from "@uptivalab/shared";
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { api } from "../lib/api.js";
 import { useAuth } from "../providers/auth-context.js";
 import { useTranslation } from "../hooks/use-translation.js";
@@ -9,17 +9,20 @@ import { Card } from "../components/ui/card.js";
 import { Button } from "../components/ui/button.js";
 import { StatusBadge } from "../components/status-badge.js";
 import { UptimeBar } from "../components/uptime-bar.js";
-import { Eye, Trash2, ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
+import { Eye, Trash2, ChevronDown, ChevronUp, RefreshCw, Copy, Edit, X } from "lucide-react";
 
 export const MonitorsRoute = () => {
   const { token } = useAuth();
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const { data } = useQuery({ queryKey: ["monitors"], queryFn: () => api.listMonitors(token), enabled: Boolean(token) });
   const { data: notifications } = useQuery({ queryKey: ["notifications"], queryFn: () => api.listNotifications(token), enabled: Boolean(token) });
   
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showHttpOptions, setShowHttpOptions] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   
   // Docker state
   const [dockerHosts, setDockerHosts] = useState<any[]>([]);
@@ -66,6 +69,11 @@ export const MonitorsRoute = () => {
     target: "",        // grpc
     heartbeatSeconds: "300", // push
     dockerHostId: "",  // docker - selected host
+    
+    // Synthetic monitor fields
+    browser: "chromium",     // synthetic - browser type
+    useLocalBrowser: false,  // synthetic - use local vs remote
+    steps: "",               // synthetic - JSON string of steps array
   });
   
   const buildConfig = (formData: typeof form) => {
@@ -119,6 +127,20 @@ export const MonitorsRoute = () => {
         return { target: formData.target };
       case "push":
         return { heartbeatSeconds: parseInt(formData.heartbeatSeconds, 10) };
+      case "synthetic":
+        try {
+          const steps = JSON.parse(formData.steps || '[]');
+          return {
+            browser: formData.browser || 'chromium',
+            useLocalBrowser: formData.useLocalBrowser,
+            baseUrl: formData.url || undefined,
+            steps,
+          };
+        } catch (error) {
+          console.error('Failed to parse synthetic steps:', error);
+          alert('Invalid JSON in steps field. Please check your syntax.');
+          return { steps: [] };
+        }
       default:
         return baseConfig;
     }
@@ -158,22 +180,42 @@ export const MonitorsRoute = () => {
       target: "",
       heartbeatSeconds: "300",
       dockerHostId: "",
+      
+      browser: "chromium",
+      useLocalBrowser: false,
+      steps: "",
     });
-  };  const mutation = useMutation({
+  };
+
+  const mutation = useMutation({
     mutationFn: () => {
       const config = buildConfig(form);
-      return api.createMonitor(token, {
+      // Ensure interval is at least 15 seconds for synthetic monitors
+      let intervalSeconds = form.interval;
+      if (form.kind === 'synthetic' && intervalSeconds < 15) {
+        intervalSeconds = 15;
+        console.warn('Synthetic monitor interval adjusted to minimum 15 seconds');
+      }
+      
+      const payload = {
         name: form.name,
-        interval: form.interval * 1000,
+        interval: intervalSeconds * 1000,
         timeout: form.timeout * 1000,
         kind: form.kind,
         config,
         notificationIds: form.notificationIds,
-      });
+      };
+      
+      if (editingId) {
+        return api.updateMonitor(token, editingId, payload);
+      } else {
+        return api.createMonitor(token, payload);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["monitors"] });
       resetForm();
+      setEditingId(null);
     },
   });
 
@@ -181,6 +223,16 @@ export const MonitorsRoute = () => {
   useEffect(() => {
     loadDockerHosts();
   }, [token]);
+
+  // Handle edit from location state (when navigating from detail page)
+  useEffect(() => {
+    const state = location.state as { editMonitor?: any };
+    if (state?.editMonitor) {
+      handleEdit(state.editMonitor);
+      // Clear the state to avoid re-triggering on re-render
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state]);
 
   const loadDockerHosts = async () => {
     try {
@@ -241,17 +293,145 @@ export const MonitorsRoute = () => {
   });
 
   const handleDelete = (monitor: Monitor) => {
-    if (confirm(`${t("deleteConfirm")} "${monitor.name}"?`)) {
+    const confirmMessage = `${t("confirmDelete")} "${monitor.name}"?`;
+    if (window.confirm(confirmMessage)) {
       deleteMutation.mutate(monitor.id);
     }
+  };
+  
+  const handleClone = (monitor: any) => {
+    // Parse config back to form fields
+    const config = monitor.config as any;
+    
+    setForm({
+      name: `${t("clonedFrom")} ${monitor.name}`,
+      kind: monitor.kind,
+      interval: Math.round(monitor.interval / 1000),
+      timeout: monitor.timeout ? Math.round(monitor.timeout / 1000) : 48,
+      retries: monitor.retries ?? 0,
+      retryInterval: monitor.retryInterval ? Math.round(monitor.retryInterval / 1000) : 60,
+      description: monitor.description || "",
+      groupId: "",
+      tagIds: [],
+      notificationIds: [],
+      
+      // Advanced options
+      ignoreTls: config?.ignoreTls ?? false,
+      upsideDown: config?.upsideDown ?? false,
+      maxRedirects: config?.maxRedirects ?? 10,
+      acceptedStatusCodes: config?.acceptedStatusCodes ?? "200-299",
+      
+      // HTTP options
+      method: config?.method ?? "GET",
+      headers: config?.headers ? JSON.stringify(config.headers, null, 2) : "",
+      body: config?.body ?? "",
+      bodyEncoding: config?.bodyEncoding ?? "json",
+      authMethod: config?.authMethod ?? "none",
+      authUsername: config?.authUsername ?? "",
+      authPassword: config?.authPassword ?? "",
+      
+      // Type-specific fields
+      url: config?.url ?? "",
+      host: config?.host ?? "",
+      port: config?.port?.toString() ?? "",
+      record: config?.record ?? "",
+      recordType: config?.recordType ?? "A",
+      containerName: config?.containerName ?? "",
+      connectionString: config?.connectionString ?? "",
+      variant: config?.variant ?? "postgres",
+      target: config?.target ?? "",
+      heartbeatSeconds: config?.heartbeatSeconds?.toString() ?? "300",
+      dockerHostId: config?.dockerHostId ?? "",
+      
+      // Synthetic monitor fields
+      browser: config?.browser ?? "chromium",
+      useLocalBrowser: config?.useLocalBrowser ?? false,
+      steps: config?.steps ? JSON.stringify(config.steps, null, 2) : "",
+    });
+    
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  
+  const handleEdit = (monitor: any) => {
+    setEditingId(monitor.id);
+    const config = monitor.config as any;
+    
+    console.log("Editing monitor:", monitor.id);
+    console.log("Monitor notificationIds:", monitor.notificationIds);
+    console.log("Is array?", Array.isArray(monitor.notificationIds));
+    
+    setForm({
+      name: monitor.name,
+      kind: monitor.kind,
+      interval: Math.round(monitor.interval / 1000),
+      timeout: monitor.timeout ? Math.round(monitor.timeout / 1000) : 48,
+      retries: monitor.retries ?? 0,
+      retryInterval: monitor.retryInterval ? Math.round(monitor.retryInterval / 1000) : 60,
+      description: monitor.description || "",
+      groupId: "",
+      tagIds: [],
+      notificationIds: Array.isArray(monitor.notificationIds) ? monitor.notificationIds : [],
+      
+      // Advanced options
+      ignoreTls: config?.ignoreTls ?? false,
+      upsideDown: config?.upsideDown ?? false,
+      maxRedirects: config?.maxRedirects ?? 10,
+      acceptedStatusCodes: config?.acceptedStatusCodes ?? "200-299",
+      
+      // HTTP options
+      method: config?.method ?? "GET",
+      headers: config?.headers ? JSON.stringify(config.headers, null, 2) : "",
+      body: config?.body ?? "",
+      bodyEncoding: config?.bodyEncoding ?? "json",
+      authMethod: config?.authMethod ?? "none",
+      authUsername: config?.authUsername ?? "",
+      authPassword: config?.authPassword ?? "",
+      
+      // Type-specific fields
+      url: config?.url ?? "",
+      host: config?.host ?? "",
+      port: config?.port?.toString() ?? "",
+      record: config?.record ?? "",
+      recordType: config?.recordType ?? "A",
+      containerName: config?.containerName ?? "",
+      connectionString: config?.connectionString ?? "",
+      variant: config?.variant ?? "postgres",
+      target: config?.target ?? "",
+      heartbeatSeconds: config?.heartbeatSeconds?.toString() ?? "300",
+      dockerHostId: config?.dockerHostId ?? "",
+      
+      // Synthetic monitor fields
+      browser: config?.browser ?? "chromium",
+      useLocalBrowser: config?.useLocalBrowser ?? false,
+      steps: config?.steps ? JSON.stringify(config.steps, null, 2) : "",
+    });
+    
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    resetForm();
   };
 
   return (
     <div className="space-y-6">
       <Card className="space-y-6">
-        <div>
-          <h3 className="text-xl font-semibold text-slate-900 dark:text-white">{t("createNewMonitor")}</h3>
-          <p className="text-sm text-slate-600 dark:text-slate-400">{t("createMonitorDescription")}</p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 className="text-xl font-semibold text-slate-900 dark:text-white">
+              {editingId ? t("editMonitor") : t("createNewMonitor")}
+            </h3>
+            <p className="text-sm text-slate-600 dark:text-slate-400">{t("createMonitorDescription")}</p>
+          </div>
+          {editingId && (
+            <Button variant="ghost" onClick={handleCancelEdit} className="flex items-center gap-2">
+              <X className="h-4 w-4" />
+              {t("cancel")}
+            </Button>
+          )}
         </div>
         <form
           className="space-y-6"
@@ -279,6 +459,7 @@ export const MonitorsRoute = () => {
                   <option value="docker">Docker Container</option>
                   <option value="certificate">SSL Certificate</option>
                   <option value="database">Database</option>
+                  <option value="synthetic">Synthetic Journey</option>
                   <option value="grpc">gRPC</option>
                   <option value="push">Push</option>
                 </select>
@@ -302,7 +483,7 @@ export const MonitorsRoute = () => {
                 <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("url")}</label>
                 <input
                   className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
-                  placeholder="https://example.com"
+                  placeholder={t("urlPlaceholder")}
                   value={form.url}
                   onChange={(e) => setForm((prev) => ({ ...prev, url: e.target.value }))}
                   required
@@ -316,7 +497,7 @@ export const MonitorsRoute = () => {
                   <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("hostname")}</label>
                   <input
                     className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
-                    placeholder="example.com"
+                    placeholder={t("hostInputPlaceholder")}
                     value={form.host}
                     onChange={(e) => setForm((prev) => ({ ...prev, host: e.target.value }))}
                     required
@@ -327,7 +508,7 @@ export const MonitorsRoute = () => {
                   <input
                     type="number"
                     className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
-                    placeholder="80"
+                    placeholder={t("portInputPlaceholder")}
                     value={form.port}
                     onChange={(e) => setForm((prev) => ({ ...prev, port: e.target.value }))}
                     min="1"
@@ -343,7 +524,7 @@ export const MonitorsRoute = () => {
                 <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("hostname")}</label>
                 <input
                   className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
-                  placeholder="example.com or 8.8.8.8"
+                  placeholder={t("dnsHostPlaceholder")}
                   value={form.host}
                   onChange={(e) => setForm((prev) => ({ ...prev, host: e.target.value }))}
                   required
@@ -357,7 +538,7 @@ export const MonitorsRoute = () => {
                   <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("hostname")}</label>
                   <input
                     className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
-                    placeholder="example.com"
+                    placeholder={t("hostInputPlaceholder")}
                     value={form.record}
                     onChange={(e) => setForm((prev) => ({ ...prev, record: e.target.value }))}
                     required
@@ -384,7 +565,7 @@ export const MonitorsRoute = () => {
               <div className="space-y-4">
                 <div>
                   <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">
-                    Docker Host {dockerHosts.length === 0 && <span className="text-red-600 dark:text-red-400">(No hosts configured)</span>}
+                    {t("dockerHost")} {dockerHosts.length === 0 && <span className="text-red-600 dark:text-red-400">({t("noHostsConfigured")})</span>}
                   </label>
                   <select
                     className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white h-[46px]"
@@ -392,7 +573,7 @@ export const MonitorsRoute = () => {
                     onChange={(e) => handleDockerHostChange(e.target.value)}
                     required
                   >
-                    <option value="">Select Docker Host</option>
+                    <option value="">{t("selectDockerHost")}</option>
                     {dockerHosts.map((host) => (
                       <option key={host.id} value={host.id}>
                         {host.name} ({host.url})
@@ -401,7 +582,7 @@ export const MonitorsRoute = () => {
                   </select>
                   {dockerHosts.length === 0 && (
                     <p className="mt-2 text-xs text-yellow-600 dark:text-yellow-400">
-                      ⚠️ Please add a Docker host in Settings &gt; Proxies first
+                      ⚠️ {t("addDockerHostWarning")}
                     </p>
                   )}
                 </div>
@@ -410,7 +591,7 @@ export const MonitorsRoute = () => {
                   <div className="rounded-lg bg-blue-500/10 border border-blue-500/30 dark:border-blue-500/20 p-3">
                     <p className="text-sm text-blue-600 dark:text-blue-400">
                       <RefreshCw className="inline h-4 w-4 animate-spin mr-2" />
-                      Loading Docker resources...
+                      {t("loadingDockerResources")}
                     </p>
                   </div>
                 )}
@@ -418,17 +599,17 @@ export const MonitorsRoute = () => {
                 {dockerResources && (
                   <div className="rounded-lg bg-green-500/10 border border-green-500/30 dark:border-green-500/20 p-3 space-y-2">
                     <p className="text-xs font-semibold text-green-700 dark:text-green-300">
-                      ✓ Connected to Docker v{dockerResources.serverVersion}
+                      ✓ {t("connectedToDocker").replace("{version}", dockerResources.serverVersion)}
                     </p>
                     <p className="text-xs text-green-600 dark:text-green-400">
-                      Found {dockerResources.containers.length} containers, {dockerResources.networks.length} networks, {dockerResources.volumes.length} volumes
+                      {t("foundDockerResources").replace("{containers}", String(dockerResources.containers.length)).replace("{networks}", String(dockerResources.networks.length)).replace("{volumes}", String(dockerResources.volumes.length))}
                     </p>
                   </div>
                 )}
 
                 <div>
                   <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">
-                    Container Name/ID
+                    {t("containerNameIdLabel")}
                   </label>
                   {dockerResources && dockerResources.containers.length > 0 ? (
                     <select
@@ -437,7 +618,7 @@ export const MonitorsRoute = () => {
                       onChange={(e) => setForm((prev) => ({ ...prev, containerName: e.target.value }))}
                       required
                     >
-                      <option value="">Select a container</option>
+                      <option value="">{t("selectContainer")}</option>
                       {dockerResources.containers.map((container: any) => (
                         <option key={container.id} value={container.name}>
                           {container.name} ({container.image}) - {container.state}
@@ -454,7 +635,7 @@ export const MonitorsRoute = () => {
                     />
                   )}
                   <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                    {dockerResources ? "Select from running containers" : "Enter container name or ID manually"}
+                    {dockerResources ? t("selectFromRunningContainers") : t("enterContainerManually")}
                   </p>
                 </div>
               </div>
@@ -466,7 +647,7 @@ export const MonitorsRoute = () => {
                   <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("hostname")}</label>
                   <input
                     className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
-                    placeholder="example.com"
+                    placeholder={t("certHostPlaceholder")}
                     value={form.host}
                     onChange={(e) => setForm((prev) => ({ ...prev, host: e.target.value }))}
                     required
@@ -477,7 +658,7 @@ export const MonitorsRoute = () => {
                   <input
                     type="number"
                     className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
-                    placeholder="443"
+                    placeholder={t("certPortPlaceholder")}
                     value={form.port}
                     onChange={(e) => setForm((prev) => ({ ...prev, port: e.target.value }))}
                     min="1"
@@ -496,16 +677,16 @@ export const MonitorsRoute = () => {
                     value={form.variant}
                     onChange={(e) => setForm((prev) => ({ ...prev, variant: e.target.value }))}
                   >
-                    <option value="postgres">PostgreSQL</option>
-                    <option value="mysql">MySQL</option>
-                    <option value="mongodb">MongoDB</option>
+                    <option value="postgres">{t("postgresqlDb")}</option>
+                    <option value="mysql">{t("mysqlDb")}</option>
+                    <option value="mongodb">{t("mongodbDb")}</option>
                   </select>
                 </div>
                 <div className="md:col-span-2">
                   <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("connectionString")}</label>
                   <input
                     className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
-                    placeholder="postgresql://user:pass@host:5432/db"
+                    placeholder={t("dbConnectionString")}
                     value={form.connectionString}
                     onChange={(e) => setForm((prev) => ({ ...prev, connectionString: e.target.value }))}
                     required
@@ -519,7 +700,7 @@ export const MonitorsRoute = () => {
                 <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("hostPort")}</label>
                 <input
                   className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
-                  placeholder="localhost:50051"
+                  placeholder={t("grpcTargetPlaceholder")}
                   value={form.target}
                   onChange={(e) => setForm((prev) => ({ ...prev, target: e.target.value }))}
                   required
@@ -559,6 +740,101 @@ export const MonitorsRoute = () => {
               </>
             )}
             
+            {form.kind === "synthetic" && (
+              <>
+                <div className="rounded-lg bg-purple-500/10 border border-purple-500/30 dark:border-purple-500/20 p-4">
+                  <div className="flex items-start gap-2">
+                    <div className="text-purple-600 dark:text-purple-400 mt-0.5">🎭</div>
+                    <div className="flex-1 text-sm text-slate-600 dark:text-slate-300">
+                      <p className="font-semibold text-slate-900 dark:text-white mb-1">Synthetic Journey Monitoring</p>
+                      <p className="mb-2">
+                        Create multi-step browser automation tests to monitor complex user flows like login sequences, form submissions, and e-commerce checkouts.
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        💡 Uses Playwright to simulate real user interactions. See <a href="https://github.com/tekuonline/uptivaLab/blob/main/SYNTHETIC_MONITORING.md" target="_blank" rel="noopener" className="text-purple-500 hover:underline">SYNTHETIC_MONITORING.md</a> for examples.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/synthetic-recorder')}
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
+                  >
+                    🎬 Open Visual Step Builder
+                  </button>
+                </div>
+                
+                <div>
+                  <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">Base URL (Optional)</label>
+                  <input
+                    className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
+                    placeholder="https://example.com"
+                    value={form.url}
+                    onChange={(e) => setForm((prev) => ({ ...prev, url: e.target.value }))}
+                  />
+                  <p className="mt-1 text-xs text-slate-500">Base URL for relative paths in steps (e.g., /login becomes https://example.com/login)</p>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">Browser Type</label>
+                    <select
+                      className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white h-[46px]"
+                      value={form.browser || 'chromium'}
+                      onChange={(e) => setForm((prev) => ({ ...prev, browser: e.target.value }))}
+                    >
+                      <option value="chromium">{t("chromium")}</option>
+                      <option value="firefox">{t("firefox")}</option>
+                      <option value="webkit">{t("webkit")}</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">Browser Mode</label>
+                    <select
+                      className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white h-[46px]"
+                      value={form.useLocalBrowser ? 'local' : 'remote'}
+                      onChange={(e) => setForm((prev) => ({ ...prev, useLocalBrowser: e.target.value === 'local' }))}
+                    >
+                      <option value="remote">{t("remoteBrowserRecommended")}</option>
+                      <option value="local">{t("localBrowser")}</option>
+                    </select>
+                    <p className="mt-1 text-xs text-slate-500">{t("remoteUsesPlaywright")}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">
+                    Journey Steps
+                    <span className="ml-2 text-slate-500">(JSON Array)</span>
+                  </label>
+                  <textarea
+                    className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white font-mono"
+                    placeholder={`[\n  {"action": "goto", "url": "https://example.com/login"},\n  {"action": "fill", "selector": "#email", "value": "test@example.com"},\n  {"action": "fill", "selector": "#password", "value": "secret"},\n  {"action": "click", "selector": "button[type=submit]"},\n  {"action": "waitForSelector", "selector": ".dashboard"}\n]`}
+                    value={form.steps || ''}
+                    onChange={(e) => setForm((prev) => ({ ...prev, steps: e.target.value }))}
+                    rows={10}
+                    required
+                  />
+                  <p className="mt-1 text-xs text-slate-500">
+                    Available actions: goto, click, fill, waitForSelector, screenshot, wait. See <a href="https://github.com/tekuonline/uptivaLab/blob/main/SYNTHETIC_MONITORING.md#available-step-actions" target="_blank" rel="noopener" className="text-purple-500 hover:underline">documentation</a> for details.
+                  </p>
+                </div>
+
+                <div className="rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 p-4">
+                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">{t("quickExamples")}</p>
+                  <div className="space-y-2 text-xs text-slate-600 dark:text-slate-400 font-mono">
+                    <div><strong>{t("loginTest")}:</strong> goto → fill(email) → fill(password) → click(submit) → waitForSelector(.dashboard)</div>
+                    <div><strong>{t("searchTest")}:</strong> goto → fill(searchBox) → click(searchButton) → waitForSelector(.results)</div>
+                    <div><strong>{t("formTest")}:</strong> goto → fill(name) → fill(email) → click(submit) → waitForSelector(.success)</div>
+                  </div>
+                </div>
+              </>
+            )}
+            
             {/* Interval and Timeout Settings */}
             <div className="grid gap-4 md:grid-cols-3">
               <div>
@@ -584,7 +860,7 @@ export const MonitorsRoute = () => {
                 <input
                   type="number"
                   className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
-                  placeholder="0"
+                  placeholder={t("heartbeatSecondsPlaceholder").replace('300', '0')}
                   value={form.retries}
                   onChange={(e) => setForm((prev) => ({ ...prev, retries: Number(e.target.value) }))}
                   min="0"
@@ -699,13 +975,13 @@ export const MonitorsRoute = () => {
                       value={form.method}
                       onChange={(e) => setForm((prev) => ({ ...prev, method: e.target.value }))}
                     >
-                      <option value="GET">GET</option>
-                      <option value="POST">POST</option>
-                      <option value="PUT">PUT</option>
-                      <option value="PATCH">PATCH</option>
-                      <option value="DELETE">DELETE</option>
-                      <option value="HEAD">HEAD</option>
-                      <option value="OPTIONS">OPTIONS</option>
+                      <option value="GET">{t("httpMethodGet")}</option>
+                      <option value="POST">{t("httpMethodPost")}</option>
+                      <option value="PUT">{t("httpMethodPut")}</option>
+                      <option value="PATCH">{t("httpMethodPatch")}</option>
+                      <option value="DELETE">{t("httpMethodDelete")}</option>
+                      <option value="HEAD">{t("httpMethodHead")}</option>
+                      <option value="OPTIONS">{t("httpMethodOptions")}</option>
                     </select>
                   </div>
                   
@@ -718,9 +994,9 @@ export const MonitorsRoute = () => {
                           value={form.bodyEncoding}
                           onChange={(e) => setForm((prev) => ({ ...prev, bodyEncoding: e.target.value }))}
                         >
-                          <option value="json">JSON</option>
-                          <option value="xml">XML</option>
-                          <option value="form">Form Data</option>
+                          <option value="json">{t("bodyEncodingJson")}</option>
+                          <option value="xml">{t("bodyEncodingXml")}</option>
+                          <option value="form">{t("formData")}</option>
                         </select>
                       </div>
                       
@@ -728,7 +1004,7 @@ export const MonitorsRoute = () => {
                         <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("body")}</label>
                         <textarea
                           className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-slate-900 dark:text-white font-mono"
-                          placeholder='{"key": "value"}'
+                          placeholder={t("requestBodyPlaceholder")}
                           value={form.body}
                           onChange={(e) => setForm((prev) => ({ ...prev, body: e.target.value }))}
                           rows={4}
@@ -741,7 +1017,7 @@ export const MonitorsRoute = () => {
                     <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("headers")} (JSON)</label>
                     <textarea
                       className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-slate-900 dark:text-white font-mono"
-                      placeholder='{"Authorization": "Bearer token", "Content-Type": "application/json"}'
+                      placeholder={t("headersPlaceholder")}
                       value={form.headers}
                       onChange={(e) => setForm((prev) => ({ ...prev, headers: e.target.value }))}
                       rows={3}
@@ -840,7 +1116,7 @@ export const MonitorsRoute = () => {
           )}
           
           <Button type="submit" disabled={mutation.isPending} className="w-full md:w-auto">
-            {mutation.isPending ? t("loading") : t("addMonitor")}
+            {mutation.isPending ? t("loading") : editingId ? t("updateMonitor") : t("addMonitor")}
           </Button>
         </form>
       </Card>
@@ -903,6 +1179,22 @@ export const MonitorsRoute = () => {
                           {t("view")}
                         </Button>
                       </Link>
+                      <Button
+                        variant="ghost"
+                        className="px-2 py-1 text-xs"
+                        onClick={() => handleEdit(monitor)}
+                      >
+                        <Edit className="h-3 w-3 mr-1" />
+                        {t("edit")}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="px-2 py-1 text-xs"
+                        onClick={() => handleClone(monitor)}
+                      >
+                        <Copy className="h-3 w-3 mr-1" />
+                        {t("clone")}
+                      </Button>
                       <Button
                         variant="ghost"
                         className="px-2 py-1 text-xs"

@@ -41,7 +41,7 @@ export const NotificationsRoute = () => {
         return [
           { key: "smtpHost", label: t("smtpHost"), placeholder: "smtp.gmail.com", type: "text" },
           { key: "smtpPort", label: t("smtpPort"), placeholder: "587", type: "number" },
-          { key: "smtpUser", label: "SMTP Username", placeholder: "your-email@gmail.com", type: "text" },
+          { key: "smtpUser", label: t("smtpUsername"), placeholder: t("smtpUserPlaceholder"), type: "text" },
           { key: "smtpPass", label: `${t("password")} (SMTP)`, placeholder: "your-app-password", type: "password" },
           { key: "smtpFrom", label: `From Email (${t("optional")})`, placeholder: "noreply@example.com", type: "email" },
         ];
@@ -196,7 +196,7 @@ export const NotificationsRoute = () => {
       if (res.ok && data.success) {
         setTestStatus({ success: true, message: data.message });
       } else {
-        setTestStatus({ success: false, message: data.error || "Test failed" });
+        setTestStatus({ success: false, message: data.error || t("testFailed") });
       }
     } catch (error: unknown) {
       setTestStatus({ success: false, message: error instanceof Error ? error.message : "Failed to send test" });
@@ -238,7 +238,7 @@ export const NotificationsRoute = () => {
                     ? 'border-red-500 dark:border-red-500 bg-red-50 dark:bg-red-900/10 text-slate-900 dark:text-white' 
                     : 'border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 text-slate-900 dark:text-white'
                 }`}
-                placeholder="Production Alerts"
+                placeholder={t("productionAlerts")}
                 value={form.name}
                 onChange={(e) => {
                   setForm((prev) => ({ ...prev, name: e.target.value }));
@@ -412,7 +412,7 @@ export const NotificationsRoute = () => {
               className="gap-2"
             >
               <TestTube className="h-4 w-4" />
-              {isTesting ? "Testing..." : "Test Notification"}
+              {isTesting ? t("testing") : t("testNotification")}
             </Button>
             <Button type="submit" disabled={createMutation.isPending} className="gap-2">
               {createMutation.isPending ? t("loading") : t("createNotificationChannel")}

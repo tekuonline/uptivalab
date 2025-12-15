@@ -22,7 +22,7 @@ services:
       - redisdata:/data
 
   playwright:
-    image: mcr.microsoft.com/playwright:v1.45.0-jammy
+    image: mcr.microsoft.com/playwright:v1.57.0-jammy
     restart: unless-stopped
     command: ["npx", "playwright", "run-server", "--port", "9222"]
     ports:
@@ -43,9 +43,11 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change-me-to-something-longer-than-16-chars}
       PORT: ${PORT:-8080}
       NODE_ENV: production
+      PLAYWRIGHT_WS_ENDPOINT: ${PLAYWRIGHT_WS_ENDPOINT:-ws://playwright:9222}
     depends_on:
       - postgres
       - redis
+      - playwright
     ports:
       - "8080:8080"
     volumes:

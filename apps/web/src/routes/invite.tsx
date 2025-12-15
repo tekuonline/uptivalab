@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { useParams, Navigate } from "react-router-dom";
 import { Button } from "../components/ui/button.js";
+import { useTranslation } from "../lib/i18n.js";
 import { useAuth } from "../providers/auth-context.js";
 
 export const InviteAcceptRoute = () => {
+  const { t } = useTranslation();
   const { token } = useParams<{ token: string }>();
   const { isAuthenticated } = useAuth();
   const [password, setPassword] = useState("");
@@ -148,7 +150,7 @@ export const InviteAcceptRoute = () => {
             <input
               className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
               type="password"
-              placeholder="Repeat your password"
+              placeholder={t("repeatYourPassword")}
               value={repeatPassword}
               onChange={(e) => setRepeatPassword(e.target.value)}
               required
@@ -157,7 +159,7 @@ export const InviteAcceptRoute = () => {
           </div>
           {error && <p className="text-sm text-red-400">{error}</p>}
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Creating Account..." : "Accept Invitation"}
+            {loading ? t("creatingAccount") : t("acceptInvitation")}
           </Button>
         </form>
 

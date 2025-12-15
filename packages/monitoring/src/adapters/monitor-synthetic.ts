@@ -30,16 +30,16 @@ const toConfig = (config: Record<string, unknown>): SyntheticConfig => {
 
 // Helper to get remote browser WebSocket endpoint
 const getRemoteBrowserEndpoint = async (remoteBrowserId?: string): Promise<string | null> => {
-  if (!remoteBrowserId) return null;
-  
   try {
     // Get remote browsers from environment or settings
     const playwrightWsEndpoint = process.env.PLAYWRIGHT_WS_ENDPOINT;
-    if (playwrightWsEndpoint && !remoteBrowserId) {
-      return playwrightWsEndpoint;
+    
+    // If no specific browser ID requested, use default endpoint from environment
+    if (!remoteBrowserId) {
+      return playwrightWsEndpoint || null;
     }
     
-    // For now, return the default endpoint if configured
+    // For now, return the default endpoint even if browser ID is specified
     // In the future, this could fetch from database based on remoteBrowserId
     return playwrightWsEndpoint || null;
   } catch (error) {
@@ -55,24 +55,38 @@ const connectToBrowser = async (
 ): Promise<{ browser: Browser; isRemote: boolean }> => {
   const browserType = browsers[config.browser ?? "chromium"] ?? chromium;
   
-  // Try remote browser first if configured and not explicitly disabled
+  // Try remote browser first if local is not explicitly requested
   if (!config.useLocalBrowser) {
     const wsEndpoint = await getRemoteBrowserEndpoint(config.remoteBrowserId);
     
     if (wsEndpoint) {
-      try {
-        console.log(`Attempting to connect to remote browser at ${wsEndpoint}`);
-        const browser = await browserType.connect(wsEndpoint, { timeout: launchTimeout });
-        console.log("Successfully connected to remote browser");
-        return { browser, isRemote: true };
-      } catch (error) {
-        console.warn("Failed to connect to remote browser, falling back to local:", error);
+      // Retry connecting to remote browser before falling back
+      const maxRetries = 3;
+      let lastError: Error | null = null;
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const browser = await browserType.connect(wsEndpoint, { timeout: launchTimeout });
+          return { browser, isRemote: true };
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error(String(error));
+          
+          // Wait before retry (except on last attempt)
+          if (attempt < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+          }
+        }
       }
+      
+      // All retries failed - throw error instead of falling back to local
+      throw new Error(
+        `Failed to connect to remote Playwright browser after ${maxRetries} attempts. ` +
+        `Last error: ${lastError?.message}. Please ensure the Playwright service is running.`
+      );
     }
   }
   
-  // Fall back to local browser
-  console.log("Launching local browser");
+  // Fall back to local browser only if remote is explicitly disabled
   const browser = await browserType.launch({ headless: true, timeout: launchTimeout });
   return { browser, isRemote: false };
 };

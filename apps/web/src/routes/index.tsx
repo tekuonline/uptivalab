@@ -10,6 +10,7 @@ import { StatusPagesRoute } from "./status-pages.js";
 import { MaintenanceRoute } from "./maintenance.js";
 import { PublicStatusRoute } from "./public-status.js";
 import { SettingsRoute } from "./settings.js";
+import SyntheticRecorder from "./synthetic-recorder.js";
 import { LoginRoute } from "./login.js";
 import { InviteAcceptRoute } from "./invite.js";
 import { useAuth } from "../providers/auth-context.js";
@@ -38,6 +39,7 @@ const router = createBrowserRouter([
       { path: "dashboard", element: <DashboardRoute /> },
       { path: "monitors", element: <MonitorsRoute /> },
       { path: "monitors/:id", element: <MonitorDetailRoute /> },
+      { path: "synthetic-recorder", element: <SyntheticRecorder /> },
       { path: "heartbeats", element: <HeartbeatsRoute /> },
       { path: "notifications", element: <NotificationsRoute /> },
       { path: "incidents", element: <IncidentsRoute /> },

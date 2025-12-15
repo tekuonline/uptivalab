@@ -9,6 +9,7 @@ import { appConfig } from "./config.js";
 import { registerRoutes } from "./routes/index.js";
 import { realtimeGateway } from "./realtime/gateway.js";
 import { settingsService } from "./services/settings/service.js";
+import { cloudflareTunnel } from "./services/cloudflare-tunnel/service.js";
 
 export const createServer = async () => {
   // Get reverse proxy settings
@@ -19,6 +20,9 @@ export const createServer = async () => {
   if (serverTimezone) {
     process.env.TZ = serverTimezone;
   }
+  
+  // Initialize Cloudflare Tunnel (will auto-start if token is configured)
+  await cloudflareTunnel.initialize();
   
   const fastify = Fastify({
     logger: true,
@@ -99,6 +103,8 @@ export const createServer = async () => {
     const { default: settingsRoutes } = await import("./routes/settings.js");
     const { default: usersRoutes } = await import("./routes/users.js");
     const { default: invitationsRoutes } = await import("./routes/invitations.js");
+    const { default: recorderRoutes } = await import("./routes/recorder.js");
+    const { default: cloudflareTunnelRoutes } = await import("./routes/cloudflare-tunnel.js");
     
     await fastify.register(monitorsRoutes);
     await fastify.register(statusRoutes);
@@ -110,6 +116,8 @@ export const createServer = async () => {
     await fastify.register(settingsRoutes);
     await fastify.register(usersRoutes);
     await fastify.register(invitationsRoutes);
+    await fastify.register(recorderRoutes);
+    await fastify.register(cloudflareTunnelRoutes);
   }, { prefix: "/api" });
 
   fastify.get("/health", async () => ({ status: "ok", timestamp: new Date().toISOString() }));

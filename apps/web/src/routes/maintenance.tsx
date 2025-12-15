@@ -267,7 +267,7 @@ export const MaintenanceRoute = () => {
                   }));
                 }}
               >
-                ⚡ Now (1 hour)
+                {t("nowOneHour")}
               </button>
               <button
                 type="button"
@@ -282,7 +282,7 @@ export const MaintenanceRoute = () => {
                   }));
                 }}
               >
-                ⚡ Now (2 hours)
+                {t("nowTwoHours")}
               </button>
               <button
                 type="button"
@@ -298,7 +298,7 @@ export const MaintenanceRoute = () => {
                   }));
                 }}
               >
-                🕐 In 30 min (1 hour)
+                {t("scheduledIn30Min")}
               </button>
               <button
                 type="button"

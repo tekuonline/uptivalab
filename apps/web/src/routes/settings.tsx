@@ -158,6 +158,8 @@ export const SettingsRoute = () => {
   // Remote Browsers
   const [remoteBrowsers, setRemoteBrowsers] = useState<RemoteBrowser[]>([]);
   const [newRemoteBrowser, setNewRemoteBrowser] = useState({ name: "", url: "" });
+  const [testingBrowser, setTestingBrowser] = useState(false);
+  const [browserTestResult, setBrowserTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   // Proxies
   const [proxies, setProxies] = useState<Proxy[]>([]);
@@ -176,6 +178,51 @@ export const SettingsRoute = () => {
   const [newInvitation, setNewInvitation] = useState({ email: "", role: "VIEWER" as "ADMIN" | "VIEWER", expiresInDays: 7 });
   const [copiedInviteLink, setCopiedInviteLink] = useState("");
 
+  // Cloudflare Tunnel state
+  const [tunnelStatus, setTunnelStatus] = useState<{ running: boolean; installed: boolean } | null>(null);
+  const [tunnelLoading, setTunnelLoading] = useState(false);
+
+  // Fetch Cloudflare Tunnel status
+  const fetchTunnelStatus = async () => {
+    try {
+      const token = localStorage.getItem("uptivalab.token");
+      const res = await fetch("/api/cloudflare-tunnel/status", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setTunnelStatus(await res.json());
+      }
+    } catch (error) {
+      console.error("Failed to fetch tunnel status:", error);
+    }
+  };
+
+  // Control Cloudflare Tunnel
+  const controlTunnel = async (action: "start" | "stop" | "restart") => {
+    setTunnelLoading(true);
+    try {
+      const token = localStorage.getItem("uptivalab.token");
+      const res = await fetch(`/api/cloudflare-tunnel/${action}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      if (res.ok) {
+        const result = await res.json();
+        alert(result.message);
+        await fetchTunnelStatus();
+      } else {
+        const error = await res.json();
+        alert(error.message || `Failed to ${action} tunnel`);
+      }
+    } catch (error) {
+      console.error(`Failed to ${action} tunnel:`, error);
+      alert(`Failed to ${action} tunnel`);
+    } finally {
+      setTunnelLoading(false);
+    }
+  };
+
   useEffect(() => {
     // Initialize local settings from global context
     setLocalSettings(globalSettings);
@@ -185,14 +232,25 @@ export const SettingsRoute = () => {
     loadProxies();
     loadUsers();
     loadInvitations();
+    fetchTunnelStatus();
   }, [globalSettings]);
 
   const saveSettings = async () => {
     setLoading(true);
+    const tokenChanged = localSettings.cloudflareTunnelToken !== globalSettings.cloudflareTunnelToken;
+    
     try {
       await updateGlobalSettings(localSettings);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
+      
+      // Restart tunnel if token was changed and tunnel is installed
+      if (tokenChanged && tunnelStatus?.installed && localSettings.cloudflareTunnelToken) {
+        await controlTunnel("restart");
+      } else if (tokenChanged) {
+        // Refresh status if token changed but tunnel wasn't running
+        await fetchTunnelStatus();
+      }
     } catch (error) {
       console.error("Failed to save settings:", error);
     } finally {
@@ -413,6 +471,39 @@ export const SettingsRoute = () => {
       }
     } catch (error) {
       console.error("Failed to add remote browser:", error);
+    }
+  };
+
+  const testRemoteBrowser = async () => {
+    if (!newRemoteBrowser.url) {
+      setBrowserTestResult({ success: false, message: "Please enter a WebSocket URL" });
+      return;
+    }
+
+    setTestingBrowser(true);
+    setBrowserTestResult(null);
+
+    try {
+      const token = localStorage.getItem("uptivalab.token");
+      const res = await fetch("/api/settings/remote-browsers/test", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ url: newRemoteBrowser.url }),
+      });
+
+      const result = await res.json();
+      if (res.ok && result.success) {
+        setBrowserTestResult({ success: true, message: result.message || "Connection successful!" });
+      } else {
+        setBrowserTestResult({ success: false, message: result.message || t("connectionFailed") });
+      }
+    } catch (error) {
+      setBrowserTestResult({ success: false, message: `Error: ${error instanceof Error ? error.message : 'Unknown error'}` });
+    } finally {
+      setTestingBrowser(false);
     }
   };
 
@@ -667,7 +758,7 @@ export const SettingsRoute = () => {
     { id: "remote-browsers", label: t("remoteBrowsers"), icon: Globe },
     { id: "security", label: t("security"), icon: Shield },
     { id: "api-keys", label: t("apiKeys"), icon: Key },
-    { id: "users", label: "User Management", icon: Users },
+    { id: "users", label: t("userManagement"), icon: Users },
     { id: "proxies", label: t("proxies"), icon: Network },
     { id: "about", label: t("about"), icon: Info },
   ];
@@ -963,15 +1054,65 @@ export const SettingsRoute = () => {
                   <div className="rounded-xl border border-blue-500/30 dark:border-blue-500/20 bg-blue-500/10 p-4">
                     <h3 className="mb-2 font-semibold text-blue-600 dark:text-blue-400">{t("cloudflareTunnel")}</h3>
                     <p className="mb-3 text-sm text-slate-600 dark:text-slate-300">
-                      Configure Cloudflare Tunnel to securely expose your UptivaLab instance without opening ports.
+                      {t("cloudflareTunnelConfig")}
                     </p>
                     <Label>{t("cloudflareTunnelToken")}</Label>
                     <Input
                       type="password"
                       value={localSettings.cloudflareTunnelToken || ""}
                       onChange={(e) => setLocalSettings({ ...localSettings, cloudflareTunnelToken: e.target.value })}
-                      placeholder="Enter your Cloudflare Tunnel token"
+                      placeholder={t("cloudflareTunnelTokenPlaceholder")}
                     />
+                    
+                    {/* Tunnel Status and Controls */}
+                    {tunnelStatus && (
+                      <div className="mt-3 flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-slate-600 dark:text-slate-400">Status:</span>
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${
+                            tunnelStatus.running 
+                              ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                              : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400"
+                          }`}>
+                            <span className={`h-2 w-2 rounded-full ${tunnelStatus.running ? "bg-green-500" : "bg-slate-400"}`} />
+                            {tunnelStatus.running ? "Running" : "Stopped"}
+                          </span>
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          {!tunnelStatus.running ? (
+                            <button
+                              type="button"
+                              onClick={() => controlTunnel("start")}
+                              disabled={tunnelLoading || !localSettings.cloudflareTunnelToken}
+                              className="rounded-lg bg-green-600 px-3 py-1 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {tunnelLoading ? "Starting..." : "Start"}
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => controlTunnel("stop")}
+                                disabled={tunnelLoading}
+                                className="rounded-lg bg-red-600 px-3 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {tunnelLoading ? "Stopping..." : "Stop"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => controlTunnel("restart")}
+                                disabled={tunnelLoading}
+                                className="rounded-lg bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {tunnelLoading ? "Restarting..." : "Restart"}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
                     <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
                       💡 To get a tunnel token:
                     </p>
@@ -993,7 +1134,7 @@ export const SettingsRoute = () => {
                     </p>
                     <div className="mt-3 rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3">
                       <p className="text-xs text-yellow-700 dark:text-yellow-300">
-                        ⚠️ <strong>Note:</strong> Cloudflare Tunnel must be installed and configured separately on your server. This setting only stores the token for reference.
+                        ⚠️ <strong>Note:</strong> Enter your Cloudflare Tunnel token above and save settings. The tunnel will start automatically. Use the controls above to start/stop/restart the tunnel as needed.
                       </p>
                     </div>
                   </div>
@@ -1192,12 +1333,41 @@ export const SettingsRoute = () => {
                     <Input
                       placeholder={t("websocketUrl")}
                       value={newRemoteBrowser.url}
-                      onChange={(e) => setNewRemoteBrowser({ ...newRemoteBrowser, url: e.target.value })}
+                      onChange={(e) => {
+                        setNewRemoteBrowser({ ...newRemoteBrowser, url: e.target.value });
+                        setBrowserTestResult(null);
+                      }}
                     />
-                    <Button onClick={addRemoteBrowser} className="gap-2">
-                      <Plus className="h-4 w-4" />
-                      {t("addRemoteBrowser")}
-                    </Button>
+                    <p className="text-xs text-slate-500">Example: ws://playwright:9222/ or ws://192.168.1.100:9222/</p>
+                    
+                    {browserTestResult && (
+                      <div className={`rounded-lg p-3 text-sm ${
+                        browserTestResult.success 
+                          ? 'bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-400'
+                          : 'bg-red-500/10 border border-red-500/30 text-red-700 dark:text-red-400'
+                      }`}>
+                        {browserTestResult.success ? '✓' : '✗'} {browserTestResult.message}
+                      </div>
+                    )}
+                    
+                    <div className="flex gap-2">
+                      <Button 
+                        onClick={testRemoteBrowser} 
+                        disabled={testingBrowser || !newRemoteBrowser.url}
+                        variant="outline"
+                        className="flex-1"
+                      >
+                        {testingBrowser ? 'Testing...' : 'Test Connection'}
+                      </Button>
+                      <Button 
+                        onClick={addRemoteBrowser} 
+                        className="gap-2 flex-1"
+                        disabled={!newRemoteBrowser.name || !newRemoteBrowser.url}
+                      >
+                        <Plus className="h-4 w-4" />
+                        {t("addRemoteBrowser")}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1369,10 +1539,10 @@ export const SettingsRoute = () => {
                 )}
 
                 <div className="rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-4">
-                  <h3 className="mb-4 font-semibold text-slate-900 dark:text-white">Add Proxy</h3>
+                  <h3 className="mb-4 font-semibold text-slate-900 dark:text-white">{t("addProxy")}</h3>
                   <div className="space-y-3">
                     <Input
-                      placeholder="Name"
+                      placeholder={t("proxyNamePlaceholder")}
                       value={newProxy.name}
                       onChange={(e) => setNewProxy({ ...newProxy, name: e.target.value })}
                     />
@@ -1442,7 +1612,7 @@ export const SettingsRoute = () => {
 
             {activeTab === "users" && (
               <div className="space-y-6">
-                <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">User Management</h2>
+                <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">{t("userManagement")}</h2>
                 
                 {/* Users List */}
                 <div className="space-y-4">
@@ -1490,22 +1660,22 @@ export const SettingsRoute = () => {
 
                 {/* Create User Form */}
                 <div className="rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-4">
-                  <h3 className="mb-4 font-semibold text-slate-900 dark:text-white">Create New User</h3>
+                  <h3 className="mb-4 font-semibold text-slate-900 dark:text-white">{t("createNewUser")}</h3>
                   <div className="space-y-3">
                     <Input
                       type="email"
-                      placeholder="Email"
+                      placeholder={t("newUserEmailPlaceholder")}
                       value={newUser.email}
                       onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
                     />
                     <Input
                       type="password"
-                      placeholder="Password (min 8 characters)"
+                      placeholder={t("newUserPasswordPlaceholder")}
                       value={newUser.password}
                       onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                     />
                     <div>
-                      <Label>Role</Label>
+                      <Label>{t("role")}</Label>
                       <select
                         value={newUser.role}
                         onChange={(e) => setNewUser({ ...newUser, role: e.target.value as "ADMIN" | "VIEWER" })}
@@ -1572,7 +1742,7 @@ export const SettingsRoute = () => {
                   <div className="space-y-3">
                     <Input
                       type="email"
-                      placeholder="Email address"
+                      placeholder={t("emailAddress")}
                       value={newInvitation.email}
                       onChange={(e) => setNewInvitation({ ...newInvitation, email: e.target.value })}
                     />

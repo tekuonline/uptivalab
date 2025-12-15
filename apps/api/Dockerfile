@@ -27,12 +27,24 @@ RUN pnpm --filter @uptivalab/shared build \
 
 FROM node:20-slim AS runtime
 RUN apt-get update -y \
-    && apt-get install -y --no-install-recommends openssl libssl3 ca-certificates iputils-ping \
+    && apt-get install -y --no-install-recommends openssl libssl3 ca-certificates iputils-ping curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Install cloudflared (supports both amd64 and arm64)
+RUN ARCH=$(dpkg --print-architecture) \
+    && curl -L --output cloudflared.deb "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${ARCH}.deb" \
+    && dpkg -i cloudflared.deb \
+    && rm cloudflared.deb
+
 WORKDIR /app
 ENV NODE_ENV=production
 
 COPY --from=base /app/deploy ./
+
+# Copy startup script
+COPY apps/api/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
 EXPOSE 8080
 
-CMD ["sh", "-c", "npx prisma generate && npx prisma migrate deploy && node dist/index.js"]
+ENTRYPOINT ["/docker-entrypoint.sh"]

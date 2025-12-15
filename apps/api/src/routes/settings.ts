@@ -358,6 +358,42 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
     return { success: true };
   });
 
+  // Test remote browser connection
+  fastify.post<{ Body: { url: string } }>("/settings/remote-browsers/test", async (request, reply) => {
+    await request.jwtVerify();
+
+    const body = z
+      .object({
+        url: z.string().url(),
+      })
+      .parse(request.body);
+
+    try {
+      // Import playwright-core dynamically
+      const { chromium } = await import("playwright-core");
+      
+      // Try to connect with a 10 second timeout
+      const browser = await chromium.connect(body.url, { timeout: 10000 });
+      
+      // Get browser version info
+      const version = browser.version();
+      
+      // Close the connection
+      await browser.close();
+      
+      return {
+        success: true,
+        message: `Connected successfully! Browser version: ${version}`,
+      };
+    } catch (error) {
+      console.error("Failed to connect to remote browser:", error);
+      return reply.code(400).send({
+        success: false,
+        message: error instanceof Error ? error.message : "Connection failed",
+      });
+    }
+  });
+
   // Proxies management
   fastify.get("/settings/proxies", async (request) => {
     await request.jwtVerify();

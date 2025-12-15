@@ -115,24 +115,8 @@ export const MonitorDetailRoute = () => {
   });
 
   const handleEdit = () => {
-    if (monitor) {
-      const config = (monitor as any).config || {};
-      setEditForm({
-        name: monitor.name,
-        interval: monitor.interval,
-        url: config.url || "",
-        host: config.host || "",
-        port: config.port?.toString() || "",
-        record: config.record || "",
-        recordType: config.type || "A",
-        containerName: config.containerName || "",
-        connectionString: config.connectionString || "",
-        variant: config.variant || "postgres",
-        target: config.target || "",
-        heartbeatSeconds: config.heartbeatSeconds?.toString() || "300",
-      });
-      setIsEditing(true);
-    }
+    // Navigate to monitors page with edit state
+    navigate('/monitors', { state: { editMonitor: monitor } });
   };
 
   const buildConfig = (formData: typeof editForm, monitorKind: string) => {
@@ -170,7 +154,7 @@ export const MonitorDetailRoute = () => {
   };
 
   const handleDelete = () => {
-    if (confirm(`Are you sure you want to delete "${monitor?.name}"?`)) {
+    if (confirm(`${t("areYouSureDelete")} "${monitor?.name}"?`)) {
       deleteMutation.mutate();
     }
   };
@@ -192,11 +176,11 @@ export const MonitorDetailRoute = () => {
       uptime: day.uptimePercentage,
     })) ?? [];
 
-  if (!monitor) return <div className="text-white">Loading...</div>;
+  if (!monitor) return <div className="text-white">{t("loading")}</div>;
 
   // Handle different monitor types - DNS monitors use 'record', others use 'url'
   const monitorConfig = (monitor as any).config || {};
-  const monitorUrl = monitorConfig.url || monitorConfig.record || "N/A";
+  const monitorUrl = monitorConfig.url || monitorConfig.record || t("na");
   const monitorType = monitor.kind || "http";
 
   return (
@@ -225,7 +209,7 @@ export const MonitorDetailRoute = () => {
                       ? 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border border-yellow-500/30'
                       : 'bg-green-500/20 text-green-600 dark:text-green-400 border border-green-500/30'
                 }`}>
-                  🔒 Expires in {(monitor as any).meta.certificateDaysLeft} days ({new Date((monitor as any).meta.certificateExpiresAt).toLocaleDateString()})
+                  🔒 {t("expiresInDays").replace("{days}", String((monitor as any).meta.certificateDaysLeft)).replace("{date}", new Date((monitor as any).meta.certificateExpiresAt).toLocaleDateString())}
                 </span>
               )}
             </div>
@@ -337,18 +321,142 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
       {/* Uptime Bar */}
       {history && history.checks.length > 0 && (
         <Card>
-          <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-900 dark:text-white mb-4">Recent Uptime (24 hours)</h3>
+          <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-900 dark:text-white mb-4">{t("recentUptime24h")}</h3>
           <UptimeBar checks={history.checks} hours={24} />
+        </Card>
+      )}
+
+      {/* Synthetic Monitor Journey Steps */}
+      {monitor.kind === "synthetic" && history && history.checks.length > 0 && (
+        <Card>
+          <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">{t("latestJourneySteps")}</h3>
+          {(() => {
+            const latestCheck = history.checks[history.checks.length - 1]; // Get the most recent check (last in chronological array)
+            const journeySteps = (latestCheck as any)?.payload?.journeySteps || [];
+            
+            if (journeySteps.length === 0) {
+              return (
+                <div className="text-slate-400 py-4">
+                  <p>{t("noJourneyStepsYet")}</p>
+                  <pre className="text-xs mt-2 bg-slate-800 p-2 rounded">
+                    {JSON.stringify(latestCheck, null, 2)}
+                  </pre>
+                </div>
+              );
+            }
+
+            const allPassed = journeySteps.every((step: any) => step.status === "up");
+            const failedStepIndex = journeySteps.findIndex((step: any) => step.status === "down");
+
+            return (
+              <div className="space-y-4">
+                {/* Summary */}
+                <div className={`flex items-center gap-3 p-4 rounded-lg border ${
+                  allPassed 
+                    ? 'bg-green-500/10 border-green-500/30' 
+                    : 'bg-red-500/10 border-red-500/30'
+                }`}>
+                  <div className="text-2xl">
+                    {allPassed ? '✅' : '❌'}
+                  </div>
+                  <div className="flex-1">
+                    <p className={`font-semibold ${
+                      allPassed ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                    }`}>
+                      {allPassed 
+                        ? t("allStepsPassed").replace("{count}", String(journeySteps.length))
+                        : t("failedAtStep").replace("{step}", String(failedStepIndex + 1)).replace("{total}", String(journeySteps.length))
+                      }
+                    </p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                      {t("lastChecked")}: {format(new Date(latestCheck.checkedAt), "MMM dd, yyyy HH:mm:ss")}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Step Details */}
+                <div className="space-y-2">
+                  {journeySteps.map((step: any, index: number) => {
+                    const isPassed = step.status === "up";
+                    const isFailed = step.status === "down";
+                    
+                    return (
+                      <div
+                        key={index}
+                        className={`flex items-start gap-3 p-3 rounded-lg border ${
+                          isPassed 
+                            ? 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700'
+                            : 'bg-red-500/5 border-red-500/30'
+                        }`}
+                      >
+                        {/* Step Number */}
+                        <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
+                          isPassed 
+                            ? 'bg-green-500 text-white' 
+                            : 'bg-red-500 text-white'
+                        }`}>
+                          {index + 1}
+                        </div>
+
+                        {/* Step Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`text-sm font-medium ${
+                              isPassed 
+                                ? 'text-slate-900 dark:text-white' 
+                                : 'text-red-600 dark:text-red-400'
+                            }`}>
+                              {step.label}
+                            </span>
+                            <span className={`text-xs px-2 py-0.5 rounded ${
+                              isPassed 
+                                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' 
+                                : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                            }`}>
+                              {isPassed ? t("passed") : t("failed")}
+                            </span>
+                          </div>
+                          
+                          {/* Error Details */}
+                          {isFailed && step.detail && (
+                            <div className="mt-2 p-3 bg-red-900/20 dark:bg-red-900/40 rounded border border-red-500/30">
+                              <p className="text-xs font-semibold text-red-600 dark:text-red-400 mb-1">{t("errorDetails")}:</p>
+                              <pre className="text-xs text-red-700 dark:text-red-300 whitespace-pre-wrap break-words font-mono">
+                                {step.detail}
+                              </pre>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Status Icon */}
+                        <div className="flex-shrink-0">
+                          {isPassed ? (
+                            <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                          ) : (
+                            <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
         </Card>
       )}
 
       {/* Edit Form */}
       {isEditing && (
         <Card>
-          <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-900 dark:text-white mb-4">Edit Monitor</h3>
+          <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-900 dark:text-white mb-4">{t("editMonitor")}</h3>
           <div className="space-y-4">
             <div>
-              <label className="text-sm text-slate-600 dark:text-slate-400 block mb-2">Name</label>
+              <label className="text-sm text-slate-600 dark:text-slate-400 block mb-2">{t("name")}</label>
               <input
                 className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                 value={editForm.name}
@@ -359,7 +467,7 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
             {/* HTTP */}
             {monitor.kind === "http" && (
               <div>
-                <label className="text-sm text-slate-600 dark:text-slate-400 block mb-2">URL</label>
+                <label className="text-sm text-slate-600 dark:text-slate-400 block mb-2">{t("url")}</label>
                 <input
                   className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                   value={editForm.url}
@@ -394,7 +502,7 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
             {/* Ping */}
             {monitor.kind === "ping" && (
               <div>
-                <label className="text-sm text-slate-600 dark:text-slate-400 block mb-2">Host</label>
+                <label className="text-sm text-slate-600 dark:text-slate-400 block mb-2">{t("host")}</label>
                 <input
                   className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                   value={editForm.host}
@@ -407,7 +515,7 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
             {monitor.kind === "dns" && (
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-slate-600 dark:text-slate-400 block mb-2">Record</label>
+                  <label className="text-sm text-slate-600 dark:text-slate-400 block mb-2">{t("record")}</label>
                   <input
                     className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                     value={editForm.record}
@@ -415,17 +523,17 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-slate-600 dark:text-slate-400 block mb-2">DNS Type</label>
+                  <label className="text-sm text-slate-600 dark:text-slate-400 block mb-2">{t("dnsType")}</label>
                   <select
                     className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-slate-900 dark:text-white h-[46px]"
                     value={editForm.recordType}
                     onChange={(e) => setEditForm((prev) => ({ ...prev, recordType: e.target.value }))}
                   >
-                    <option value="A">A Record</option>
-                    <option value="AAAA">AAAA Record</option>
-                    <option value="CNAME">CNAME</option>
-                    <option value="MX">MX</option>
-                    <option value="TXT">TXT</option>
+                    <option value="A">{t("aRecord")}</option>
+                    <option value="AAAA">{t("aaaaRecord")}</option>
+                    <option value="CNAME">{t("cnameRecord")}</option>
+                    <option value="MX">{t("mxRecord")}</option>
+                    <option value="TXT">{t("txtRecord")}</option>
                   </select>
                 </div>
               </div>
@@ -458,7 +566,7 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
             {/* Docker */}
             {monitor.kind === "docker" && (
               <div>
-                <label className="text-sm text-slate-600 dark:text-slate-400 block mb-2">Container Name</label>
+                <label className="text-sm text-slate-600 dark:text-slate-400 block mb-2">{t("containerName")}</label>
                 <input
                   className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                   value={editForm.containerName}
@@ -468,7 +576,7 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
             )}
             
             <div>
-              <label className="text-sm text-slate-600 dark:text-slate-400 block mb-2">Interval (seconds)</label>
+              <label className="text-sm text-slate-600 dark:text-slate-400 block mb-2">{t("intervalSeconds")}</label>
               <input
                 type="number"
                 className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
@@ -478,10 +586,10 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
             </div>
             <div className="flex gap-2">
               <Button onClick={handleSave} disabled={updateMutation.isPending}>
-                {updateMutation.isPending ? "Saving..." : "Save Changes"}
+                {updateMutation.isPending ? t("saving") : t("saveChanges")}
               </Button>
               <Button variant="ghost" onClick={() => setIsEditing(false)}>
-                Cancel
+                {t("cancel")}
               </Button>
             </div>
           </div>
@@ -492,21 +600,21 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
       {history && (
         <div className="grid gap-6 md:grid-cols-4">
           <Card>
-            <p className="text-sm text-slate-600 dark:text-slate-400">Uptime</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400">{t("uptime")}</p>
             <p className="text-3xl font-bold text-slate-900 dark:text-slate-900 dark:text-white mt-2">{history.stats.uptimePercentage.toFixed(2)}%</p>
           </Card>
           <Card>
-            <p className="text-sm text-slate-600 dark:text-slate-400">Avg Response Time</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400">{t("avgResponseTime")}</p>
             <p className="text-3xl font-bold text-slate-900 dark:text-slate-900 dark:text-white mt-2">
               {history.stats.avgResponseTime !== null ? `${history.stats.avgResponseTime}ms` : "N/A"}
             </p>
           </Card>
           <Card>
-            <p className="text-sm text-slate-600 dark:text-slate-400">Total Checks</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400">{t("totalChecks")}</p>
             <p className="text-3xl font-bold text-slate-900 dark:text-slate-900 dark:text-white mt-2">{history.stats.totalChecks}</p>
           </Card>
           <Card>
-            <p className="text-sm text-slate-600 dark:text-slate-400">Failed Checks</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400">{t("failedChecks")}</p>
             <p className="text-3xl font-bold text-slate-900 dark:text-slate-900 dark:text-white mt-2">{history.stats.downChecks}</p>
           </Card>
         </div>
@@ -514,7 +622,7 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
 
       {/* Response Time Chart */}
       <Card>
-        <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-900 dark:text-white mb-4">Response Time History</h3>
+        <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-900 dark:text-white mb-4">{t("responseTimeHistory")}</h3>
         {latencyData.length > 0 ? (
           <div className="w-full overflow-x-auto">
             <LineChart
@@ -522,7 +630,7 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
                 labels: latencyData.map(d => d.time),
                 datasets: [
                   {
-                    label: 'Response Time (ms)',
+                    label: t("responseTimeMs"),
                     data: latencyData.map(d => d.latency),
                     borderColor: '#3b82f6',
                     backgroundColor: 'rgba(59, 130, 246, 0.1)',
@@ -561,7 +669,7 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
           </div>
         ) : (
           <div className="text-slate-400">
-            <p>No latency data available yet.</p>
+            <p>{t("noLatencyDataAvailable")}</p>
             {history && (
               <p className="text-xs mt-2">
                 Total checks: {history.checks?.length || 0} | 
@@ -574,7 +682,7 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
 
       {/* Uptime Chart */}
       <Card>
-        <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-900 dark:text-white mb-4">30-Day Uptime</h3>
+        <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-900 dark:text-white mb-4">{t("thirtyDayUptime")}</h3>
         {uptimeData && uptimeData.length > 0 ? (
           <div className="w-full" style={{ height: '300px' }}>
             <LineChart
@@ -582,7 +690,7 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
                 labels: uptimeData.map(d => d.date),
                 datasets: [
                   {
-                    label: 'Uptime %',
+                    label: t("uptimePercent"),
                     data: uptimeData.map(d => d.uptime),
                     borderColor: '#10b981',
                     backgroundColor: 'rgba(16, 185, 129, 0.2)',
@@ -628,7 +736,7 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
           </div>
         ) : (
           <div className="text-slate-400">
-            <p>No uptime data available yet.</p>
+            <p>{t("noUptimeDataAvailable")}</p>
             {uptime && (
               <div className="text-xs mt-2 space-y-1">
                 <p>Days with data: {uptime.days?.length || 0}</p>
@@ -647,13 +755,13 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
       {/* Uptime Distribution */}
       {history && history.stats.totalChecks > 0 && (
         <Card>
-          <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-900 dark:text-white mb-4">Uptime Distribution</h3>
+          <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-900 dark:text-white mb-4">{t("uptimeDistribution")}</h3>
           <div className="flex flex-col md:flex-row items-center justify-center gap-8">
             {/* Pie Chart */}
             <div className="w-64 h-64">
               <DoughnutChart
                 data={{
-                  labels: ['Up', 'Down'],
+                  labels: [t("up"), t("down")],
                   datasets: [
                     {
                       data: [history.stats.upChecks, history.stats.downChecks],
@@ -719,26 +827,48 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
       {/* Recent Checks */}
       {history && (
         <Card>
-          <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-900 dark:text-white mb-4">Recent Checks</h3>
+          <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-900 dark:text-white mb-4">{t("recentChecks")}</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm text-slate-300">
               <thead>
                 <tr className="text-xs uppercase tracking-widest text-slate-500">
-                  <th className="pb-3">Time</th>
-                  <th className="pb-3">Status</th>
-                  <th className="pb-3">Latency</th>
+                  <th className="pb-3">{t("time")}</th>
+                  <th className="pb-3">{t("status")}</th>
+                  <th className="pb-3">{t("latency")}</th>
+                  {monitor.kind === "synthetic" && <th className="pb-3">{t("steps")}</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {history.checks.slice(0, 20).map((check) => (
-                  <tr key={check.id}>
-                    <td className="py-3">{format(new Date(check.checkedAt), "MMM dd, HH:mm:ss")}</td>
-                    <td className="py-3">
-                      <StatusBadge status={check.status as "up" | "down" | "pending"} />
-                    </td>
-                    <td className="py-3">{check.latencyMs !== null ? `${check.latencyMs}ms` : "N/A"}</td>
-                  </tr>
-                ))}
+                {history.checks.slice(0, 20).map((check) => {
+                  const journeySteps = monitor.kind === "synthetic" ? ((check as any)?.payload?.journeySteps || []) : [];
+                  const passedSteps = journeySteps.filter((s: any) => s.status === "up").length;
+                  const totalSteps = journeySteps.length;
+                  
+                  return (
+                    <tr key={check.id}>
+                      <td className="py-3">{format(new Date(check.checkedAt), "MMM dd, HH:mm:ss")}</td>
+                      <td className="py-3">
+                        <StatusBadge status={check.status as "up" | "down" | "pending"} />
+                      </td>
+                      <td className="py-3">{check.latencyMs !== null ? `${check.latencyMs}ms` : "N/A"}</td>
+                      {monitor.kind === "synthetic" && (
+                        <td className="py-3">
+                          {totalSteps > 0 ? (
+                            <span className={`text-xs px-2 py-1 rounded ${
+                              passedSteps === totalSteps 
+                                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                            }`}>
+                              {passedSteps}/{totalSteps} passed
+                            </span>
+                          ) : (
+                            <span className="text-xs text-slate-500">-</span>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
