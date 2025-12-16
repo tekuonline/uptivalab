@@ -75,7 +75,7 @@ UptivaLab is a modern, open-source monitoring application built from the ground 
 
 2. **Download the docker-compose.yml:**
    ```bash
-   wget https://raw.githubusercontent.com/YOUR_USERNAME/uptivalab/main/docker-compose.yml
+   wget https://raw.githubusercontent.com/tekuonline/uptivalab/main/docker-compose.yml
    ```
 
 3. **Create environment file:**
@@ -84,7 +84,7 @@ UptivaLab is a modern, open-source monitoring application built from the ground 
    DATABASE_URL=postgresql://uptivalab:uptivalab@postgres:5432/uptivalab
    REDIS_URL=redis://redis:6379
    JWT_SECRET=$(openssl rand -base64 32)
-   PORT=3000
+   PORT=8080
    WEB_PORT=4173
    EOF
    ```
@@ -102,14 +102,15 @@ UptivaLab is a modern, open-source monitoring application built from the ground 
 
 ## 🐳 Docker Deployment
 
-### Option 1: Using Pre-built Images from Docker Hub
+### Option 1: Using Pre-built Images from Docker Hub (Recommended)
 
 ```bash
-# Pull the images
-docker pull YOUR_DOCKERHUB_USERNAME/uptivalab-web:latest
-docker pull YOUR_DOCKERHUB_USERNAME/uptivalab-api:latest
+# Pull the latest images
+docker pull curiohokiest2e/uptivalab-api:latest
+docker pull curiohokiest2e/uptivalab-web:latest
 
-# Run with docker compose
+# Create docker-compose.yml
+cat > docker-compose.yml <<EOF
 version: '3.8'
 
 services:
@@ -126,6 +127,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
@@ -134,14 +136,15 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   api:
-    image: YOUR_DOCKERHUB_USERNAME/uptivalab-api:latest
+    image: curiohokiest2e/uptivalab-api:latest
     environment:
       DATABASE_URL: postgresql://uptivalab:uptivalab@postgres:5432/uptivalab
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET}
-      PORT: 3000
+      JWT_SECRET: \${JWT_SECRET}
+      PORT: 8080
     depends_on:
       postgres:
         condition: service_healthy
@@ -150,23 +153,145 @@ services:
     restart: unless-stopped
 
   web:
-    image: YOUR_DOCKERHUB_USERNAME/uptivalab-web:latest
-    ports:
-      - "4173:80"
+    image: curiohokiest2e/uptivalab-web:latest
+    environment:
+      VITE_API_URL: http://api:8080
     depends_on:
       - api
     restart: unless-stopped
 
 volumes:
   postgres_data:
+EOF
+
+# Create environment file
+cat > .env <<EOF
+JWT_SECRET=\$(openssl rand -base64 32)
+EOF
+
+# Start the services
+docker compose up -d
 ```
 
-### Option 2: Building from Source
+### Option 2: With Traefik Reverse Proxy (Advanced)
+
+For production deployments with automatic SSL and load balancing:
+
+```yaml
+# docker-compose.yml with Traefik
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: uptivalab
+      POSTGRES_PASSWORD: uptivalab
+      POSTGRES_DB: uptivalab
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U uptivalab"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - proxy
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - proxy
+    restart: unless-stopped
+
+  api:
+    image: curiohokiest2e/uptivalab-api:latest
+    environment:
+      DATABASE_URL: postgresql://uptivalab:uptivalab@postgres:5432/uptivalab
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: \${JWT_SECRET}
+      PORT: 8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.uptivalab-api.rule=Host(\`api.yourdomain.com\`)"
+      - "traefik.http.routers.uptivalab-api.entrypoints=websecure"
+      - "traefik.http.routers.uptivalab-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.uptivalab-api.loadbalancer.server.port=8080"
+      - "traefik.http.routers.uptivalab-api.middlewares=api-stripprefix"
+      - "traefik.http.middlewares.api-stripprefix.stripprefix.prefixes=/api"
+    networks:
+      - proxy
+    restart: unless-stopped
+
+  web:
+    image: curiohokiest2e/uptivalab-web:latest
+    environment:
+      VITE_API_URL: https://api.yourdomain.com
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.uptivalab-web.rule=Host(\`uptivalab.yourdomain.com\`)"
+      - "traefik.http.routers.uptivalab-web.entrypoints=websecure"
+      - "traefik.http.routers.uptivalab-web.tls.certresolver=letsencrypt"
+      - "traefik.http.services.uptivalab-web.loadbalancer.server.port=80"
+    depends_on:
+      - api
+    networks:
+      - proxy
+    restart: unless-stopped
+
+  traefik:
+    image: traefik:v3.0
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.letsencrypt.acme.email=your-email@example.com"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"  # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - letsencrypt:/letsencrypt
+    networks:
+      - proxy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  letsencrypt:
+
+networks:
+  proxy:
+    external: true
+```
+
+### Option 3: Building from Source
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/uptivalab.git
+git clone https://github.com/tekuonline/uptivalab.git
 cd uptivalab
+
+# Create environment file
+cp .env.example .env
+# Edit .env with your configuration
 
 # Build and start
 docker compose up -d --build
@@ -179,12 +304,67 @@ docker compose up -d --build
 | `DATABASE_URL` | PostgreSQL connection string | - | ✅ |
 | `REDIS_URL` | Redis connection string | - | ✅ |
 | `JWT_SECRET` | Secret for JWT tokens (use strong random string) | - | ✅ |
-| `PORT` | API server port | `3000` | ❌ |
-| `WEB_PORT` | Web UI port | `4173` | ❌ |
+| `PORT` | API server port | `8080` | ❌ |
+| `WEB_PORT` | Web UI port (when not using reverse proxy) | `4173` | ❌ |
 | `SMTP_HOST` | SMTP server hostname | - | ❌ |
 | `SMTP_PORT` | SMTP server port | `587` | ❌ |
 | `SMTP_USER` | SMTP username | - | ❌ |
 | `SMTP_PASS` | SMTP password | - | ❌ |
+| `APPRISE_URL` | Apprise notification server URL | - | ❌ |
+| `PLAYWRIGHT_WS_ENDPOINT` | Playwright WebSocket endpoint | `ws://playwright:9222` | ❌ |
+| `DOCKER_SOCKET_PATH` | Docker socket path for container monitoring | `/var/run/docker.sock` | ❌ |
+
+### Advanced Configuration
+
+#### Using External PostgreSQL/Redis
+
+For production deployments, consider using managed databases:
+
+```yaml
+# docker-compose.prod.yml
+version: '3.8'
+
+services:
+  api:
+    image: curiohokiest2e/uptivalab-api:latest
+    environment:
+      DATABASE_URL: postgresql://user:password@your-postgres-host:5432/uptivalab
+      REDIS_URL: redis://your-redis-host:6379
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: 8080
+    restart: unless-stopped
+
+  web:
+    image: curiohokiest2e/uptivalab-web:latest
+    environment:
+      VITE_API_URL: https://api.yourdomain.com
+    restart: unless-stopped
+```
+
+#### SMTP Configuration for Notifications
+
+```bash
+# Gmail example
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+
+# SendGrid example
+SMTP_HOST=smtp.sendgrid.net
+SMTP_PORT=587
+SMTP_USER=apikey
+SMTP_PASS=your-sendgrid-api-key
+```
+
+#### Cloudflare Tunnel Integration
+
+UptivaLab supports Cloudflare Tunnel for secure external access:
+
+1. Install `cloudflared` and authenticate
+2. Create a tunnel: `cloudflared tunnel create uptivalab`
+3. Configure DNS in Cloudflare dashboard
+4. Set tunnel token in UptivaLab settings UI
 
 ### Volumes and Persistence
 
@@ -196,6 +376,32 @@ docker compose exec postgres pg_dump -U uptivalab uptivalab > backup.sql
 
 # Restore database
 docker compose exec -T postgres psql -U uptivalab uptivalab < backup.sql
+```
+
+### Monitoring and Logs
+
+```bash
+# View all logs
+docker compose logs -f
+
+# View specific service logs
+docker compose logs -f api
+
+# Check container health
+docker compose ps
+```
+
+### Updating UptivaLab
+
+```bash
+# Pull latest images
+docker compose pull
+
+# Restart with new images
+docker compose up -d
+
+# Or rebuild from source
+docker compose up -d --build
 ```
 
 ---
@@ -329,7 +535,7 @@ Topics covered:
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/uptivalab.git
+git clone https://github.com/tekuonline/uptivalab.git
 cd uptivalab
 
 # Install dependencies
@@ -412,8 +618,8 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 🐛 Support
 
-- **Issues**: [GitHub Issues](https://github.com/YOUR_USERNAME/uptivalab/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/YOUR_USERNAME/uptivalab/discussions)
+- **Issues**: [GitHub Issues](https://github.com/tekuonline/uptivalab/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/tekuonline/uptivalab/discussions)
 
 ---
 
@@ -421,7 +627,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 **Made with ❤️ for the homelab community**
 
-[⭐ Star on GitHub](https://github.com/YOUR_USERNAME/uptivalab)
+[⭐ Star on GitHub](https://github.com/tekuonline/uptivalab)
 
 </div>
 
@@ -705,7 +911,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **Documentation**: [docs.uptivalab.dev](https://docs.uptivalab.dev) (Coming Soon)
 - **Discord**: [Join our Discord](https://discord.gg/uptivalab) (Coming Soon)
-- **GitHub Issues**: [Report bugs or request features](https://github.com/yourusername/uptivalab/issues)
+- **GitHub Issues**: [Report bugs or request features](https://github.com/tekuonline/uptivalab/issues)
 
 ---
 

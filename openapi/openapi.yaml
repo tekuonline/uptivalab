@@ -28,16 +28,19 @@ info:
   version: 1.0.0
   contact:
     name: UptivaLab Support
-    url: https://github.com/tekuonline/uptivaLab
+    url: https://github.com/tekuonline/uptivalab
+    email: support@uptivalab.com
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
 
 servers:
   - url: http://localhost:8080/api
-    description: Development server
+    description: Local development server
   - url: https://api.uptivalab.com/api
-    description: Production server
+    description: Production API server
+  - url: http://localhost:4173/api
+    description: Local development (via web proxy)
 
 tags:
   - name: Authentication
