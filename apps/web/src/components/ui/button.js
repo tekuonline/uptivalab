@@ -5,7 +5,8 @@ import { twMerge } from "tailwind-merge";
 const variantClasses = {
     primary: "bg-primary text-white hover:bg-primary/90",
     secondary: "bg-accent text-accent-foreground hover:bg-accent/80",
-    ghost: "bg-transparent hover:bg-white/10 text-foreground",
+    ghost: "bg-transparent hover:bg-slate-200 dark:hover:bg-white/10 text-foreground",
+    outline: "border border-slate-300 dark:border-white/20 bg-transparent text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10",
 };
 export const Button = forwardRef(({ className, variant = "primary", asChild, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";

@@ -12,15 +12,32 @@ import { PublicStatusRoute } from "./public-status.js";
 import { SettingsRoute } from "./settings.js";
 import SyntheticRecorder from "./synthetic-recorder.js";
 import { LoginRoute } from "./login.js";
+import { SetupRoute } from "./setup.js";
 import { InviteAcceptRoute } from "./invite.js";
 import { useAuth } from "../providers/auth-context.js";
 import { useSettings } from "../providers/settings-context.js";
 
 const ProtectedApp = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, setupNeeded } = useAuth();
+
+  // Wait for setup check to complete
+  if (setupNeeded === null) {
+    return <div className="flex items-center justify-center min-h-screen">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 dark:border-white mx-auto"></div>
+        <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Loading...</p>
+      </div>
+    </div>;
+  }
+
+  if (setupNeeded) {
+    return <Navigate to="/setup" replace />;
+  }
+  
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
+  
   return <AppLayout />;
 };
 
@@ -49,6 +66,7 @@ const router = createBrowserRouter([
     ],
   },
   { path: "/login", element: <LoginRoute /> },
+  { path: "/setup", element: <SetupRoute /> },
   { path: "/register", element: <Navigate to="/login" replace /> },
   { path: "/invite/:token", element: <InviteAcceptRoute /> },
   { path: "/status/:slug", element: <PublicStatusRoute /> }, // Public status page (no auth required)

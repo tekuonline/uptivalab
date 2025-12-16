@@ -5,4 +5,4 @@ const colorMap = {
     down: "bg-danger/20 text-danger",
     pending: "bg-warning/20 text-warning",
 };
-export const StatusBadge = ({ status }) => (_jsx("span", { className: twMerge("rounded-full px-3 py-1 text-xs font-semibold", colorMap[status]), children: status.toUpperCase() }));
+export const StatusBadge = ({ status }) => (_jsx("span", { className: twMerge("inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-semibold", colorMap[status]), children: status.toUpperCase() }));
