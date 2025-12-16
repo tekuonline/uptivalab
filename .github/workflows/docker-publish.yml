@@ -4,14 +4,6 @@ on:
   push:
     branches:
       - main
-      - master
-    tags:
-      - 'v*.*.*'
-  pull_request:
-    branches:
-      - main
-      - master
-  workflow_dispatch:
 
 env:
   DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
@@ -44,10 +36,6 @@ jobs:
           images: ${{ secrets.DOCKER_USERNAME }}/uptivalab-${{ matrix.service }}
           tags: |
             type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
             type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
 
@@ -56,19 +44,10 @@ jobs:
         with:
           context: .
           file: ./apps/${{ matrix.service }}/Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64,linux/arm64
 
-      - name: Update Docker Hub description
-        uses: peter-evans/dockerhub-description@v4
-        if: matrix.service == 'api' && github.event_name != 'pull_request'
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-          repository: ${{ secrets.DOCKER_USERNAME }}/uptivalab-${{ matrix.service }}
-          short-description: "UptivaLab - Modern uptime monitoring and status page platform"
-          readme-filepath: ./README.md
