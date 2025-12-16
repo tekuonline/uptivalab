@@ -306,10 +306,10 @@ docker compose up -d --build
 | `JWT_SECRET` | Secret for JWT tokens (use strong random string) | - | ✅ |
 | `PORT` | API server port | `8080` | ❌ |
 | `WEB_PORT` | Web UI port (when not using reverse proxy) | `4173` | ❌ |
-| `SMTP_HOST` | SMTP server hostname | - | ❌ |
-| `SMTP_PORT` | SMTP server port | `587` | ❌ |
-| `SMTP_USER` | SMTP username | - | ❌ |
-| `SMTP_PASS` | SMTP password | - | ❌ |
+| SMTP_HOST | SMTP server hostname | - | ❌ |
+| SMTP_PORT | SMTP server port | - | ❌ |
+| SMTP_USER | SMTP username | - | ❌ |
+| SMTP_PASS | SMTP password | - | ❌ |
 | `APPRISE_URL` | Apprise notification server URL | - | ❌ |
 | `PLAYWRIGHT_WS_ENDPOINT` | Playwright WebSocket endpoint | `ws://playwright:9222` | ❌ |
 | `DOCKER_SOCKET_PATH` | Docker socket path for container monitoring | `/var/run/docker.sock` | ❌ |
@@ -341,21 +341,24 @@ services:
     restart: unless-stopped
 ```
 
-#### SMTP Configuration for Notifications
+### SMTP Configuration for Notifications
+
+Email notifications are configured per notification channel in the web interface. Environment variables provide global defaults:
 
 ```bash
-# Gmail example
+# Optional: Global SMTP defaults (used as fallbacks)
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your-email@gmail.com
 SMTP_PASS=your-app-password
-
-# SendGrid example
-SMTP_HOST=smtp.sendgrid.net
-SMTP_PORT=587
-SMTP_USER=apikey
-SMTP_PASS=your-sendgrid-api-key
 ```
+
+**To configure email notifications:**
+1. Go to **Notifications** → **Add Channel**
+2. Select **Email (SMTP)**
+3. Fill in your SMTP server details
+4. Test the configuration
+5. Assign monitors to the channel
 
 #### Cloudflare Tunnel Integration
 
@@ -410,23 +413,27 @@ docker compose up -d --build
 
 ### SMTP Email Notifications
 
-You can configure email notifications either globally (environment variables) or per notification channel:
+SMTP configuration is done **per notification channel** in the UptivaLab web interface. Environment variables serve as global defaults/fallbacks:
 
-**Global Configuration (Environment Variables):**
+**Per-Channel Configuration (Recommended):**
+1. Go to **Notifications** in the web interface
+2. Create a new **Email (SMTP)** notification channel
+3. Configure SMTP settings for that specific channel:
+   - SMTP Host (e.g., `smtp.gmail.com`)
+   - SMTP Port (e.g., `587` for TLS, `465` for SSL)
+   - SMTP Username
+   - SMTP Password
+   - From Email (optional)
+
+**Global Defaults (Environment Variables):**
+Environment variables are used as fallbacks when per-channel settings are not specified:
+
 ```bash
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your-email@gmail.com
 SMTP_PASS=your-app-password
 ```
-
-**Per-Channel Configuration:**
-In the UptivaLab UI, create an email notification channel and specify:
-- SMTP Host (e.g., `smtp.gmail.com`)
-- SMTP Port (e.g., `587` for TLS, `465` for SSL)
-- SMTP Username
-- SMTP Password
-- From Email (optional)
 
 ### Push/Heartbeat Monitoring
 
@@ -450,20 +457,24 @@ For cron jobs and scheduled tasks:
 
 UptivaLab includes built-in Cloudflare Tunnel support - **cloudflared runs inside the API container** automatically when you provide a token:
 
-1. **Add your tunnel token to `.env`:**
-   ```bash
-   CLOUDFLARE_TUNNEL_TOKEN=your-token-here
-   ```
+1. **Configure tunnel token in Settings:**
+   - Go to **Settings** → **Reverse Proxy** tab
+   - Enter your Cloudflare tunnel token
+   - Click **Save**
 
-2. **Start normally:**
+2. **Set up Cloudflare Tunnel:**
+   - Create a tunnel at [Cloudflare Zero Trust](https://one.dash.cloudflare.com/)
+   - Get your tunnel token from the dashboard
+   - Add public hostname: `your-subdomain.yourdomain.com` → `http://web:80`
+
+3. **Start UptivaLab:**
    ```bash
    docker compose up -d
    ```
 
-3. **Configure in Cloudflare Dashboard:**
-   - Create a tunnel at [Cloudflare Zero Trust](https://one.dash.cloudflare.com/)
-   - Add public hostname: `your-subdomain.yourdomain.com` → `http://web:80`
-   - Access via `https://your-subdomain.yourdomain.com`
+4. **Access externally:**
+   - Visit `https://your-subdomain.yourdomain.com`
+   - The tunnel will be active once configured
 
 The API container automatically runs both your application and cloudflared using Supervisor. No separate containers or profiles needed!
 
@@ -780,12 +791,12 @@ GET /api/heartbeat/:token
 | **Email (SMTP)** | ✅ Available | Configure SMTP_* env variables |
 | **ntfy.sh** | ✅ Available | Topic name only |
 | **Webhook** | ✅ Available | POST URL with JSON payload |
-| **Discord** | 🚧 Planned | Webhook URL |
-| **Slack** | 🚧 Planned | Webhook URL |
-| **Telegram** | 🚧 Planned | Bot token + chat ID |
-| **Gotify** | 🚧 Planned | Server URL + app token |
-| **Pushover** | 🚧 Planned | User key + API token |
-| **Apprise** | 🚧 Planned | Apprise URL syntax |
+| **Discord** | ✅ Available | Webhook URL |
+| **Slack** | ✅ Available | Webhook URL |
+| **Telegram** | ✅ Available | Bot token + chat ID |
+| **Gotify** | ✅ Available | Server URL + app token |
+| **Pushover** | ✅ Available | User key + API token |
+| **Apprise** | ✅ Available | Apprise URL syntax |
 
 ### **Create Notification Channel**
 
@@ -883,19 +894,18 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - ✅ Public status pages
 - ✅ Incident management
 - ✅ Heartbeat monitoring
-- ✅ Basic notifications (Email, ntfy, Webhook)
+- ✅ All 9 notification channels (Email, ntfy, Webhook, Discord, Slack, Telegram, Gotify, Pushover, Apprise)
 
 ### **v0.3** (Next)
-- 🔄 Additional notification channels (Discord, Slack, Telegram, Gotify, Pushover)
-- 🔄 Dark/light mode toggle
-- 🔄 Certificate expiry dashboard widget
+- ✅ Dark/light mode toggle
+- ✅ Certificate expiry dashboard widget
 - 🔄 Auto-discovery of Docker containers
 - 🔄 Settings backup/restore (JSON export)
 
 ### **v0.4**
 - 🔄 OpenAPI 3.1 spec generation
 - 🔄 Comprehensive test coverage (80%+)
-- 🔄 GitHub Actions CI/CD
+- ✅ GitHub Actions CI/CD
 - 🔄 Playwright E2E tests
 
 ### **v1.0**
