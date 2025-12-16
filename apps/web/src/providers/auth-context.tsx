@@ -3,9 +3,12 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 interface AuthContextValue {
   token: string | null;
   isAuthenticated: boolean;
+  setupNeeded: boolean | null;
   login: (value: { email: string; password: string }) => Promise<void>;
   register: (value: { email: string; password: string }) => Promise<void>;
+  setup: (value: { email: string; password: string }) => Promise<void>;
   logout: () => void;
+  checkSetupNeeded: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -15,6 +18,7 @@ const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(STORAGE_KEY));
+  const [setupNeeded, setSetupNeeded] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (token) {
@@ -23,6 +27,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       localStorage.removeItem(STORAGE_KEY);
     }
   }, [token]);
+
+  // Check setup status on mount
+  useEffect(() => {
+    checkSetupNeeded();
+  }, []);
+
+  const checkSetupNeeded = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/auth/setup-needed`);
+      if (response.ok) {
+        const data = await response.json();
+        setSetupNeeded(data.setupNeeded);
+      } else {
+        // If API call fails, assume setup is needed for safety
+        console.warn("Setup check failed, assuming setup needed:", response.status);
+        setSetupNeeded(true);
+      }
+    } catch (error) {
+      console.error("Failed to check setup status:", error);
+      // If network error, assume setup is needed for safety
+      setSetupNeeded(true);
+    }
+  }, []);
 
   const authenticate = useCallback(async (path: string, credentials: { email: string; password: string }) => {
     const response = await fetch(`${API_BASE}/api/auth/${path}`, {
@@ -36,15 +63,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     const data = (await response.json()) as { token: string };
     setToken(data.token);
+    setSetupNeeded(false);
   }, []);
 
   const login = useCallback((value: { email: string; password: string }) => authenticate("login", value), [authenticate]);
   const register = useCallback((value: { email: string; password: string }) => authenticate("register", value), [authenticate]);
+  const setup = useCallback((value: { email: string; password: string }) => authenticate("setup", value), [authenticate]);
   const logout = useCallback(() => setToken(null), []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ token, isAuthenticated: Boolean(token), login, register, logout }),
-    [login, logout, register, token]
+    () => ({ token, isAuthenticated: Boolean(token), setupNeeded, login, register, setup, logout, checkSetupNeeded }),
+    [login, logout, register, setup, token, setupNeeded, checkSetupNeeded]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

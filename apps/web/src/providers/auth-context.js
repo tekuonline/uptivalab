@@ -5,6 +5,7 @@ const STORAGE_KEY = "uptivalab.token";
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 export const AuthProvider = ({ children }) => {
     const [token, setToken] = useState(() => localStorage.getItem(STORAGE_KEY));
+    const [setupNeeded, setSetupNeeded] = useState(null);
     useEffect(() => {
         if (token) {
             localStorage.setItem(STORAGE_KEY, token);
@@ -13,6 +14,18 @@ export const AuthProvider = ({ children }) => {
             localStorage.removeItem(STORAGE_KEY);
         }
     }, [token]);
+    const checkSetupNeeded = useCallback(async () => {
+        try {
+            const response = await fetch(`${API_BASE}/api/auth/setup-needed`);
+            if (response.ok) {
+                const data = await response.json();
+                setSetupNeeded(data.setupNeeded);
+            }
+        }
+        catch (error) {
+            console.error("Failed to check setup status:", error);
+        }
+    }, []);
     const authenticate = useCallback(async (path, credentials) => {
         const response = await fetch(`${API_BASE}/api/auth/${path}`, {
             method: "POST",
@@ -25,11 +38,13 @@ export const AuthProvider = ({ children }) => {
         }
         const data = (await response.json());
         setToken(data.token);
+        setSetupNeeded(false);
     }, []);
     const login = useCallback((value) => authenticate("login", value), [authenticate]);
     const register = useCallback((value) => authenticate("register", value), [authenticate]);
+    const setup = useCallback((value) => authenticate("setup", value), [authenticate]);
     const logout = useCallback(() => setToken(null), []);
-    const value = useMemo(() => ({ token, isAuthenticated: Boolean(token), login, register, logout }), [login, logout, register, token]);
+    const value = useMemo(() => ({ token, isAuthenticated: Boolean(token), setupNeeded, login, register, setup, logout, checkSetupNeeded }), [login, logout, register, setup, token, setupNeeded, checkSetupNeeded]);
     return _jsx(AuthContext.Provider, { value: value, children: children });
 };
 export const useAuth = () => {

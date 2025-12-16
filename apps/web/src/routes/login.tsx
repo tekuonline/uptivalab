@@ -6,10 +6,27 @@ import { useTranslation } from "../hooks/use-translation.js";
 
 const AuthForm = ({ mode }: { mode: "login" | "register" }) => {
   const { t } = useTranslation();
-  const { login, register, isAuthenticated } = useAuth();
+  const { login, register, isAuthenticated, setupNeeded } = useAuth();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Show loading while setup status is being determined
+  if (setupNeeded === null) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 dark:border-white mx-auto"></div>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If setup is needed, redirect to setup page
+  if (setupNeeded) {
+    return <Navigate to="/setup" replace />;
+  }
 
   if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />;

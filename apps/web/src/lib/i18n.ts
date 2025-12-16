@@ -486,6 +486,11 @@ export const translations = {
     needAccount: "Need an account?",
     alreadyOnboard: "Already onboard?",
     uptivalab: "UptivaLab",
+    welcomeToUptivaLab: "Welcome to UptivaLab",
+    createFirstAdminAccount: "Create your first admin account to get started.",
+    setupComplete: "Setup Complete!",
+    redirectingToDashboard: "Redirecting to dashboard...",
+    createAdminAccount: "Create Admin Account",
     
     // Monitors - Form fields
     createNewMonitor: "Create new monitor",
@@ -1021,6 +1026,11 @@ export const translations = {
     needAccount: "¿Necesitas una cuenta?",
     alreadyOnboard: "¿Ya estás registrado?",
     uptivalab: "UptivaLab",
+    welcomeToUptivaLab: "Bienvenido a UptivaLab",
+    createFirstAdminAccount: "Crea tu primera cuenta de administrador para comenzar.",
+    setupComplete: "¡Configuración Completa!",
+    redirectingToDashboard: "Redirigiendo al panel...",
+    createAdminAccount: "Crear Cuenta de Administrador",
     
     // Monitors - Form fields
     createNewMonitor: "Crear nuevo monitor",
@@ -1577,6 +1587,11 @@ export const translations = {
     needAccount: "Benötigen Sie ein Konto?",
     alreadyOnboard: "Bereits an Bord?",
     uptivalab: "UptivaLab",
+    welcomeToUptivaLab: "Willkommen bei UptivaLab",
+    createFirstAdminAccount: "Erstellen Sie Ihr erstes Administrator-Konto, um zu beginnen.",
+    setupComplete: "Einrichtung abgeschlossen!",
+    redirectingToDashboard: "Weiterleitung zum Dashboard...",
+    createAdminAccount: "Administrator-Konto erstellen",
     
     // Monitors - Form fields
     createNewMonitor: "Neuen Monitor erstellen",
@@ -2133,6 +2148,11 @@ export const translations = {
     needAccount: "Besoin d'un compte?",
     alreadyOnboard: "Déjà à bord?",
     uptivalab: "UptivaLab",
+    welcomeToUptivaLab: "Bienvenue sur UptivaLab",
+    createFirstAdminAccount: "Créez votre premier compte administrateur pour commencer.",
+    setupComplete: "Configuration terminée!",
+    redirectingToDashboard: "Redirection vers le tableau de bord...",
+    createAdminAccount: "Créer un compte administrateur",
     
     // Monitors - Form fields
     createNewMonitor: "Créer un nouveau moniteur",
@@ -2689,6 +2709,11 @@ export const translations = {
     needAccount: "需要账户？",
     alreadyOnboard: "已经注册？",
     uptivalab: "UptivaLab",
+    welcomeToUptivaLab: "欢迎使用 UptivaLab",
+    createFirstAdminAccount: "创建您的第一个管理员账户以开始使用。",
+    setupComplete: "设置完成！",
+    redirectingToDashboard: "正在重定向到仪表板...",
+    createAdminAccount: "创建管理员账户",
     
     // Monitors - Form fields
     createNewMonitor: "创建新监控器",
@@ -3245,6 +3270,11 @@ export const translations = {
     needAccount: "アカウントが必要ですか？",
     alreadyOnboard: "すでに登録済みですか？",
     uptivalab: "UptivaLab",
+    welcomeToUptivaLab: "UptivaLab へようこそ",
+    createFirstAdminAccount: "開始するには、最初の管理者アカウントを作成してください。",
+    setupComplete: "セットアップ完了！",
+    redirectingToDashboard: "ダッシュボードにリダイレクトしています...",
+    createAdminAccount: "管理者アカウントを作成",
     
     // Monitors - Form fields
     createNewMonitor: "新しいモニターを作成",
