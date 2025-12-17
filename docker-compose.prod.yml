@@ -48,7 +48,7 @@ services:
       retries: 3
 
   api:
-    image: ${DOCKER_USERNAME:-YOUR_DOCKERHUB_USERNAME}/uptivalab-api:${VERSION:-latest}
+    image: curiohokiest2e/uptivalab-api:${VERSION:-latest}
     container_name: uptivalab-api
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-uptivalab}:${POSTGRES_PASSWORD:-uptivalab}@postgres:5432/${POSTGRES_DB:-uptivalab}
@@ -74,7 +74,7 @@ services:
       - uptivalab
 
   web:
-    image: ${DOCKER_USERNAME:-YOUR_DOCKERHUB_USERNAME}/uptivalab-web:${VERSION:-latest}
+    image: curiohokiest2e/uptivalab-web:${VERSION:-latest}
     container_name: uptivalab-web
     ports:
       - "${WEB_PORT:-4173}:80"
