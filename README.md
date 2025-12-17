@@ -84,7 +84,7 @@ UptivaLab is a modern, open-source monitoring application built from the ground 
    DATABASE_URL=postgresql://uptivalab:uptivalab@postgres:5432/uptivalab
    REDIS_URL=redis://redis:6379
    JWT_SECRET=$(openssl rand -base64 32)
-   PORT=8080
+   API_PORT=8080
    WEB_PORT=4173
    EOF
    ```

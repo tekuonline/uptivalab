@@ -60,7 +60,7 @@ Manage Docker daemon connections for Docker monitor type:
 Configure remote browser instances for synthetic monitoring:
 - Add remote browser connections
 - WebSocket URL format
-- Example: `ws://localhost:3000`
+- Example: `ws://localhost:8080` (matches your API_PORT)
 
 ### 7. **Security**
 - **Change Password**:

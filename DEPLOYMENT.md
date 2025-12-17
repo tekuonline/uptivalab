@@ -20,7 +20,7 @@ mkdir -p ~/uptivalab && cd ~/uptivalab
 ### Step 2: Download Docker Compose File
 
 ```bash
-wget https://raw.githubusercontent.com/YOUR_USERNAME/uptivalab/main/docker-compose.prod.yml -O docker-compose.yml
+wget https://raw.githubusercontent.com/tekuonline/uptivalab/main/docker-compose.prod.yml -O docker-compose.yml
 ```
 
 Or create it manually with the configuration below.
@@ -38,11 +38,10 @@ POSTGRES_DB=uptivalab
 JWT_SECRET=$(openssl rand -base64 64)
 
 # Ports
-API_PORT=3000
+API_PORT=8080
 WEB_PORT=4173
 
-# Docker Hub
-DOCKER_USERNAME=YOUR_DOCKERHUB_USERNAME
+# Docker Hub (automatically configured in docker-compose.prod.yml)
 VERSION=latest
 
 # Optional: SMTP Email Configuration
@@ -52,8 +51,6 @@ VERSION=latest
 # SMTP_PASS=your-app-password
 EOF
 ```
-
-**Important**: Replace `YOUR_DOCKERHUB_USERNAME` with the actual Docker Hub username.
 
 ### Step 4: Start Services
 
@@ -71,7 +68,7 @@ docker compose ps
 docker compose logs -f
 
 # Check API health
-curl http://localhost:3000/health
+curl http://localhost:8080/health
 
 # Access the web UI
 open http://localhost:4173
@@ -113,7 +110,7 @@ server {
 
     # API
     location /api {
-        proxy_pass http://localhost:3000;
+        proxy_pass http://localhost:8080;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -122,7 +119,7 @@ server {
 
     # WebSocket support for real-time updates
     location /ws {
-        proxy_pass http://localhost:3000;
+        proxy_pass http://localhost:8080;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -164,7 +161,7 @@ services:
       - "traefik.http.routers.uptivalab-api.rule=Host(`monitor.yourdomain.com`) && PathPrefix(`/api`)"
       - "traefik.http.routers.uptivalab-api.entrypoints=websecure"
       - "traefik.http.routers.uptivalab-api.tls.certresolver=letsencrypt"
-      - "traefik.http.services.uptivalab-api.loadbalancer.server.port=3000"
+      - "traefik.http.services.uptivalab-api.loadbalancer.server.port=8080"
     networks:
       - traefik
       - uptivalab
@@ -267,7 +264,7 @@ docker stats
 
 ```bash
 # API health
-curl http://localhost:3000/health
+curl http://localhost:8080/health
 
 # Database connection
 docker compose exec postgres pg_isready -U uptivalab
@@ -285,7 +282,7 @@ docker compose exec redis redis-cli ping
 docker compose logs
 
 # Check if ports are already in use
-sudo lsof -i :3000
+sudo lsof -i :8080
 sudo lsof -i :4173
 sudo lsof -i :5432
 ```
