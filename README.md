@@ -68,25 +68,43 @@ UptivaLab is a modern, open-source monitoring application built from the ground 
 
 ### Using Docker Compose (Recommended)
 
-1. **Create a directory for UptivaLab:**
+1. **Clone the repository:**
    ```bash
-   mkdir uptivalab && cd uptivalab
+   git clone https://github.com/tekuonline/uptivalab.git
+   cd uptivalab
    ```
 
-2. **Download the docker-compose.yml:**
+2. **Copy the production docker-compose file:**
    ```bash
-   wget https://raw.githubusercontent.com/tekuonline/uptivalab/main/docker-compose.prod.yml -O docker-compose.yml
+   cp docker-compose.prod.yml docker-compose.yml
    ```
 
 3. **Create environment file:**
    ```bash
    cat > .env <<EOF
-   DATABASE_URL=postgresql://uptivalab:uptivalab@postgres:5432/uptivalab
-   REDIS_URL=redis://redis:6379
-   JWT_SECRET=$(openssl rand -base64 32)
+   # Database Configuration
+   POSTGRES_USER=uptivalab
+   POSTGRES_PASSWORD=uptivalab
+   POSTGRES_DB=uptivalab
+
+   # Security
+   JWT_SECRET=\$(openssl rand -base64 32)
+
+   # Ports
    API_PORT=8080
    WEB_PORT=4173
+
+   # Docker Hub Version
+   VERSION=latest
+
+   # Web Service Configuration
    VITE_API_URL=http://api:8080
+
+   # Optional: SMTP Email Configuration
+   # SMTP_HOST=smtp.gmail.com
+   # SMTP_PORT=587
+   # SMTP_USER=your-email@gmail.com
+   # SMTP_PASS=super-secret
    EOF
    ```
 
@@ -103,7 +121,54 @@ UptivaLab is a modern, open-source monitoring application built from the ground 
 
 ## 🐳 Docker Deployment
 
-### Option 1: Using Pre-built Images from Docker Hub (Recommended)
+UptivaLab provides pre-built Docker images on Docker Hub for easy deployment. The recommended approach is to use the provided `docker-compose.prod.yml` file from the repository.
+
+### Quick Start with Provided docker-compose.prod.yml
+
+```bash
+# Clone or download the repository
+git clone https://github.com/tekuonline/uptivalab.git
+cd uptivalab
+
+# Copy the production docker-compose file
+cp docker-compose.prod.yml docker-compose.yml
+
+# Create environment file
+cat > .env <<EOF
+# Database Configuration
+POSTGRES_USER=uptivalab
+POSTGRES_PASSWORD=uptivalab
+POSTGRES_DB=uptivalab
+
+# Security
+JWT_SECRET=\$(openssl rand -base64 32)
+
+# Ports
+API_PORT=8080
+WEB_PORT=4173
+
+# Docker Hub Version
+VERSION=latest
+
+# Web Service Configuration
+VITE_API_URL=http://api:8080
+
+# Optional: SMTP Email Configuration
+# SMTP_HOST=smtp.gmail.com
+# SMTP_PORT=587
+# SMTP_USER=your-email@gmail.com
+# SMTP_PASS=super-secret
+EOF
+
+# Start the services
+docker compose up -d
+
+# Access your application:
+# - Web UI: http://localhost:4173
+# - API: http://localhost:8080
+```
+
+### Option 1: Using Pre-built Images from Docker Hub (Manual Setup)
 
 ```bash
 # Pull the latest images
@@ -117,37 +182,134 @@ version: '3.8'
 services:
   postgres:
     image: postgres:16-alpine
+    container_name: uptivalab-postgres
     environment:
-      POSTGRES_USER: uptivalab
-      POSTGRES_PASSWORD: uptivalab
-      POSTGRES_DB: uptivalab
+      POSTGRES_USER: \${POSTGRES_USER:-uptivalab}
+      POSTGRES_PASSWORD: \${POSTGRES_PASSWORD:-uptivalab}
+      POSTGRES_DB: \${POSTGRES_DB:-uptivalab}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U uptivalab"]
+      test: ["CMD-SHELL", "pg_isready -U \${POSTGRES_USER:-uptivalab}"]
       interval: 10s
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    networks:
+      - uptivalab
 
   redis:
     image: redis:7-alpine
+    container_name: uptivalab-redis
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    networks:
+      - uptivalab
+
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.45.0-jammy
+    container_name: uptivalab-playwright
+    command: ["npx", "playwright", "run-server", "--port", "9222"]
+    environment:
+      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+    shm_size: 2gb
+    restart: unless-stopped
+    networks:
+      - uptivalab
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9222/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   api:
-    image: curiohokiest2e/uptivalab-api:latest
+    image: curiohokiest2e/uptivalab-api:\${VERSION:-latest}
+    container_name: uptivalab-api
     ports:
-      - "${API_PORT:-8080}:${API_PORT:-8080}"
+      - "\${API_PORT:-8080}:\${API_PORT:-8080}"
     environment:
-      DATABASE_URL: postgresql://uptivalab:uptivalab@postgres:5432/uptivalab
+      DATABASE_URL: postgresql://\${POSTGRES_USER:-uptivalab}:\${POSTGRES_PASSWORD:-uptivalab}@postgres:5432/\${POSTGRES_DB:-uptivalab}
       REDIS_URL: redis://redis:6379
       JWT_SECRET: \${JWT_SECRET}
-      PORT: ${API_PORT:-8080}
+      PORT: \${API_PORT:-8080}
+      NODE_ENV: production
+      PLAYWRIGHT_WS_ENDPOINT: ws://playwright:9222/
+      # Optional SMTP configuration
+      SMTP_HOST: \${SMTP_HOST:-}
+      SMTP_PORT: \${SMTP_PORT:-587}
+      SMTP_USER: \${SMTP_USER:-}
+      SMTP_PASS: \${SMTP_PASS:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      playwright:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - uptivalab
+
+  web:
+    image: curiohokiest2e/uptivalab-web:\${VERSION:-latest}
+    container_name: uptivalab-web
+    ports:
+      - "\${WEB_PORT:-4173}:80"
+    environment:
+      VITE_API_URL: \${VITE_API_URL:-http://api:8080}
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - uptivalab
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  uptivalab:
+    driver: bridge
+EOF
+
+# Create environment file
+cat > .env <<EOF
+# Database Configuration
+POSTGRES_USER=uptivalab
+POSTGRES_PASSWORD=uptivalab
+POSTGRES_DB=uptivalab
+
+# Security
+JWT_SECRET=\$(openssl rand -base64 32)
+
+# Ports
+API_PORT=8080
+WEB_PORT=4173
+
+# Docker Hub Version
+VERSION=latest
+
+# Web Service Configuration
+VITE_API_URL=http://api:8080
+
+# Optional: SMTP Email Configuration
+# SMTP_HOST=smtp.gmail.com
+# SMTP_PORT=587
+# SMTP_USER=your-email@gmail.com
+# SMTP_PASS=super-secret
+EOF
+
+# Start the services
+docker compose up -d
+
+# Access your application:
+# - Web UI: http://localhost:\${WEB_PORT:-4173}
+# - API: http://localhost:\${API_PORT:-8080}
+```
     depends_on:
       postgres:
         condition: service_healthy
@@ -219,17 +381,41 @@ services:
       - proxy
     restart: unless-stopped
 
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.45.0-jammy
+    command: ["npx", "playwright", "run-server", "--port", "9222"]
+    environment:
+      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+    shm_size: 2gb
+    restart: unless-stopped
+    networks:
+      - proxy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9222/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   api:
-    image: curiohokiest2e/uptivalab-api:latest
+    image: curiohokiest2e/uptivalab-api:${VERSION:-latest}
     environment:
       DATABASE_URL: postgresql://uptivalab:uptivalab@postgres:5432/uptivalab
       REDIS_URL: redis://redis:6379
       JWT_SECRET: \${JWT_SECRET}
       PORT: 8080
+      NODE_ENV: production
+      PLAYWRIGHT_WS_ENDPOINT: ws://playwright:9222/
+      # Optional SMTP configuration
+      SMTP_HOST: \${SMTP_HOST:-}
+      SMTP_PORT: \${SMTP_PORT:-587}
+      SMTP_USER: \${SMTP_USER:-}
+      SMTP_PASS: \${SMTP_PASS:-}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      playwright:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
@@ -244,7 +430,7 @@ services:
     restart: unless-stopped
 
   web:
-    image: curiohokiest2e/uptivalab-web:latest
+    image: curiohokiest2e/uptivalab-web:${VERSION:-latest}
     environment:
       VITE_API_URL: https://api.yourdomain.com
     labels:
