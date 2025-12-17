@@ -42,6 +42,7 @@ CREATE TABLE "Monitor" (
     "config" JSONB NOT NULL,
     "interval" INTEGER NOT NULL,
     "timeout" INTEGER,
+    "paused" BOOLEAN NOT NULL DEFAULT false,
     "groupId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
