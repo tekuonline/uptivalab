@@ -50,6 +50,8 @@ services:
   api:
     image: curiohokiest2e/uptivalab-api:${VERSION:-latest}
     container_name: uptivalab-api
+    ports:
+      - "${API_PORT:-3000}:${API_PORT:-3000}"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-uptivalab}:${POSTGRES_PASSWORD:-uptivalab}@postgres:5432/${POSTGRES_DB:-uptivalab}
       REDIS_URL: redis://redis:6379
