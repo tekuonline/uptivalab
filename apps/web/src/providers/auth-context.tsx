@@ -14,7 +14,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const STORAGE_KEY = "uptivalab.token";
-const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
+const API_BASE = import.meta.env.VITE_API_URL;
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(STORAGE_KEY));
