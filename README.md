@@ -75,7 +75,7 @@ UptivaLab is a modern, open-source monitoring application built from the ground 
 
 2. **Download the docker-compose.yml:**
    ```bash
-   wget https://raw.githubusercontent.com/tekuonline/uptivalab/main/docker-compose.yml
+   wget https://raw.githubusercontent.com/tekuonline/uptivalab/main/docker-compose.prod.yml -O docker-compose.yml
    ```
 
 3. **Create environment file:**
