@@ -86,6 +86,7 @@ UptivaLab is a modern, open-source monitoring application built from the ground 
    JWT_SECRET=$(openssl rand -base64 32)
    API_PORT=8080
    WEB_PORT=4173
+   VITE_API_URL=http://api:8080
    EOF
    ```
 
@@ -140,11 +141,13 @@ services:
 
   api:
     image: curiohokiest2e/uptivalab-api:latest
+    ports:
+      - "${API_PORT:-8080}:${API_PORT:-8080}"
     environment:
       DATABASE_URL: postgresql://uptivalab:uptivalab@postgres:5432/uptivalab
       REDIS_URL: redis://redis:6379
       JWT_SECRET: \${JWT_SECRET}
-      PORT: 8080
+      PORT: ${API_PORT:-8080}
     depends_on:
       postgres:
         condition: service_healthy
@@ -167,10 +170,16 @@ EOF
 # Create environment file
 cat > .env <<EOF
 JWT_SECRET=\$(openssl rand -base64 32)
+API_PORT=8080
+WEB_PORT=4173
 EOF
 
 # Start the services
 docker compose up -d
+
+# Access your application:
+# - Web UI: http://localhost:${WEB_PORT:-4173}
+# - API: http://localhost:${API_PORT:-8080}
 ```
 
 ### Option 2: With Traefik Reverse Proxy (Advanced)
