@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
+const API_BASE = import.meta.env.VITE_API_URL;
 
 const toWebsocketUrl = (base: string) => {
   try {
@@ -10,7 +10,12 @@ const toWebsocketUrl = (base: string) => {
     url.search = "";
     return url.toString();
   } catch {
-    return "ws://localhost:8080/ws/stream";
+    // Fallback: convert API_BASE to websocket URL
+    const fallbackUrl = new URL(API_BASE);
+    fallbackUrl.protocol = fallbackUrl.protocol === "https:" ? "wss:" : "ws:";
+    fallbackUrl.pathname = "/ws/stream";
+    fallbackUrl.search = "";
+    return fallbackUrl.toString();
   }
 };
 
