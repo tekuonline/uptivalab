@@ -2,7 +2,7 @@ import { jsx as _jsx } from "react/jsx-runtime";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 const AuthContext = createContext(undefined);
 const STORAGE_KEY = "uptivalab.token";
-const API_BASE = import.meta.env.VITE_API_URL;
+import { API_BASE } from "../lib/config.js";
 export const AuthProvider = ({ children }) => {
     const [token, setToken] = useState(() => localStorage.getItem(STORAGE_KEY));
     const [setupNeeded, setSetupNeeded] = useState(null);

@@ -1,7 +1,6 @@
 import type { IncidentWithRelations, Monitor, NotificationChannel, StatusPage } from "@uptivalab/shared";
 import { z } from "zod";
-
-const API_BASE = import.meta.env.VITE_API_URL;
+import { API_BASE } from "./config.js";
 
 const jsonHeaders = { "Content-Type": "application/json" } as const;
 
