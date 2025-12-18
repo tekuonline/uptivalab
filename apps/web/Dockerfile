@@ -12,12 +12,14 @@ COPY packages/shared/package.json packages/shared/package.json
 RUN pnpm install --frozen-lockfile
 
 COPY . .
-ARG VITE_API_URL=http://localhost:8080
-ENV VITE_API_URL=${VITE_API_URL}
 RUN pnpm --filter @uptivalab/shared build \
     && pnpm --filter uptivalab-web build
 
 FROM nginx:1.27-alpine AS runtime
-COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
+COPY apps/web/entrypoint.sh /usr/local/bin/custom-entrypoint.sh
+RUN chmod +x /usr/local/bin/custom-entrypoint.sh
+COPY apps/web/nginx-main.conf /etc/nginx/nginx.conf
+COPY apps/web/nginx.conf.template /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
 EXPOSE 80
+ENTRYPOINT ["/usr/local/bin/custom-entrypoint.sh"]

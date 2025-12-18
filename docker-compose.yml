@@ -64,6 +64,8 @@ services:
       - api
     ports:
       - "4173:80"
+    environment:
+      - VITE_API_URL=${VITE_API_URL}
     restart: unless-stopped
 
 volumes:
