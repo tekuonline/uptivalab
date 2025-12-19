@@ -199,6 +199,13 @@ export const SettingsRoute = () => {
   const controlTunnel = async (action: "start" | "stop" | "restart") => {
     setTunnelLoading(true);
     try {
+      // If starting and token has changed, save settings first
+      if (action === "start" && localSettings.cloudflareTunnelToken !== globalSettings.cloudflareTunnelToken) {
+        await updateGlobalSettings(localSettings, token);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      }
+      
       const result = await api.controlCloudflareTunnel(token, action);
       alert(result.message);
       await fetchTunnelStatus();
@@ -227,7 +234,7 @@ export const SettingsRoute = () => {
     const tokenChanged = localSettings.cloudflareTunnelToken !== globalSettings.cloudflareTunnelToken;
     
     try {
-      await updateGlobalSettings(localSettings);
+      await updateGlobalSettings(localSettings, token);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
       
@@ -802,7 +809,7 @@ export const SettingsRoute = () => {
                         setLocalSettings(newSettings);
                         // Auto-save theme setting
                         try {
-                          await updateGlobalSettings(newSettings);
+                          await updateGlobalSettings(newSettings, token);
                         } catch (error) {
                           console.error("Failed to save theme setting:", error);
                         }
@@ -857,7 +864,7 @@ export const SettingsRoute = () => {
                     <Input
                       type="password"
                       value={localSettings.cloudflareTunnelToken || ""}
-                      onChange={(e) => setLocalSettings({ ...localSettings, cloudflareTunnelToken: e.target.value })}
+                      onChange={(e) => setLocalSettings(prev => ({ ...prev, cloudflareTunnelToken: e.target.value }))}
                       placeholder={t("cloudflareTunnelTokenPlaceholder")}
                     />
                     
@@ -1640,7 +1647,7 @@ export const SettingsRoute = () => {
                         setLocalSettings(newSettings);
                         // Auto-save this setting
                         try {
-                          await updateGlobalSettings(newSettings);
+                          await updateGlobalSettings(newSettings, token);
                         } catch (error) {
                           console.error("Failed to save checkUpdates setting:", error);
                         }
@@ -1661,7 +1668,7 @@ export const SettingsRoute = () => {
                         setLocalSettings(newSettings);
                         // Auto-save this setting
                         try {
-                          await updateGlobalSettings(newSettings);
+                          await updateGlobalSettings(newSettings, token);
                         } catch (error) {
                           console.error("Failed to save checkBetaReleases setting:", error);
                         }
