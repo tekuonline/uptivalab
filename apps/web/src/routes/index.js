@@ -1,4 +1,4 @@
-import { jsx as _jsx } from "react/jsx-runtime";
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AppLayout } from "../components/app-layout.js";
 import { DashboardRoute } from "./dashboard.js";
@@ -17,14 +17,12 @@ import { SetupRoute } from "./setup.js";
 import { InviteAcceptRoute } from "./invite.js";
 import { useAuth } from "../providers/auth-context.js";
 import { useSettings } from "../providers/settings-context.js";
-import { useEffect } from "react";
 const ProtectedApp = () => {
-    const { isAuthenticated, setupNeeded, checkSetupNeeded } = useAuth();
-    useEffect(() => {
-        if (setupNeeded === null) {
-            checkSetupNeeded();
-        }
-    }, [setupNeeded, checkSetupNeeded]);
+    const { isAuthenticated, setupNeeded } = useAuth();
+    // Wait for setup check to complete
+    if (setupNeeded === null) {
+        return _jsx("div", { className: "flex items-center justify-center min-h-screen", children: _jsxs("div", { className: "text-center", children: [_jsx("div", { className: "animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 dark:border-white mx-auto" }), _jsx("p", { className: "mt-2 text-sm text-slate-600 dark:text-slate-400", children: "Loading..." })] }) });
+    }
     if (setupNeeded) {
         return _jsx(Navigate, { to: "/setup", replace: true });
     }

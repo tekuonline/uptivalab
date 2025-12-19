@@ -6,13 +6,22 @@ import { useTranslation } from "../hooks/use-translation.js";
 import { useAuth } from "../providers/auth-context.js";
 const SetupForm = () => {
     const { t } = useTranslation();
-    const { setup, isAuthenticated } = useAuth();
+    const { setup, isAuthenticated, setupNeeded } = useAuth();
     const [form, setForm] = useState({ email: "", password: "", confirmPassword: "" });
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
-    if (isAuthenticated) {
+    // Show loading while setup status is being determined
+    if (setupNeeded === null) {
+        return (_jsx("div", { className: "flex items-center justify-center min-h-screen", children: _jsxs("div", { className: "text-center", children: [_jsx("div", { className: "animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 dark:border-white mx-auto" }), _jsx("p", { className: "mt-2 text-sm text-slate-600 dark:text-slate-400", children: "Checking setup status..." })] }) }));
+    }
+    // If setup is not needed and user is authenticated, redirect to dashboard
+    if (!setupNeeded && isAuthenticated) {
         return _jsx(Navigate, { to: "/dashboard", replace: true });
+    }
+    // If setup is not needed but user is not authenticated, redirect to login
+    if (!setupNeeded && !isAuthenticated) {
+        return _jsx(Navigate, { to: "/login", replace: true });
     }
     const handleSubmit = async (event) => {
         event.preventDefault();

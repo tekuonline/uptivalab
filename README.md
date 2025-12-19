@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**Beautiful monitoring for the modern homelab** 
+**Beautiful monitoring for the modern homelab**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue)](https://www.typescriptlang.org/)
@@ -10,31 +10,36 @@
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev/)
 [![Fastify](https://img.shields.io/badge/Fastify-Latest-000000?logo=fastify)](https://fastify.dev/)
 
+*Modern, open-source monitoring with a beautiful interface*
+
+[🚀 Quick Start](#-quick-start) • [📖 Documentation](#-documentation) • [🐛 Issues](https://github.com/tekuonline/uptivalab/issues)
+
 </div>
 
 ---
 
 ## 📖 Table of Contents
 
-- [Features](#-features)
-- [Quick Start](#-quick-start)
-- [Docker Deployment](#-docker-deployment)
-- [Configuration](#-configuration)
-- [Synthetic Monitoring Guide](#-synthetic-monitoring)
-- [Development](#-development)
-- [API Documentation](#-api-documentation)
-- [License](#-license)
+- [✨ Features](#-features)
+- [🚀 Quick Start](#-quick-start)
+- [🐳 Docker Deployment](#-docker-deployment)
+- [⚙️ Configuration](#-configuration)
+- [🎭 Synthetic Monitoring](#-synthetic-monitoring)
+- [🛠️ Development](#-development)
+- [📚 API Documentation](#-api-documentation)
+- [🤝 Contributing](#-contributing)
+- [📝 License](#-license)
 
 ---
 
-## 🌟 Features
+## ✨ Features
 
 UptivaLab is a modern, open-source monitoring application built from the ground up for homelab and power users. It combines the reliability of traditional monitoring tools with a beautiful, responsive interface that rivals modern SaaS products.
 
-### **10 Monitor Types** - All Built-In
+### **🔟 Monitor Types - All Built-In**
 
-| Type | Description | Example |
-|------|-------------|---------|
+| Type | Description | Example Use Case |
+|------|-------------|------------------|
 | 🌐 **HTTP/HTTPS** | Website monitoring with keyword matching, status code validation, custom headers | `https://api.example.com` |
 | 🔌 **TCP Port** | Raw TCP connection checks | `10.0.1.100:22` |
 | 📡 **Ping (ICMP)** | Network connectivity via ICMP | `8.8.8.8` or `google.com` |
@@ -46,7 +51,7 @@ UptivaLab is a modern, open-source monitoring application built from the ground 
 | ⚡ **gRPC Health** | gRPC health check protocol support | `localhost:50051` |
 | 💓 **Push/Heartbeat** | Passive monitoring for cron jobs and scheduled tasks | 300 seconds interval |
 
-### **Beautiful Dashboard**
+### **🎨 Beautiful Dashboard**
 
 - 📊 **Real-time graphs** with response time, uptime percentage, and historical trends
 - 🎨 **Modern UI** with Tailwind CSS, glassmorphism accents, smooth animations
@@ -54,11 +59,11 @@ UptivaLab is a modern, open-source monitoring application built from the ground 
 - 🔄 **Live updates** via WebSocket - no page refresh needed
 - 🎯 **Incident timeline** with detailed event history
 
-### **Advanced Capabilities**
+### **⚡ Advanced Capabilities**
 
 - ✅ **Monitor grouping & tags** - organize your infrastructure
 - 🔧 **Maintenance windows** - suppress alerts during planned downtime
-- 📢 **Multi-channel notifications** - Email (SMTP), ntfy.sh, Discord, Slack, Telegram, Webhooks
+- 📢 **Multi-channel notifications** - Email (SMTP), ntfy.sh, Discord, Slack, Telegram, Gotify, Pushover, Webhooks, Apprise
 - 🌍 **Public status pages** - shareable, no authentication required
 - 🔑 **API-first** - full REST API for automation and integrations
 
@@ -99,6 +104,7 @@ UptivaLab is a modern, open-source monitoring application built from the ground 
 
    # Web Service Configuration
    VITE_API_URL=http://api:8080
+   API_UPSTREAM=http://api:8080
 
    # Optional: SMTP Email Configuration
    # SMTP_HOST=smtp.gmail.com
@@ -121,19 +127,19 @@ UptivaLab is a modern, open-source monitoring application built from the ground 
 
 ## 🐳 Docker Deployment
 
-UptivaLab provides pre-built Docker images on Docker Hub for easy deployment. The recommended approach is to use the provided `docker-compose.prod.yml` file from the repository.
+UptivaLab provides pre-built Docker images for easy deployment. The recommended approach is using the provided `docker-compose.prod.yml` file.
 
-### Quick Start with Provided docker-compose.prod.yml
+### Pre-built Images (Recommended)
 
 ```bash
-# Clone or download the repository
-git clone https://github.com/tekuonline/uptivalab.git
-cd uptivalab
+# Pull the latest images
+docker pull curiohokiest2e/uptivalab-api:latest
+docker pull curiohokiest2e/uptivalab-web:latest
 
-# Copy the production docker-compose file
+# Use the provided docker-compose.prod.yml
 cp docker-compose.prod.yml docker-compose.yml
 
-# Create environment file
+# Create environment file (see Quick Start above)
 cat > .env <<EOF
 # Database Configuration
 POSTGRES_USER=uptivalab
@@ -152,12 +158,7 @@ VERSION=latest
 
 # Web Service Configuration
 VITE_API_URL=http://api:8080
-
-# Optional: SMTP Email Configuration
-# SMTP_HOST=smtp.gmail.com
-# SMTP_PORT=587
-# SMTP_USER=your-email@gmail.com
-# SMTP_PASS=super-secret
+API_UPSTREAM=http://api:8080
 EOF
 
 # Start the services
@@ -168,206 +169,25 @@ docker compose up -d
 # - API: http://localhost:8080
 ```
 
-### Option 1: Using Pre-built Images from Docker Hub (Manual Setup)
-
-```bash
-# Pull the latest images
-docker pull curiohokiest2e/uptivalab-api:latest
-docker pull curiohokiest2e/uptivalab-web:latest
-
-# Create docker-compose.yml
-cat > docker-compose.yml <<EOF
-version: '3.8'
-
-services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: uptivalab-postgres
-    environment:
-      POSTGRES_USER: \${POSTGRES_USER:-uptivalab}
-      POSTGRES_PASSWORD: \${POSTGRES_PASSWORD:-uptivalab}
-      POSTGRES_DB: \${POSTGRES_DB:-uptivalab}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U \${POSTGRES_USER:-uptivalab}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-    networks:
-      - uptivalab
-
-  redis:
-    image: redis:7-alpine
-    container_name: uptivalab-redis
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-    networks:
-      - uptivalab
-
-  playwright:
-    image: mcr.microsoft.com/playwright:v1.45.0-jammy
-    container_name: uptivalab-playwright
-    command: ["npx", "playwright", "run-server", "--port", "9222"]
-    environment:
-      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-    shm_size: 2gb
-    restart: unless-stopped
-    networks:
-      - uptivalab
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9222/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  api:
-    image: curiohokiest2e/uptivalab-api:\${VERSION:-latest}
-    container_name: uptivalab-api
-    ports:
-      - "\${API_PORT:-8080}:\${API_PORT:-8080}"
-    environment:
-      DATABASE_URL: postgresql://\${POSTGRES_USER:-uptivalab}:\${POSTGRES_PASSWORD:-uptivalab}@postgres:5432/\${POSTGRES_DB:-uptivalab}
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: \${JWT_SECRET}
-      PORT: \${API_PORT:-8080}
-      NODE_ENV: production
-      PLAYWRIGHT_WS_ENDPOINT: ws://playwright:9222/
-      # Optional SMTP configuration
-      SMTP_HOST: \${SMTP_HOST:-}
-      SMTP_PORT: \${SMTP_PORT:-587}
-      SMTP_USER: \${SMTP_USER:-}
-      SMTP_PASS: \${SMTP_PASS:-}
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      playwright:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - uptivalab
-
-  web:
-    image: curiohokiest2e/uptivalab-web:\${VERSION:-latest}
-    container_name: uptivalab-web
-    ports:
-      - "\${WEB_PORT:-4173}:80"
-    environment:
-      VITE_API_URL: \${VITE_API_URL:-http://api:8080}
-    depends_on:
-      - api
-    restart: unless-stopped
-    networks:
-      - uptivalab
-
-volumes:
-  postgres_data:
-    driver: local
-
-networks:
-  uptivalab:
-    driver: bridge
-EOF
-
-# Create environment file
-cat > .env <<EOF
-# Database Configuration
-POSTGRES_USER=uptivalab
-POSTGRES_PASSWORD=uptivalab
-POSTGRES_DB=uptivalab
-
-# Security
-JWT_SECRET=\$(openssl rand -base64 32)
-
-# Ports
-API_PORT=8080
-WEB_PORT=4173
-
-# Docker Hub Version
-VERSION=latest
-
-# Web Service Configuration
-VITE_API_URL=http://api:8080
-
-# Optional: SMTP Email Configuration
-# SMTP_HOST=smtp.gmail.com
-# SMTP_PORT=587
-# SMTP_USER=your-email@gmail.com
-# SMTP_PASS=super-secret
-EOF
-
-# Start the services
-docker compose up -d
-
-# Access your application:
-# - Web UI: http://localhost:\${WEB_PORT:-4173}
-# - API: http://localhost:\${API_PORT:-8080}
-```
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-
-  web:
-    image: curiohokiest2e/uptivalab-web:latest
-    environment:
-      VITE_API_URL: http://api:8080
-    depends_on:
-      - api
-    restart: unless-stopped
-
-volumes:
-  postgres_data:
-EOF
-
-# Create environment file
-cat > .env <<EOF
-JWT_SECRET=\$(openssl rand -base64 32)
-API_PORT=8080
-WEB_PORT=4173
-EOF
-
-# Start the services
-docker compose up -d
-
-# Access your application:
-# - Web UI: http://localhost:${WEB_PORT:-4173}
-# - API: http://localhost:${API_PORT:-8080}
-```
-
-### Option 2: With Traefik Reverse Proxy (Advanced)
-
-For production deployments with automatic SSL and load balancing:
+### Manual Docker Compose Setup
 
 ```yaml
-# docker-compose.yml with Traefik
 version: '3.8'
 
 services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: uptivalab
-      POSTGRES_PASSWORD: uptivalab
-      POSTGRES_DB: uptivalab
+      POSTGRES_USER: ${POSTGRES_USER:-uptivalab}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-uptivalab}
+      POSTGRES_DB: ${POSTGRES_DB:-uptivalab}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U uptivalab"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-uptivalab}"]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - proxy
     restart: unless-stopped
 
   redis:
@@ -377,19 +197,15 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - proxy
     restart: unless-stopped
 
   playwright:
-    image: mcr.microsoft.com/playwright:v1.45.0-jammy
+    image: mcr.microsoft.com/playwright:v1.57.0-jammy
     command: ["npx", "playwright", "run-server", "--port", "9222"]
     environment:
       - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
     shm_size: 2gb
     restart: unless-stopped
-    networks:
-      - proxy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9222/"]
       interval: 30s
@@ -399,17 +215,17 @@ services:
   api:
     image: curiohokiest2e/uptivalab-api:${VERSION:-latest}
     environment:
-      DATABASE_URL: postgresql://uptivalab:uptivalab@postgres:5432/uptivalab
+      DATABASE_URL: postgresql://${POSTGRES_USER:-uptivalab}:${POSTGRES_PASSWORD:-uptivalab}@postgres:5432/${POSTGRES_DB:-uptivalab}
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: \${JWT_SECRET}
+      JWT_SECRET: ${JWT_SECRET}
       PORT: 8080
       NODE_ENV: production
       PLAYWRIGHT_WS_ENDPOINT: ws://playwright:9222/
       # Optional SMTP configuration
-      SMTP_HOST: \${SMTP_HOST:-}
-      SMTP_PORT: \${SMTP_PORT:-587}
-      SMTP_USER: \${SMTP_USER:-}
-      SMTP_PASS: \${SMTP_PASS:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -417,20 +233,58 @@ services:
         condition: service_healthy
       playwright:
         condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    image: curiohokiest2e/uptivalab-web:${VERSION:-latest}
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://api:8080}
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+```
+
+### With Traefik Reverse Proxy (Production)
+
+For production deployments with automatic SSL:
+
+```yaml
+# docker-compose.prod.yml with Traefik
+version: '3.8'
+
+services:
+  # ... postgres, redis, playwright services (same as above)
+
+  api:
+    image: curiohokiest2e/uptivalab-api:latest
+    environment:
+      DATABASE_URL: postgresql://uptivalab:uptivalab@postgres:5432/uptivalab
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: 8080
+      NODE_ENV: production
+      PLAYWRIGHT_WS_ENDPOINT: ws://playwright:9222/
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.uptivalab-api.rule=Host(\`api.yourdomain.com\`)"
       - "traefik.http.routers.uptivalab-api.entrypoints=websecure"
       - "traefik.http.routers.uptivalab-api.tls.certresolver=letsencrypt"
       - "traefik.http.services.uptivalab-api.loadbalancer.server.port=8080"
-      - "traefik.http.routers.uptivalab-api.middlewares=api-stripprefix"
       - "traefik.http.middlewares.api-stripprefix.stripprefix.prefixes=/api"
-    networks:
-      - proxy
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      playwright:
+        condition: service_healthy
     restart: unless-stopped
 
   web:
-    image: curiohokiest2e/uptivalab-web:${VERSION:-latest}
+    image: curiohokiest2e/uptivalab-web:latest
     environment:
       VITE_API_URL: https://api.yourdomain.com
     labels:
@@ -441,8 +295,6 @@ services:
       - "traefik.http.services.uptivalab-web.loadbalancer.server.port=80"
     depends_on:
       - api
-    networks:
-      - proxy
     restart: unless-stopped
 
   traefik:
@@ -464,20 +316,14 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - letsencrypt:/letsencrypt
-    networks:
-      - proxy
     restart: unless-stopped
 
 volumes:
   postgres_data:
   letsencrypt:
-
-networks:
-  proxy:
-    external: true
 ```
 
-### Option 3: Building from Source
+### Building from Source
 
 ```bash
 # Clone the repository
@@ -492,194 +338,61 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
+---
+
+## ⚙️ Configuration
+
 ### Environment Variables
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
 | `DATABASE_URL` | PostgreSQL connection string | - | ✅ |
-| `REDIS_URL` | Redis connection string | - | ✅ |
+| `REDIS_URL` | Redis connection string | `redis://redis:6379` | ✅ |
 | `JWT_SECRET` | Secret for JWT tokens (use strong random string) | - | ✅ |
 | `PORT` | API server port | `8080` | ❌ |
 | `WEB_PORT` | Web UI port (when not using reverse proxy) | `4173` | ❌ |
-| SMTP_HOST | SMTP server hostname | - | ❌ |
-| SMTP_PORT | SMTP server port | - | ❌ |
-| SMTP_USER | SMTP username | - | ❌ |
-| SMTP_PASS | SMTP password | - | ❌ |
-| `APPRISE_URL` | Apprise notification server URL | - | ❌ |
+| `VITE_API_URL` | External API endpoint for frontend | `http://api:8080` | ❌ |
+| `API_UPSTREAM` | Internal API address for nginx proxy | `http://api:8080` | ❌ |
+| `SMTP_HOST` | SMTP server hostname | - | ❌ |
+| `SMTP_PORT` | SMTP server port | `587` | ❌ |
+| `SMTP_USER` | SMTP username | - | ❌ |
+| `SMTP_PASS` | SMTP password | - | ❌ |
 | `PLAYWRIGHT_WS_ENDPOINT` | Playwright WebSocket endpoint | `ws://playwright:9222` | ❌ |
-| `DOCKER_SOCKET_PATH` | Docker socket path for container monitoring | `/var/run/docker.sock` | ❌ |
 
-### Advanced Configuration
+### WebSocket Configuration
 
-#### Using External PostgreSQL/Redis
+UptivaLab uses WebSocket connections for real-time updates:
 
-For production deployments, consider using managed databases:
+- **Endpoint**: `wss://your-domain.com/ws/stream`
+- **Authentication**: JWT token as query parameter (`?token=your-jwt-token`)
+- **Features**: Real-time monitor results and incident updates
 
-```yaml
-# docker-compose.prod.yml
-version: '3.8'
+### SMTP Email Notifications
 
-services:
-  api:
-    image: curiohokiest2e/uptivalab-api:latest
-    environment:
-      DATABASE_URL: postgresql://user:password@your-postgres-host:5432/uptivalab
-      REDIS_URL: redis://your-redis-host:6379
-      JWT_SECRET: ${JWT_SECRET}
-      PORT: 8080
-    restart: unless-stopped
+Configure SMTP per notification channel in the web interface:
 
-  web:
-    image: curiohokiest2e/uptivalab-web:latest
-    environment:
-      VITE_API_URL: https://api.yourdomain.com
-    restart: unless-stopped
-```
-
-### SMTP Configuration for Notifications
-
-Email notifications are configured per notification channel in the web interface. Environment variables provide global defaults:
-
-```bash
-# Optional: Global SMTP defaults (used as fallbacks)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASS=your-app-password
-```
-
-**To configure email notifications:**
 1. Go to **Notifications** → **Add Channel**
 2. Select **Email (SMTP)**
-3. Fill in your SMTP server details
-4. Test the configuration
-5. Assign monitors to the channel
+3. Configure SMTP settings:
+   - Host (e.g., `smtp.gmail.com`)
+   - Port (e.g., `587` for TLS)
+   - Username & Password
+   - From Email
 
-#### Cloudflare Tunnel Integration
-
-UptivaLab supports Cloudflare Tunnel for secure external access:
+### Cloudflare Tunnel Integration
 
 1. Install `cloudflared` and authenticate
 2. Create a tunnel: `cloudflared tunnel create uptivalab`
 3. Configure DNS in Cloudflare dashboard
 4. Set tunnel token in UptivaLab settings UI
 
-### Volumes and Persistence
-
-UptivaLab stores all data in PostgreSQL. Make sure to properly backup the `postgres_data` volume:
-
-```bash
-# Backup database
-docker compose exec postgres pg_dump -U uptivalab uptivalab > backup.sql
-
-# Restore database
-docker compose exec -T postgres psql -U uptivalab uptivalab < backup.sql
-```
-
-### Monitoring and Logs
-
-```bash
-# View all logs
-docker compose logs -f
-
-# View specific service logs
-docker compose logs -f api
-
-# Check container health
-docker compose ps
-```
-
-### Updating UptivaLab
-
-```bash
-# Pull latest images
-docker compose pull
-
-# Restart with new images
-docker compose up -d
-
-# Or rebuild from source
-docker compose up -d --build
-```
-
----
-
-## ⚙️ Configuration
-
-### SMTP Email Notifications
-
-SMTP configuration is done **per notification channel** in the UptivaLab web interface. Environment variables serve as global defaults/fallbacks:
-
-**Per-Channel Configuration (Recommended):**
-1. Go to **Notifications** in the web interface
-2. Create a new **Email (SMTP)** notification channel
-3. Configure SMTP settings for that specific channel:
-   - SMTP Host (e.g., `smtp.gmail.com`)
-   - SMTP Port (e.g., `587` for TLS, `465` for SSL)
-   - SMTP Username
-   - SMTP Password
-   - From Email (optional)
-
-**Global Defaults (Environment Variables):**
-Environment variables are used as fallbacks when per-channel settings are not specified:
-
-```bash
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASS=your-app-password
-```
-
-### Push/Heartbeat Monitoring
-
-For cron jobs and scheduled tasks:
-
-1. Create a Push/Heartbeat monitor
-2. Copy the heartbeat URL provided
-3. Send a POST request from your application:
-   ```bash
-   curl -X POST https://your-uptivalab.com/api/heartbeat/YOUR_TOKEN
-   ```
-
-### Public Status Pages
-
-1. Navigate to "Status Pages" in the UI
-2. Create a new status page
-3. Add monitors to display
-4. Share the public URL (no authentication required)
-
-### Cloudflare Tunnel Integration
-
-UptivaLab includes built-in Cloudflare Tunnel support - **cloudflared runs inside the API container** automatically when you provide a token:
-
-1. **Configure tunnel token in Settings:**
-   - Go to **Settings** → **Reverse Proxy** tab
-   - Enter your Cloudflare tunnel token
-   - Click **Save**
-
-2. **Set up Cloudflare Tunnel:**
-   - Create a tunnel at [Cloudflare Zero Trust](https://one.dash.cloudflare.com/)
-   - Get your tunnel token from the dashboard
-   - Add public hostname: `your-subdomain.yourdomain.com` → `http://web:80`
-
-3. **Start UptivaLab:**
-   ```bash
-   docker compose up -d
-   ```
-
-4. **Access externally:**
-   - Visit `https://your-subdomain.yourdomain.com`
-   - The tunnel will be active once configured
-
-The API container automatically runs both your application and cloudflared using Supervisor. No separate containers or profiles needed!
-
-📖 **[Complete Cloudflare Tunnel Setup Guide](CLOUDFLARE_TUNNEL.md)**
+The API container automatically runs both your application and cloudflared.
 
 ---
 
 ## 🎭 Synthetic Monitoring
 
-UptivaLab includes powerful browser-based synthetic monitoring using Playwright. Create multi-step user journeys to test complex workflows like login flows, form submissions, and e-commerce checkouts.
+UptivaLab includes powerful browser-based synthetic monitoring using Playwright. Create multi-step user journeys to test complex workflows.
 
 ### Features
 - ✅ **Multi-step browser automation** - Navigate, click, fill forms, wait for elements
@@ -691,7 +404,6 @@ UptivaLab includes powerful browser-based synthetic monitoring using Playwright.
 
 ### Quick Example
 
-Create a login flow monitor:
 ```json
 {
   "name": "Login Test",
@@ -709,21 +421,7 @@ Create a login flow monitor:
 }
 ```
 
-### 📖 Complete Guide
-
-For detailed configuration, remote browser setup, troubleshooting, and advanced examples, see:
-
-**[→ Synthetic Monitoring Guide (SYNTHETIC_MONITORING.md)](./SYNTHETIC_MONITORING.md)**
-
-Topics covered:
-- Local vs Remote browser comparison
-- Setting up the built-in Playwright container
-- Configuring remote browsers via UI
-- Running standalone Playwright servers
-- Step actions reference
-- Performance tuning
-- Troubleshooting common issues
-- Real-world examples
+📖 **[Complete Synthetic Monitoring Guide](./SYNTHETIC_MONITORING.md)**
 
 ---
 
@@ -748,7 +446,7 @@ cd uptivalab
 pnpm install
 
 # Start database services
-docker compose up -d postgres redis
+docker compose up -d postgres redis playwright
 
 # Set up environment
 cp .env.example .env
@@ -759,16 +457,10 @@ cd apps/api
 pnpm prisma migrate dev
 
 # Start development servers
-# Terminal 1 - API
-cd apps/api
-pnpm dev
-
-# Terminal 2 - Web
-cd apps/web
 pnpm dev
 ```
 
-Visit `http://localhost:5173` for the web UI and `http://localhost:3000` for the API.
+Visit `http://localhost:5173` for the web UI and `http://localhost:8080` for the API.
 
 ### Project Structure
 
@@ -790,35 +482,43 @@ uptivalab/
 
 The API is fully documented with OpenAPI/Swagger.
 
-- **Documentation**: `http://localhost:3000/documentation`
-- **API Base URL**: `http://localhost:3000/api`
+- **Documentation**: `http://localhost:8080/documentation`
+- **API Base URL**: `http://localhost:8080/api`
 
 ### Authentication
 
-All API endpoints (except public status pages) require JWT authentication:
+All API endpoints require JWT authentication:
 
 ```bash
 # Login
-curl -X POST http://localhost:3000/api/auth/login \
+curl -X POST http://localhost:8080/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email": "admin@example.com", "password": "password"}'
 
 # Use the token
-curl http://localhost:3000/api/monitors \
+curl http://localhost:8080/api/monitors \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
-
----
-
-## 📝 License
-
-MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+### Development Workflow
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+---
+
+## 📝 License
+
+MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
@@ -833,120 +533,60 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 **Made with ❤️ for the homelab community**
 
-[⭐ Star on GitHub](https://github.com/tekuonline/uptivalab)
+[⭐ Star on GitHub](https://github.com/tekuonline/uptivalab) • [⬆ Back to top](#uptivalab)
 
 </div>
 
-### **Technology Stack**
+### Technology Stack
 
 | Layer | Technology |
 |-------|------------|
 | **Frontend** | React 19, TypeScript, TanStack Query, Tailwind CSS, Recharts |
 | **Backend** | Fastify, TypeScript, Prisma ORM, BullMQ |
-| **Database** | PostgreSQL 14+ |
+| **Database** | PostgreSQL 16+ |
 | **Cache/Queue** | Redis 7+ |
-| **Real-time** | WebSocket (ws) |
+| **Real-time** | WebSocket |
 | **Deployment** | Docker, Docker Compose |
 
 ---
 
-## 🔧 **Configuration**
+## 📊 API Reference
 
-### **Environment Variables**
-
-```bash
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/uptivalab
-
-# Redis (for job queue)
-REDIS_URL=redis://localhost:6379
-
-# JWT Secret (generate with: openssl rand -base64 32)
-JWT_SECRET=your-super-secret-jwt-key
-
-# SMTP (optional - for email notifications)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your@email.com
-SMTP_PASS=your-app-password
-
-# API Server
-PORT=8080
-NODE_ENV=production
-
-# Web Server
-VITE_API_URL=http://localhost:8080/api
-```
-
-### **Docker Compose Services**
-
-The `docker-compose.yml` includes:
-- **api** - Fastify backend (port 8080)
-- **web** - React frontend (port 4173)
-- **postgres** - PostgreSQL database (port 5432)
-- **redis** - Redis for job queue (port 6379)
-
----
-
-## 📊 **API Documentation**
-
-UptivaLab provides a comprehensive REST API for all operations:
-
-### **Authentication**
+### Monitors
 
 ```bash
-# Register
-POST /api/auth/register
-{
-  "email": "admin@example.com",
-  "password": "secure-password"
-}
-
-# Login
-POST /api/auth/login
-{
-  "email": "admin@example.com",
-  "password": "secure-password"
-}
-# Returns: { "token": "jwt-token", "user": {...} }
-```
-
-### **Monitors**
-
-```bash
-# List all monitors
+# List monitors
 GET /api/monitors
-Authorization: Bearer <token>
 
 # Create monitor
 POST /api/monitors
-Authorization: Bearer <token>
 {
   "name": "My Website",
   "kind": "http",
   "interval": 60000,
-  "config": {
-    "url": "https://example.com"
-  }
+  "config": { "url": "https://example.com" }
 }
-
-# Get monitor details
-GET /api/monitors/:id
 
 # Update monitor
 PUT /api/monitors/:id
 
 # Delete monitor
 DELETE /api/monitors/:id
-
-# Get monitor history
-GET /api/monitors/:id/history
-
-# Get monitor uptime
-GET /api/monitors/:id/uptime
 ```
 
-### **Status Pages**
+### Notifications
+
+```bash
+# Create notification channel
+POST /api/notifications
+{
+  "name": "Production Alerts",
+  "type": "email",
+  "config": { "email": "ops@example.com" }
+}
+```
+
+### Status Pages
 
 ```bash
 # Create public status page
@@ -956,176 +596,65 @@ POST /api/status-pages
   "slug": "my-services",
   "monitorIds": ["monitor-1", "monitor-2"]
 }
-
-# Get public status page (no auth required)
-GET /api/public/:slug
-```
-
-### **Heartbeats**
-
-```bash
-# Create heartbeat token
-POST /api/heartbeats
-{
-  "monitorId": "monitor-id",
-  "heartbeatSeconds": 300
-}
-
-# Ping heartbeat (no auth required)
-GET /api/heartbeat/:token
 ```
 
 ---
 
-## 🔔 **Notifications**
-
-### **Supported Channels**
+## 🔔 Notification Channels
 
 | Channel | Status | Configuration |
 |---------|--------|---------------|
-| **Email (SMTP)** | ✅ Available | Configure SMTP_* env variables |
-| **ntfy.sh** | ✅ Available | Topic name only |
-| **Webhook** | ✅ Available | POST URL with JSON payload |
-| **Discord** | ✅ Available | Webhook URL |
-| **Slack** | ✅ Available | Webhook URL |
-| **Telegram** | ✅ Available | Bot token + chat ID |
-| **Gotify** | ✅ Available | Server URL + app token |
-| **Pushover** | ✅ Available | User key + API token |
-| **Apprise** | ✅ Available | Apprise URL syntax |
+| **Email (SMTP)** | ✅ | SMTP server settings |
+| **ntfy.sh** | ✅ | Topic name |
+| **Discord** | ✅ | Webhook URL |
+| **Slack** | ✅ | Webhook URL |
+| **Telegram** | ✅ | Bot token + chat ID |
+| **Gotify** | ✅ | Server URL + app token |
+| **Pushover** | ✅ | User key + API token |
+| **Webhook** | ✅ | POST URL with JSON payload |
+| **Apprise** | ✅ | Apprise URL syntax |
 
-### **Create Notification Channel**
+---
+
+## 🔄 Updating UptivaLab
 
 ```bash
-POST /api/notifications
-{
-  "name": "Production Alerts",
-  "type": "email",
-  "config": {
-    "email": "ops@example.com"
-  }
-}
+# Pull latest images
+docker compose pull
+
+# Restart services
+docker compose up -d
+
+# Or rebuild from source
+docker compose up -d --build
 ```
 
 ---
 
-## 🐳 **Docker Deployment**
-
-### **With Traefik**
-
-```yaml
-services:
-  uptivalab-web:
-    image: uptivalab/uptivalab:latest
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.uptivalab.rule=Host(`uptime.yourdomain.com`)"
-      - "traefik.http.routers.uptivalab.entrypoints=websecure"
-      - "traefik.http.routers.uptivalab.tls.certresolver=letsencrypt"
-      - "traefik.http.services.uptivalab.loadbalancer.server.port=4173"
-```
-
-### **Health Checks**
-
-```yaml
-healthcheck:
-  test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
-  interval: 30s
-  timeout: 10s
-  retries: 3
-  start_period: 40s
-```
-
----
-
-## 🧪 **Testing**
+## 💾 Backup & Restore
 
 ```bash
-# Run all tests
-pnpm test
+# Backup database
+docker compose exec postgres pg_dump -U uptivalab uptivalab > backup.sql
 
-# Run tests with coverage
-pnpm coverage
-
-# Run E2E tests
-pnpm e2e
-
-# Lint code
-pnpm lint
-
-# Type check
-pnpm typecheck
+# Restore database
+docker compose exec -T postgres psql -U uptivalab uptivalab < backup.sql
 ```
 
 ---
 
-## 🤝 **Contributing**
+## 📈 Monitoring & Logs
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+```bash
+# View all logs
+docker compose logs -f
 
-### **Development Workflow**
+# View specific service logs
+docker compose logs -f api
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-### **Code of Conduct**
-
-Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before contributing.
-
----
-
-## 📝 **License**
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 🎯 **Roadmap**
-
-### **v0.2** (Current)
-- ✅ All 10 monitor types
-- ✅ Public status pages
-- ✅ Incident management
-- ✅ Heartbeat monitoring
-- ✅ All 9 notification channels (Email, ntfy, Webhook, Discord, Slack, Telegram, Gotify, Pushover, Apprise)
-
-### **v0.3** (Next)
-- ✅ Dark/light mode toggle
-- ✅ Certificate expiry dashboard widget
-- 🔄 Auto-discovery of Docker containers
-- 🔄 Settings backup/restore (JSON export)
-
-### **v0.4**
-- 🔄 OpenAPI 3.1 spec generation
-- 🔄 Comprehensive test coverage (80%+)
-- ✅ GitHub Actions CI/CD
-- 🔄 Playwright E2E tests
-
-### **v1.0**
-- 🔄 Role-based access control
-- 🔄 Multi-user support
-- 🔄 API keys for automation
-- 🔄 Custom domain support for status pages
-- 🔄 Advanced alerting rules
-
----
-
-## 💬 **Community & Support**
-
-- **Documentation**: [docs.uptivalab.dev](https://docs.uptivalab.dev) (Coming Soon)
-- **Discord**: [Join our Discord](https://discord.gg/uptivalab) (Coming Soon)
-- **GitHub Issues**: [Report bugs or request features](https://github.com/tekuonline/uptivalab/issues)
-
----
-
-## 🙏 **Acknowledgments**
-
-Inspired by:
-- [Uptime Kuma](https://github.com/louislam/uptime-kuma) - The spiritual predecessor
-- [Homepage](https://github.com/gethomepage/homepage) - Clean UI design
-- [Traefik](https://traefik.io/) - Docker-first deployment approach
+# Check container health
+docker compose ps
+```
 
 ---
 

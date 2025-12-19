@@ -4,6 +4,8 @@ import { Input } from "../components/ui/input.js";
 import { Label } from "../components/ui/label.js";
 import { useSettings } from "../providers/settings-context.js";
 import { useTranslation } from "../hooks/use-translation.js";
+import { api } from "../lib/api.js";
+import { useAuth } from "../providers/auth-context.js";
 import { 
   Settings as SettingsIcon, 
   Globe, 
@@ -70,7 +72,7 @@ interface ApiKey {
   label: string;
   token?: string;
   createdAt: string;
-  lastUsedAt?: string;
+  lastUsedAt?: string | null;
 }
 
 interface DockerHost {
@@ -100,7 +102,7 @@ interface Proxy {
 interface User {
   id: string;
   email: string;
-  role: "ADMIN" | "VIEWER";
+  role: string;
   createdAt: string;
   updatedAt: string;
   _count?: {
@@ -111,7 +113,7 @@ interface User {
 interface Invitation {
   id: string;
   email: string;
-  role: "ADMIN" | "VIEWER";
+  role: string;
   token: string;
   expiresAt: string;
   createdAt: string;
@@ -122,6 +124,7 @@ interface Invitation {
 
 export const SettingsRoute = () => {
   const { t } = useTranslation();
+  const { token } = useAuth();
   const { settings: globalSettings, updateSettings: updateGlobalSettings } = useSettings();
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [localSettings, setLocalSettings] = useState<Settings>({});
@@ -185,13 +188,8 @@ export const SettingsRoute = () => {
   // Fetch Cloudflare Tunnel status
   const fetchTunnelStatus = async () => {
     try {
-      const token = localStorage.getItem("uptivalab.token");
-      const res = await fetch("/api/cloudflare-tunnel/status", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        setTunnelStatus(await res.json());
-      }
+      const status = await api.getCloudflareTunnelStatus(token);
+      setTunnelStatus(status);
     } catch (error) {
       console.error("Failed to fetch tunnel status:", error);
     }
@@ -201,20 +199,9 @@ export const SettingsRoute = () => {
   const controlTunnel = async (action: "start" | "stop" | "restart") => {
     setTunnelLoading(true);
     try {
-      const token = localStorage.getItem("uptivalab.token");
-      const res = await fetch(`/api/cloudflare-tunnel/${action}`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      
-      if (res.ok) {
-        const result = await res.json();
-        alert(result.message);
-        await fetchTunnelStatus();
-      } else {
-        const error = await res.json();
-        alert(error.message || `Failed to ${action} tunnel`);
-      }
+      const result = await api.controlCloudflareTunnel(token, action);
+      alert(result.message);
+      await fetchTunnelStatus();
     } catch (error) {
       console.error(`Failed to ${action} tunnel:`, error);
       alert(`Failed to ${action} tunnel`);
@@ -265,39 +252,21 @@ export const SettingsRoute = () => {
     }
 
     try {
-      const token = localStorage.getItem("uptivalab.token");
-      const res = await fetch("/api/settings/change-password", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ currentPassword, newPassword }),
-      });
-
-      if (res.ok) {
-        alert(t("passwordChangedSuccess"));
-        setCurrentPassword("");
-        setNewPassword("");
-        setRepeatPassword("");
-      } else {
-        const data = await res.json();
-        alert(data.message || t("failedToChangePassword"));
-      }
+      await api.changePassword(token, { currentPassword, newPassword });
+      alert(t("passwordChangedSuccess"));
+      setCurrentPassword("");
+      setNewPassword("");
+      setRepeatPassword("");
     } catch (error) {
       console.error("Failed to change password:", error);
+      alert(error instanceof Error ? error.message : t("failedToChangePassword"));
     }
   };
 
   const loadApiKeys = async () => {
     try {
-      const token = localStorage.getItem("uptivalab.token");
-      const res = await fetch("/api/settings/api-keys", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        setApiKeys(await res.json());
-      }
+      const keys = await api.listApiKeys(token);
+      setApiKeys(keys);
     } catch (error) {
       console.error("Failed to load API keys:", error);
     }
@@ -307,21 +276,9 @@ export const SettingsRoute = () => {
     if (!newApiKeyLabel.trim()) return;
 
     try {
-      const token = localStorage.getItem("uptivalab.token");
-      const res = await fetch("/api/settings/api-keys", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ label: newApiKeyLabel }),
-      });
-
-      if (res.ok) {
-        const newKey = await res.json();
-        setApiKeys([...apiKeys, newKey]);
-        setNewApiKeyLabel("");
-      }
+      const newKey = await api.createApiKey(token, { label: newApiKeyLabel });
+      setApiKeys([...apiKeys, newKey]);
+      setNewApiKeyLabel("");
     } catch (error) {
       console.error("Failed to create API key:", error);
     }
@@ -329,11 +286,7 @@ export const SettingsRoute = () => {
 
   const deleteApiKey = async (id: string) => {
     try {
-      const token = localStorage.getItem("uptivalab.token");
-      await fetch(`/api/settings/api-keys/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await api.deleteApiKey(token, id);
       setApiKeys(apiKeys.filter((k) => k.id !== id));
     } catch (error) {
       console.error("Failed to delete API key:", error);
@@ -348,13 +301,8 @@ export const SettingsRoute = () => {
 
   const loadDockerHosts = async () => {
     try {
-      const token = localStorage.getItem("uptivalab.token");
-      const res = await fetch("/api/settings/docker-hosts", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        setDockerHosts(await res.json());
-      }
+      const hosts = await api.listDockerHosts(token);
+      setDockerHosts(hosts);
     } catch (error) {
       console.error("Failed to load docker hosts:", error);
     }
@@ -364,21 +312,9 @@ export const SettingsRoute = () => {
     if (!newDockerHost.name || !newDockerHost.url) return;
 
     try {
-      const token = localStorage.getItem("uptivalab.token");
-      const res = await fetch("/api/settings/docker-hosts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(newDockerHost),
-      });
-
-      if (res.ok) {
-        const host = await res.json();
-        setDockerHosts([...dockerHosts, host]);
-        setNewDockerHost({ name: "", url: "" });
-      }
+      const host = await api.createDockerHost(token, newDockerHost);
+      setDockerHosts([...dockerHosts, host]);
+      setNewDockerHost({ name: "", url: "" });
     } catch (error) {
       console.error("Failed to add docker host:", error);
     }
@@ -386,11 +322,7 @@ export const SettingsRoute = () => {
 
   const deleteDockerHost = async (id: string) => {
     try {
-      const token = localStorage.getItem("uptivalab.token");
-      await fetch(`/api/settings/docker-hosts/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await api.deleteDockerHost(token, id);
       setDockerHosts(dockerHosts.filter((h) => h.id !== id));
       setDockerHostStatus((prev) => {
         const newStatus = { ...prev };
@@ -405,31 +337,17 @@ export const SettingsRoute = () => {
   const testDockerHost = async (id: string) => {
     setTestingDockerHost(id);
     setDockerHostStatus((prev) => ({ ...prev, [id]: { testing: true } }));
-    
+
     try {
-      const token = localStorage.getItem("uptivalab.token");
-      const res = await fetch(`/api/settings/docker-hosts/${id}/test`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        setDockerHostStatus((prev) => ({
-          ...prev,
-          [id]: { success: true, version: data.serverVersion, testing: false }
-        }));
-      } else {
-        const error = await res.text();
-        setDockerHostStatus((prev) => ({
-          ...prev,
-          [id]: { success: false, error, testing: false }
-        }));
-      }
+      const data = await api.testDockerHost(token, id);
+      setDockerHostStatus((prev) => ({
+        ...prev,
+        [id]: { success: true, version: data.containers ? "Connected" : "No data", testing: false }
+      }));
     } catch (error) {
       setDockerHostStatus((prev) => ({
         ...prev,
-        [id]: { success: false, error: String(error), testing: false }
+        [id]: { success: false, error: error instanceof Error ? error.message : String(error), testing: false }
       }));
     } finally {
       setTestingDockerHost(null);
@@ -438,13 +356,8 @@ export const SettingsRoute = () => {
 
   const loadRemoteBrowsers = async () => {
     try {
-      const token = localStorage.getItem("uptivalab.token");
-      const res = await fetch("/api/settings/remote-browsers", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        setRemoteBrowsers(await res.json());
-      }
+      const browsers = await api.listRemoteBrowsers(token);
+      setRemoteBrowsers(browsers);
     } catch (error) {
       console.error("Failed to load remote browsers:", error);
     }
@@ -454,21 +367,9 @@ export const SettingsRoute = () => {
     if (!newRemoteBrowser.name || !newRemoteBrowser.url) return;
 
     try {
-      const token = localStorage.getItem("uptivalab.token");
-      const res = await fetch("/api/settings/remote-browsers", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(newRemoteBrowser),
-      });
-
-      if (res.ok) {
-        const browser = await res.json();
-        setRemoteBrowsers([...remoteBrowsers, browser]);
-        setNewRemoteBrowser({ name: "", url: "" });
-      }
+      const browser = await api.createRemoteBrowser(token, newRemoteBrowser);
+      setRemoteBrowsers([...remoteBrowsers, browser]);
+      setNewRemoteBrowser({ name: "", url: "" });
     } catch (error) {
       console.error("Failed to add remote browser:", error);
     }
@@ -484,18 +385,8 @@ export const SettingsRoute = () => {
     setBrowserTestResult(null);
 
     try {
-      const token = localStorage.getItem("uptivalab.token");
-      const res = await fetch("/api/settings/remote-browsers/test", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ url: newRemoteBrowser.url }),
-      });
-
-      const result = await res.json();
-      if (res.ok && result.success) {
+      const result = await api.testRemoteBrowser(token, { url: newRemoteBrowser.url });
+      if (result.success) {
         setBrowserTestResult({ success: true, message: result.message || "Connection successful!" });
       } else {
         setBrowserTestResult({ success: false, message: result.message || t("connectionFailed") });
@@ -509,11 +400,7 @@ export const SettingsRoute = () => {
 
   const deleteRemoteBrowser = async (id: string) => {
     try {
-      const token = localStorage.getItem("uptivalab.token");
-      await fetch(`/api/settings/remote-browsers/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await api.deleteRemoteBrowser(token, id);
       setRemoteBrowsers(remoteBrowsers.filter((b) => b.id !== id));
     } catch (error) {
       console.error("Failed to delete remote browser:", error);
@@ -522,13 +409,8 @@ export const SettingsRoute = () => {
 
   const loadProxies = async () => {
     try {
-      const token = localStorage.getItem("uptivalab.token");
-      const res = await fetch("/api/settings/proxies", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        setProxies(await res.json());
-      }
+      const proxyList = await api.listProxies(token);
+      setProxies(proxyList);
     } catch (error) {
       console.error("Failed to load proxies:", error);
     }
@@ -538,27 +420,15 @@ export const SettingsRoute = () => {
     if (!newProxy.name || !newProxy.host || !newProxy.port) return;
 
     try {
-      const token = localStorage.getItem("uptivalab.token");
-      const res = await fetch("/api/settings/proxies", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(newProxy),
+      const proxy = await api.createProxy(token, newProxy);
+      setProxies([...proxies, proxy]);
+      setNewProxy({
+        name: "",
+        protocol: "http",
+        host: "",
+        port: 8080,
+        auth: { username: "", password: "" },
       });
-
-      if (res.ok) {
-        const proxy = await res.json();
-        setProxies([...proxies, proxy]);
-        setNewProxy({
-          name: "",
-          protocol: "http",
-          host: "",
-          port: 8080,
-          auth: { username: "", password: "" },
-        });
-      }
     } catch (error) {
       console.error("Failed to add proxy:", error);
     }
@@ -566,11 +436,7 @@ export const SettingsRoute = () => {
 
   const deleteProxy = async (id: string) => {
     try {
-      const token = localStorage.getItem("uptivalab.token");
-      await fetch(`/api/settings/proxies/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await api.deleteProxy(token, id);
       setProxies(proxies.filter((p) => p.id !== id));
     } catch (error) {
       console.error("Failed to delete proxy:", error);
@@ -580,13 +446,8 @@ export const SettingsRoute = () => {
   // User management functions
   const loadUsers = async () => {
     try {
-      const token = localStorage.getItem("uptivalab.token");
-      const res = await fetch("/api/users", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        setUsers(await res.json());
-      }
+      const userList = await api.listUsers(token);
+      setUsers(userList);
     } catch (error) {
       console.error("Failed to load users:", error);
     }
@@ -596,25 +457,12 @@ export const SettingsRoute = () => {
     if (!newUser.email || !newUser.password) return;
 
     try {
-      const token = localStorage.getItem("uptivalab.token");
-      const res = await fetch("/api/users", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(newUser),
-      });
-
-      if (res.ok) {
-        await loadUsers();
-        setNewUser({ email: "", password: "", role: "VIEWER" });
-      } else {
-        const data = await res.json();
-        alert(data.message || "Failed to create user");
-      }
+      await api.createUser(token, newUser);
+      await loadUsers();
+      setNewUser({ email: "", password: "", role: "VIEWER" });
     } catch (error) {
       console.error("Failed to create user:", error);
+      alert(error instanceof Error ? error.message : "Failed to create user");
     }
   };
 
@@ -622,56 +470,29 @@ export const SettingsRoute = () => {
     if (!confirm("Are you sure you want to delete this user?")) return;
 
     try {
-      const token = localStorage.getItem("uptivalab.token");
-      const res = await fetch(`/api/users/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (res.ok) {
-        setUsers(users.filter((user) => user.id !== id));
-      } else {
-        const data = await res.json();
-        alert(data.message || "Failed to delete user");
-      }
+      await api.deleteUser(token, id);
+      setUsers(users.filter((user) => user.id !== id));
     } catch (error) {
       console.error("Failed to delete user:", error);
+      alert(error instanceof Error ? error.message : "Failed to delete user");
     }
   };
 
   const updateUserRole = async (id: string, role: "ADMIN" | "VIEWER") => {
     try {
-      const token = localStorage.getItem("uptivalab.token");
-      const res = await fetch(`/api/users/${id}/role`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ role }),
-      });
-
-      if (res.ok) {
-        setUsers(users.map((user) => (user.id === id ? { ...user, role } : user)));
-      } else {
-        const data = await res.json();
-        alert(data.message || "Failed to update user role");
-      }
+      await api.updateUserRole(token, id, role);
+      setUsers(users.map((user) => (user.id === id ? { ...user, role } : user)));
     } catch (error) {
       console.error("Failed to update user role:", error);
+      alert(error instanceof Error ? error.message : "Failed to update user role");
     }
   };
 
   // Invitation management functions
   const loadInvitations = async () => {
     try {
-      const token = localStorage.getItem("uptivalab.token");
-      const res = await fetch("/api/invitations", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        setInvitations(await res.json());
-      }
+      const invitationList = await api.listInvitations(token);
+      setInvitations(invitationList);
     } catch (error) {
       console.error("Failed to load invitations:", error);
     }
@@ -681,43 +502,25 @@ export const SettingsRoute = () => {
     if (!newInvitation.email) return;
 
     try {
-      const token = localStorage.getItem("uptivalab.token");
-      const res = await fetch("/api/invitations", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(newInvitation),
-      });
-
-      if (res.ok) {
-        const invitation = await res.json();
-        await loadInvitations();
-        setNewInvitation({ email: "", role: "VIEWER", expiresInDays: 7 });
-        
-        // Show invitation link
-        const inviteLink = `${window.location.origin}/invite/${invitation.token}`;
-        navigator.clipboard.writeText(inviteLink);
-        setCopiedInviteLink(invitation.id);
-        setTimeout(() => setCopiedInviteLink(""), 3000);
-        alert(`Invitation created! Link copied to clipboard:\n${inviteLink}`);
-      } else {
-        const data = await res.json();
-        alert(data.message || "Failed to create invitation");
-      }
+      const invitation = await api.createInvitation(token, newInvitation);
+      await loadInvitations();
+      setNewInvitation({ email: "", role: "VIEWER", expiresInDays: 7 });
+      
+      // Show invitation link
+      const inviteLink = `${window.location.origin}/invite/${invitation.token}`;
+      navigator.clipboard.writeText(inviteLink);
+      setCopiedInviteLink(invitation.id);
+      setTimeout(() => setCopiedInviteLink(""), 3000);
+      alert(`Invitation created! Link copied to clipboard:\n${inviteLink}`);
     } catch (error) {
       console.error("Failed to create invitation:", error);
+      alert(error instanceof Error ? error.message : "Failed to create invitation");
     }
   };
 
   const deleteInvitation = async (id: string) => {
     try {
-      const token = localStorage.getItem("uptivalab.token");
-      await fetch(`/api/invitations/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await api.deleteInvitation(token, id);
       setInvitations(invitations.filter((inv) => inv.id !== id));
     } catch (error) {
       console.error("Failed to delete invitation:", error);
@@ -734,14 +537,8 @@ export const SettingsRoute = () => {
   const checkForUpdates = async () => {
     setCheckingUpdates(true);
     try {
-      const token = localStorage.getItem("uptivalab.token");
-      const res = await fetch("/api/settings/check-updates", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setVersionInfo(data);
-      }
+      const data = await api.checkUpdates(token);
+      setVersionInfo(data);
     } catch (error) {
       console.error("Failed to check for updates:", error);
     } finally {

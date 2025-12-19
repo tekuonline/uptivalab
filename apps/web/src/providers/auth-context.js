@@ -14,6 +14,10 @@ export const AuthProvider = ({ children }) => {
             localStorage.removeItem(STORAGE_KEY);
         }
     }, [token]);
+    // Check setup status on mount
+    useEffect(() => {
+        checkSetupNeeded();
+    }, []);
     const checkSetupNeeded = useCallback(async () => {
         try {
             const response = await fetch(`${API_BASE}/api/auth/setup-needed`);
@@ -21,9 +25,16 @@ export const AuthProvider = ({ children }) => {
                 const data = await response.json();
                 setSetupNeeded(data.setupNeeded);
             }
+            else {
+                // If API call fails, assume setup is needed for safety
+                console.warn("Setup check failed, assuming setup needed:", response.status);
+                setSetupNeeded(true);
+            }
         }
         catch (error) {
             console.error("Failed to check setup status:", error);
+            // If network error, assume setup is needed for safety
+            setSetupNeeded(true);
         }
     }, []);
     const authenticate = useCallback(async (path, credentials) => {

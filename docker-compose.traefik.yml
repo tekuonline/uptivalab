@@ -1,0 +1,129 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: uptivalab-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-uptivalab}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-uptivalab}
+      POSTGRES_DB: ${POSTGRES_DB:-uptivalab}
+    volumes:
+      - ./uptivalab-postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - proxy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-uptivalab}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: uptivalab-redis
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - proxy
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.45.0-jammy
+    container_name: uptivalab-playwright
+    command: ["npx", "playwright", "run-server", "--port", "9222"]
+    environment:
+      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+    shm_size: 2gb
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - proxy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9222/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  api:
+    image: curiohokiest2e/uptivalab-api:${VERSION:-latest}
+    container_name: uptivalab-api
+    env_file:
+      - .env.traefik
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-uptivalab}:${POSTGRES_PASSWORD:-uptivalab}@postgres:5432/${POSTGRES_DB:-uptivalab}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: ${API_PORT:-8081}
+      NODE_ENV: production
+      PLAYWRIGHT_WS_ENDPOINT: ws://playwright:9222/
+      # Optional SMTP configuration
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - proxy
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      playwright:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.uptivalab-api.entrypoints=https"
+      - "traefik.http.routers.uptivalab-api.rule=Host(`uptivalab-api.example.com`)"
+      - "traefik.http.middlewares.uptivalab-api-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.uptivalab-api.middlewares=uptivalab-api-https-redirect"
+      - "traefik.http.middlewares.sslheader.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.routers.uptivalab-api-secure.entrypoints=https"
+      - "traefik.http.routers.uptivalab-api-secure.rule=Host(`uptivalab-api.example.com`)"
+      - "traefik.http.routers.uptivalab-api-secure.tls=true"
+      - "traefik.http.routers.uptivalab-api-secure.service=api"
+      - "traefik.http.services.uptivalab-api.loadbalancer.server.scheme=http"
+      - "traefik.http.services.uptivalab-api.loadbalancer.server.port=8081"
+      - "traefik.docker.network=proxy"
+
+  uptivalab-web:
+    image: curiohokiest2e/uptivalab-web:latest
+    container_name: uptivalab-web
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - proxy
+    env_file:
+      - .env.traefik
+    depends_on:
+      - api
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.uptivalab-web.entrypoints=https"
+      - "traefik.http.routers.uptivalab-web.rule=Host(`uptivalab.example.com`)"
+      - "traefik.http.middlewares.uptivalab-web-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.uptivalab-web.middlewares=uptivalab-web-https-redirect"
+      - "traefik.http.middlewares.sslheader.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.routers.uptivalab-web-secure.entrypoints=https"
+      - "traefik.http.routers.uptivalab-web-secure.rule=Host(`uptivalab.example.com`)"
+      - "traefik.http.routers.uptivalab-web-secure.tls=true"
+      - "traefik.http.routers.uptivalab-web-secure.service=uptivalab-web"
+      - "traefik.http.services.uptivalab-web.loadbalancer.server.scheme=http"
+      - "traefik.http.services.uptivalab-web.loadbalancer.server.port=80"
+      - "traefik.docker.network=proxy"
+
+networks:
+  proxy:
+    external: true

@@ -47,19 +47,11 @@ export default function SyntheticRecorder() {
     }
 
     try {
-      const response = await fetch("/api/recorder/codegen", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          url: recordingUrl,
-          browser: browser,
-        }),
+      const data = await api.recorderCodegen(token, {
+        url: recordingUrl,
+        browser: browser,
       });
-
-      const data = await response.json();
+      
       if (data.command) {
         setShowCommand(data.command);
       }
@@ -76,16 +68,8 @@ export default function SyntheticRecorder() {
     }
 
     try {
-      const response = await fetch("/api/recorder/parse", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ code: playwrightCode }),
-      });
-
-      const data = await response.json();
+      const data = await api.recorderParse(token, { code: playwrightCode });
+      
       if (data.steps && Array.isArray(data.steps)) {
         const newSteps = data.steps.map((step: any, index: number) => ({
           id: `${Date.now()}-${index}`,
@@ -117,39 +101,25 @@ export default function SyntheticRecorder() {
     try {
       const stepsJSON = steps.map(({ id, ...step }) => step);
 
-      const response = await fetch("/api/monitors", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+      await api.createMonitor(token, {
+        name: monitorName,
+        kind: "synthetic",
+        interval: intervalSeconds * 1000,
+        timeout: timeout * 1000,
+        config: {
+          browser: browser,
+          useLocalBrowser: useLocalBrowser,
+          baseUrl: baseUrl || undefined,
+          steps: stepsJSON,
         },
-        body: JSON.stringify({
-          name: monitorName,
-          kind: "synthetic",
-          interval: intervalSeconds * 1000,
-          timeout: timeout * 1000,
-          description: description || undefined,
-          config: {
-            browser: browser,
-            useLocalBrowser: useLocalBrowser,
-            baseUrl: baseUrl || undefined,
-            steps: stepsJSON,
-          },
-          notificationIds: notificationIds.length > 0 ? notificationIds : undefined,
-        }),
+        notificationIds: notificationIds.length > 0 ? notificationIds : undefined,
       });
 
-      if (response.ok) {
-        alert("✓ Monitor created successfully!\n\nNote: Make sure you have configured a remote Playwright browser in Settings, or the monitor will fail. See Settings → Remote Browsers.");
-        navigate("/");
-      } else {
-        const error = await response.json();
-        console.error("Failed to create monitor:", error);
-        alert("Failed to create monitor: " + (error.message || "Unknown error"));
-      }
+      alert("✓ Monitor created successfully!\n\nNote: Make sure you have configured a remote Playwright browser in Settings, or the monitor will fail. See Settings → Remote Browsers.");
+      navigate("/");
     } catch (error) {
-      console.error("Error creating monitor:", error);
-      alert("Error creating monitor: " + (error instanceof Error ? error.message : "Unknown error"));
+      console.error("Failed to create monitor:", error);
+      alert("Failed to create monitor: " + (error instanceof Error ? error.message : "Unknown error"));
     }
   };
 

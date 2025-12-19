@@ -3,6 +3,7 @@ import { useParams, Navigate } from "react-router-dom";
 import { Button } from "../components/ui/button.js";
 import { useTranslation } from "../lib/i18n.js";
 import { useAuth } from "../providers/auth-context.js";
+import { api } from "../lib/api.js";
 
 export const InviteAcceptRoute = () => {
   const { t } = useTranslation();
@@ -23,16 +24,10 @@ export const InviteAcceptRoute = () => {
     // Verify invitation token
     const verifyInvitation = async () => {
       try {
-        const res = await fetch(`/api/invitations/verify/${token}`);
-        if (res.ok) {
-          const data = await res.json();
-          setInviteInfo(data);
-        } else {
-          const data = await res.json();
-          setError(data.message || "Invalid or expired invitation");
-        }
+        const data = await api.verifyInvitation(token!);
+        setInviteInfo(data);
       } catch (err) {
-        setError("Failed to verify invitation");
+        setError(err instanceof Error ? err.message : "Invalid or expired invitation");
       }
     };
 
@@ -66,24 +61,11 @@ export const InviteAcceptRoute = () => {
     setError(null);
 
     try {
-      const res = await fetch("/api/invitations/accept", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ token, password }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        localStorage.setItem("uptivalab.token", data.token);
-        setAccepted(true);
-      } else {
-        const data = await res.json();
-        setError(data.message || "Failed to accept invitation");
-      }
+      const data = await api.acceptInvitation({ token: token!, password });
+      localStorage.setItem("uptivalab.token", data.token);
+      setAccepted(true);
     } catch (err) {
-      setError("An error occurred while accepting the invitation");
+      setError(err instanceof Error ? err.message : "Failed to accept invitation");
     } finally {
       setLoading(false);
     }
