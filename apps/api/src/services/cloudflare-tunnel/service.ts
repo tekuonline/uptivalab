@@ -1,5 +1,6 @@
 import { exec, spawn, ChildProcess } from "child_process";
 import { promisify } from "util";
+import { prisma } from "../../db/prisma.js";
 import { settingsService } from "../settings/service.js";
 
 const execAsync = promisify(exec);
@@ -28,8 +29,13 @@ class CloudflareTunnelService {
    * Get the current tunnel token from settings
    */
   async getToken(): Promise<string | null> {
-    const token = await settingsService.get<string>("cloudflareTunnelToken");
-    return token || null;
+    // Bypass cache for token to ensure we get the latest value
+    const setting = await prisma.setting.findUnique({
+      where: { key: "cloudflareTunnelToken" },
+    });
+    const token = setting?.value as string;
+    // Return null if token is empty or null
+    return token && token.trim() ? token : null;
   }
 
   /**

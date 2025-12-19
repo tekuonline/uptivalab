@@ -27,7 +27,7 @@ interface Settings {
 interface SettingsContextType {
   settings: Settings;
   loading: boolean;
-  updateSettings: (newSettings: Partial<Settings>) => Promise<void>;
+  updateSettings: (newSettings: Partial<Settings>, authToken?: string | null) => Promise<void>;
   refetchSettings: () => Promise<void>;
 }
 
@@ -82,9 +82,9 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const updateSettings = async (newSettings: Partial<Settings>) => {
+  const updateSettings = async (newSettings: Partial<Settings>, authToken?: string | null) => {
     try {
-      const token = localStorage.getItem("uptivalab.token");
+      const token = authToken ?? localStorage.getItem("uptivalab.token");
       await api.batchUpdateSettings(token, newSettings);
       setSettings((prev) => ({ ...prev, ...newSettings }));
 
