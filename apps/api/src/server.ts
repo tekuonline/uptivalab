@@ -7,7 +7,6 @@ import swaggerUi from "@fastify/swagger-ui";
 import fastifyJwt from "@fastify/jwt";
 import { appConfig } from "./config.js";
 import { registerRoutes } from "./routes/index.js";
-import { realtimeGateway } from "./realtime/gateway.js";
 import { settingsService } from "./services/settings/service.js";
 import { cloudflareTunnel } from "./services/cloudflare-tunnel/service.js";
 
@@ -63,7 +62,40 @@ export const createServer = async () => {
   //   routePrefix: "/docs",
   // });
 
-  await fastify.register(realtimeGateway, { prefix: "/ws" });
+  // Register WebSocket route directly
+  fastify.get("/ws/stream", { websocket: true }, async (connection, request) => {
+    const token = (request.query as any).token as string;
+    if (!token) {
+      connection.close();
+      return;
+    }
+    try {
+      fastify.jwt.verify(token);
+    } catch {
+      connection.close();
+      return;
+    }
+
+    const { broadcastBus } = await import("./realtime/events.js");
+    const monitorListener = (result: unknown) => {
+      if (connection.readyState === 1) { // OPEN
+        connection.send(JSON.stringify({ type: "monitor:result", payload: result }));
+      }
+    };
+    const incidentListener = (payload: unknown) => {
+      if (connection.readyState === 1) { // OPEN
+        connection.send(JSON.stringify({ type: "incident:update", payload }));
+      }
+    };
+
+    broadcastBus.on("monitor:result", monitorListener);
+    broadcastBus.on("incident:update", incidentListener);
+
+    connection.on("close", () => {
+      broadcastBus.off("monitor:result", monitorListener);
+      broadcastBus.off("incident:update", incidentListener);
+    });
+  });
 
   // Register public status page routes (no authentication required)
   await fastify.register(async (fastify) => {

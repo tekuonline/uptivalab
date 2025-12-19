@@ -1,5 +1,5 @@
 import { z } from "zod";
-const API_BASE = import.meta.env.VITE_API_URL;
+import { API_BASE } from "./config.js";
 const jsonHeaders = { "Content-Type": "application/json" };
 const statusResponse = z.array(z.object({
     id: z.string(),
@@ -101,4 +101,121 @@ export const api = {
     }),
     deleteHeartbeat: (token, id) => request(`/api/heartbeats/${id}`, { method: "DELETE", token }),
     getHeartbeatHistory: (token, id, days = 7) => request(`/api/heartbeats/${id}/history?days=${days}`, { token }),
+    // Settings APIs
+    changePassword: (token, payload) => request("/api/settings/change-password", {
+        method: "POST",
+        token,
+        headers: jsonHeaders,
+        body: JSON.stringify(payload),
+    }),
+    listApiKeys: (token) => request("/api/settings/api-keys", { token }),
+    createApiKey: (token, payload) => request("/api/settings/api-keys", {
+        method: "POST",
+        token,
+        headers: jsonHeaders,
+        body: JSON.stringify(payload),
+    }),
+    deleteApiKey: (token, id) => request(`/api/settings/api-keys/${id}`, { method: "DELETE", token }),
+    listDockerHosts: (token) => request("/api/settings/docker-hosts", { token }),
+    createDockerHost: (token, payload) => request("/api/settings/docker-hosts", {
+        method: "POST",
+        token,
+        headers: jsonHeaders,
+        body: JSON.stringify(payload),
+    }),
+    deleteDockerHost: (token, id) => request(`/api/settings/docker-hosts/${id}`, { method: "DELETE", token }),
+    testDockerHost: (token, id) => request(`/api/settings/docker-hosts/${id}/test`, {
+        method: "POST",
+        token,
+        headers: jsonHeaders,
+        body: JSON.stringify({}),
+    }),
+    getDockerHostResources: (token, id) => request(`/api/settings/docker-hosts/${id}/resources`, { token }),
+    listRemoteBrowsers: (token) => request("/api/settings/remote-browsers", { token }),
+    createRemoteBrowser: (token, payload) => request("/api/settings/remote-browsers", {
+        method: "POST",
+        token,
+        headers: jsonHeaders,
+        body: JSON.stringify(payload),
+    }),
+    deleteRemoteBrowser: (token, id) => request(`/api/settings/remote-browsers/${id}`, { method: "DELETE", token }),
+    testRemoteBrowser: (token, payload) => request(`/api/settings/remote-browsers/test`, {
+        method: "POST",
+        token,
+        headers: jsonHeaders,
+        body: JSON.stringify(payload),
+    }),
+    listProxies: (token) => request("/api/settings/proxies", { token }),
+    createProxy: (token, payload) => request("/api/settings/proxies", {
+        method: "POST",
+        token,
+        headers: jsonHeaders,
+        body: JSON.stringify(payload),
+    }),
+    deleteProxy: (token, id) => request(`/api/settings/proxies/${id}`, { method: "DELETE", token }),
+    batchUpdateSettings: (token, payload) => request("/api/settings/batch", {
+        method: "POST",
+        token,
+        headers: jsonHeaders,
+        body: JSON.stringify(payload),
+    }),
+    // Cloudflare Tunnel
+    getCloudflareTunnelStatus: (token) => request("/api/cloudflare-tunnel/status", { token }),
+    controlCloudflareTunnel: (token, action) => request(`/api/cloudflare-tunnel/${action}`, {
+        method: "POST",
+        token,
+        headers: jsonHeaders,
+        body: JSON.stringify({}),
+    }),
+    // Users
+    listUsers: (token) => request("/api/users", { token }),
+    createUser: (token, payload) => request("/api/users", {
+        method: "POST",
+        token,
+        headers: jsonHeaders,
+        body: JSON.stringify(payload),
+    }),
+    deleteUser: (token, id) => request(`/api/users/${id}`, { method: "DELETE", token }),
+    updateUserRole: (token, id, role) => request(`/api/users/${id}/role`, {
+        method: "PUT",
+        token,
+        headers: jsonHeaders,
+        body: JSON.stringify({ role }),
+    }),
+    // Invitations
+    listInvitations: (token) => request("/api/invitations", { token }),
+    createInvitation: (token, payload) => request("/api/invitations", {
+        method: "POST",
+        token,
+        headers: jsonHeaders,
+        body: JSON.stringify(payload),
+    }),
+    deleteInvitation: (token, id) => request(`/api/invitations/${id}`, { method: "DELETE", token }),
+    verifyInvitation: (token) => request(`/api/invitations/verify/${token}`),
+    acceptInvitation: (payload) => request("/api/invitations/accept", {
+        method: "POST",
+        headers: jsonHeaders,
+        body: JSON.stringify(payload),
+    }),
+    // Other
+    checkUpdates: (token) => request("/api/settings/check-updates", { token }),
+    testNotification: (token, payload) => request(`/api/notifications/test`, {
+        method: "POST",
+        token,
+        headers: jsonHeaders,
+        body: JSON.stringify(payload),
+    }),
+    // Recorder
+    recorderCodegen: (token, payload) => request("/api/recorder/codegen", {
+        method: "POST",
+        token,
+        headers: jsonHeaders,
+        body: JSON.stringify(payload),
+    }),
+    recorderParse: (token, payload) => request("/api/recorder/parse", {
+        method: "POST",
+        token,
+        headers: jsonHeaders,
+        body: JSON.stringify(payload),
+    }),
 };

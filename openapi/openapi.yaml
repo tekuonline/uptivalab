@@ -37,10 +37,8 @@ info:
 servers:
   - url: http://localhost:8080/api
     description: Local development server
-  - url: https://api.uptivalab.com/api
+  - url: https://api.example.com/api
     description: Production API server
-  - url: http://localhost:4173/api
-    description: Local development (via web proxy)
 
 tags:
   - name: Authentication

@@ -6,10 +6,18 @@ import { Button } from "../components/ui/button.js";
 import { useTranslation } from "../hooks/use-translation.js";
 const AuthForm = ({ mode }) => {
     const { t } = useTranslation();
-    const { login, register, isAuthenticated } = useAuth();
+    const { login, register, isAuthenticated, setupNeeded } = useAuth();
     const [form, setForm] = useState({ email: "", password: "" });
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
+    // Show loading while setup status is being determined
+    if (setupNeeded === null) {
+        return (_jsx("div", { className: "flex items-center justify-center min-h-screen", children: _jsxs("div", { className: "text-center", children: [_jsx("div", { className: "animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 dark:border-white mx-auto" }), _jsx("p", { className: "mt-2 text-sm text-slate-600 dark:text-slate-400", children: "Loading..." })] }) }));
+    }
+    // If setup is needed, redirect to setup page
+    if (setupNeeded) {
+        return _jsx(Navigate, { to: "/setup", replace: true });
+    }
     if (isAuthenticated) {
         return _jsx(Navigate, { to: "/dashboard", replace: true });
     }

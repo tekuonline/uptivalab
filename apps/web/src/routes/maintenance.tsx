@@ -53,7 +53,7 @@ export const MaintenanceRoute = () => {
   const [isEditing, setIsEditing] = useState(false);
 
   const createMutation = useMutation({
-    mutationFn: (payload: typeof form) => api.createMaintenance(token, payload),
+    mutationFn: (payload: Omit<typeof form, "id">) => api.createMaintenance(token, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["maintenance"] });
       setForm({ id: null, name: "", startsAt: "", endsAt: "", monitorIds: [] });
@@ -106,14 +106,17 @@ export const MaintenanceRoute = () => {
 
     // If start time is in the past, adjust it to now (for immediate maintenance)
     const now = new Date();
-    const payload = { ...form };
-    if (start < now) {
-      payload.startsAt = now.toISOString();
-    }
+    const adjustedStart = start < now ? now : start;
+    
+    const payload = {
+      name: form.name,
+      startsAt: adjustedStart.toISOString(),
+      endsAt: end.toISOString(),
+      monitorIds: form.monitorIds,
+    };
     
     if (isEditing && form.id) {
-      const { id, ...rest } = payload;
-      updateMutation.mutate({ id: id as string, payload: rest });
+      updateMutation.mutate({ id: form.id as string, payload });
     } else {
       createMutation.mutate(payload);
     }

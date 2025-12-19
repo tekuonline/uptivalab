@@ -236,12 +236,8 @@ export const MonitorsRoute = () => {
 
   const loadDockerHosts = async () => {
     try {
-      const res = await fetch("/api/settings/docker-hosts", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        setDockerHosts(await res.json());
-      }
+      const hosts = await api.listDockerHosts(token);
+      setDockerHosts(hosts);
     } catch (error) {
       console.error("Failed to load Docker hosts:", error);
     }
@@ -249,26 +245,15 @@ export const MonitorsRoute = () => {
 
   const loadDockerResources = async (dockerHostId: string) => {
     if (!dockerHostId) return;
-    
+
     setLoadingDockerResources(true);
     try {
-      const res = await fetch(`/api/settings/docker-hosts/${dockerHostId}/resources`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        setDockerResources(data);
-        console.log("Docker resources loaded:", data);
-      } else {
-        const errorText = await res.text();
-        console.error("Docker API error:", res.status, errorText);
-        alert(`Failed to connect to Docker host (${res.status}): ${errorText}\n\nPlease verify:\n- Docker host URL is correct\n- Docker daemon is running and exposing TCP port\n- Network connectivity to Docker host`);
-        setDockerResources(null);
-      }
+      const data = await api.getDockerHostResources(token, dockerHostId);
+      setDockerResources(data);
+      console.log("Docker resources loaded:", data);
     } catch (error) {
       console.error("Failed to load Docker resources:", error);
-      alert(`Failed to load Docker resources: ${error}\n\nCheck:\n- Docker host settings in Settings → Docker Hosts\n- Browser console for detailed errors\n- Docker daemon configuration`);
+      alert(`Failed to load Docker resources: ${error instanceof Error ? error.message : error}\n\nCheck:\n- Docker host settings in Settings → Docker Hosts\n- Browser console for detailed errors\n- Docker daemon configuration`);
       setDockerResources(null);
     } finally {
       setLoadingDockerResources(false);

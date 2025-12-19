@@ -1,6 +1,7 @@
 import { jsx as _jsx } from "react/jsx-runtime";
 import { createContext, useContext, useState, useEffect } from "react";
 import { initI18n } from "../lib/i18n.js";
+import { api } from "../lib/api.js";
 const SettingsContext = createContext(undefined);
 export const SettingsProvider = ({ children }) => {
     const [settings, setSettings] = useState({});
@@ -49,24 +50,15 @@ export const SettingsProvider = ({ children }) => {
     const updateSettings = async (newSettings) => {
         try {
             const token = localStorage.getItem("uptivalab.token");
-            const res = await fetch("/api/settings/batch", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify(newSettings),
-            });
-            if (res.ok) {
-                setSettings((prev) => ({ ...prev, ...newSettings }));
-                // Apply theme if changed
-                if (newSettings.theme) {
-                    applyTheme(newSettings.theme);
-                }
-                // Apply language if changed
-                if (newSettings.language) {
-                    initI18n(newSettings.language);
-                }
+            await api.batchUpdateSettings(token, newSettings);
+            setSettings((prev) => ({ ...prev, ...newSettings }));
+            // Apply theme if changed
+            if (newSettings.theme) {
+                applyTheme(newSettings.theme);
+            }
+            // Apply language if changed
+            if (newSettings.language) {
+                initI18n(newSettings.language);
             }
         }
         catch (error) {

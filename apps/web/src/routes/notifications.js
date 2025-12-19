@@ -155,20 +155,12 @@ export const NotificationsRoute = () => {
         setIsTesting(true);
         setTestStatus(null);
         try {
-            const res = await fetch("/api/notifications/test", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({ name: form.name || "Test", type: form.type, config }),
-            });
-            const data = await res.json();
-            if (res.ok && data.success) {
+            const data = await api.testNotification(token, { name: form.name || "Test", type: form.type, config });
+            if (data.success) {
                 setTestStatus({ success: true, message: data.message });
             }
             else {
-                setTestStatus({ success: false, message: data.error || t("testFailed") });
+                setTestStatus({ success: false, message: data.message || t("testFailed") });
             }
         }
         catch (error) {

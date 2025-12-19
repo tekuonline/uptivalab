@@ -35,6 +35,20 @@ CREATE TABLE "ApiKey" (
 );
 
 -- CreateTable
+CREATE TABLE "UserInvitation" (
+    "id" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "token" TEXT NOT NULL,
+    "role" "UserRole" NOT NULL DEFAULT 'VIEWER',
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "usedAt" TIMESTAMP(3),
+    "createdById" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "UserInvitation_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Monitor" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -140,6 +154,8 @@ CREATE TABLE "PublicStatusPage" (
     "passwordHash" TEXT,
     "customDomain" TEXT,
     "heroMessage" TEXT,
+    "showIncidents" BOOLEAN NOT NULL DEFAULT true,
+    "showMaintenance" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "PublicStatusPage_pkey" PRIMARY KEY ("id")
@@ -186,6 +202,12 @@ CREATE TABLE "_MaintenanceMonitors" (
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
+CREATE INDEX "UserInvitation_email_idx" ON "UserInvitation"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "UserInvitation_token_key" ON "UserInvitation"("token");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Tag_name_key" ON "Tag"("name");
 
 -- CreateIndex
@@ -214,6 +236,9 @@ CREATE INDEX "_MaintenanceMonitors_B_index" ON "_MaintenanceMonitors"("B");
 
 -- AddForeignKey
 ALTER TABLE "ApiKey" ADD CONSTRAINT "ApiKey_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UserInvitation" ADD CONSTRAINT "UserInvitation_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Monitor" ADD CONSTRAINT "Monitor_groupId_fkey" FOREIGN KEY ("groupId") REFERENCES "MonitorGroup"("id") ON DELETE SET NULL ON UPDATE CASCADE;

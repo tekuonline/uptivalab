@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { initI18n } from "../lib/i18n.js";
+import { api } from "../lib/api.js";
 
 interface Settings {
   displayTimezone?: string;
@@ -84,27 +85,17 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const updateSettings = async (newSettings: Partial<Settings>) => {
     try {
       const token = localStorage.getItem("uptivalab.token");
-      const res = await fetch("/api/settings/batch", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(newSettings),
-      });
+      await api.batchUpdateSettings(token, newSettings);
+      setSettings((prev) => ({ ...prev, ...newSettings }));
 
-      if (res.ok) {
-        setSettings((prev) => ({ ...prev, ...newSettings }));
-        
-        // Apply theme if changed
-        if (newSettings.theme) {
-          applyTheme(newSettings.theme);
-        }
-        
-        // Apply language if changed
-        if (newSettings.language) {
-          initI18n(newSettings.language);
-        }
+      // Apply theme if changed
+      if (newSettings.theme) {
+        applyTheme(newSettings.theme);
+      }
+
+      // Apply language if changed
+      if (newSettings.language) {
+        initI18n(newSettings.language);
       }
     } catch (error) {
       console.error("Failed to update settings:", error);
