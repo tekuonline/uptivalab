@@ -4328,7 +4328,7 @@ export const translations = {
     recordingTip2: "在终端中运行命令",
     recordingTip3: "在打开的浏览器中与您的网站交互",
     recordingTip4: "复制生成的代码并将其粘贴到上面",
-    recordingTip5: "点击"解析步骤"以转换为监控器步骤",
+    recordingTip5: "点击'解析步骤'以转换为监控器步骤",
     parsedSteps: "已解析的步骤",
     noSteps: "还没有步骤。解析Playwright代码以添加步骤。",
     step: "步骤",
