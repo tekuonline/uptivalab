@@ -89,21 +89,21 @@ const SetupForm = () => {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
-      <div className="glass-panel w-full max-w-md space-y-6 rounded-3xl p-8">
+    <div className="flex min-h-screen items-center justify-center bg-background text-foreground px-4 py-8">
+      <div className="glass-panel w-full max-w-md space-y-4 sm:space-y-6 rounded-2xl sm:rounded-3xl p-6 sm:p-8">
         <div>
-          <p className="text-xs uppercase tracking-[0.35em] text-slate-400">{t("uptivalab")}</p>
-          <h1 className="text-3xl font-semibold text-slate-900 dark:text-white">{t("welcomeToUptivaLab")}</h1>
-          <p className="text-sm text-slate-600 dark:text-slate-400">
+          <p className="text-[10px] sm:text-xs uppercase tracking-[0.3em] sm:tracking-[0.35em] text-slate-400">{t("uptivalab")}</p>
+          <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900 dark:text-white mt-1">{t("welcomeToUptivaLab")}</h1>
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1">
             {t("createFirstAdminAccount")}
           </p>
         </div>
 
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <div className="space-y-2">
-            <label className="text-xs uppercase tracking-[0.4em] text-slate-400">{t("email")}</label>
+        <form className="space-y-3 sm:space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-1 sm:space-y-2">
+            <label className="text-[10px] sm:text-xs uppercase tracking-[0.3em] sm:tracking-[0.4em] text-slate-400">{t("email")}</label>
             <input
-              className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
+              className="w-full rounded-xl sm:rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 sm:px-4 py-2 sm:py-3 text-sm text-slate-900 dark:text-white"
               type="email"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -112,10 +112,10 @@ const SetupForm = () => {
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs uppercase tracking-[0.4em] text-slate-400">{t("password")}</label>
+          <div className="space-y-1 sm:space-y-2">
+            <label className="text-[10px] sm:text-xs uppercase tracking-[0.3em] sm:tracking-[0.4em] text-slate-400">{t("password")}</label>
             <input
-              className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
+              className="w-full rounded-xl sm:rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 sm:px-4 py-2 sm:py-3 text-sm text-slate-900 dark:text-white"
               type="password"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -125,10 +125,10 @@ const SetupForm = () => {
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs uppercase tracking-[0.4em] text-slate-400">{t("confirmPassword")}</label>
+          <div className="space-y-1 sm:space-y-2">
+            <label className="text-[10px] sm:text-xs uppercase tracking-[0.3em] sm:tracking-[0.4em] text-slate-400">{t("confirmPassword")}</label>
             <input
-              className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
+              className="w-full rounded-xl sm:rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 sm:px-4 py-2 sm:py-3 text-sm text-slate-900 dark:text-white"
               type="password"
               value={form.confirmPassword}
               onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}

@@ -66,11 +66,11 @@ export const HeartbeatsRoute = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <Card className="space-y-4">
+    <div className="space-y-4 sm:space-y-6">
+      <Card className="space-y-3 sm:space-y-4">
         <div>
-          <h3 className="text-xl font-semibold text-slate-900 dark:text-white">{t("createHeartbeatToken")}</h3>
-          <p className="text-sm text-slate-600 dark:text-slate-400">{t("generateHeartbeatUrl")}</p>
+          <h3 className="text-lg sm:text-xl font-semibold text-slate-900 dark:text-white">{t("createHeartbeatToken")}</h3>
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">{t("generateHeartbeatUrl")}</p>
         </div>
         {error && (
           <div className="rounded-lg bg-red-500/10 border border-red-500/30 dark:border-red-500/20 p-3">
@@ -100,7 +100,7 @@ export const HeartbeatsRoute = () => {
           </div>
         ) : (
           <form
-            className="grid gap-3 md:grid-cols-3"
+            className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
             onSubmit={(e) => {
               e.preventDefault();
               setError(null);
@@ -108,7 +108,7 @@ export const HeartbeatsRoute = () => {
             }}
           >
             <select
-              className="rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-slate-900 dark:text-white h-[46px]"
+              className="rounded-xl sm:rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 sm:px-4 py-2 sm:py-3 text-sm text-slate-900 dark:text-slate-900 dark:text-white"
               value={form.monitorId}
               onChange={(e) => setForm((prev) => ({ ...prev, monitorId: e.target.value }))}
               required
@@ -122,7 +122,7 @@ export const HeartbeatsRoute = () => {
             </select>
             <input
               type="number"
-              className="rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
+              className="rounded-xl sm:rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 sm:px-4 py-2 sm:py-3 text-sm text-slate-900 dark:text-white"
               placeholder={t("interval")}
               value={form.heartbeatEvery}
               onChange={(e) => setForm((prev) => ({ ...prev, heartbeatEvery: Number(e.target.value) }))}
@@ -138,14 +138,14 @@ export const HeartbeatsRoute = () => {
       </Card>
 
       <Card>
-        <h3 className="mb-4 text-xl font-semibold text-slate-900 dark:text-white">{t("activeHeartbeats")}</h3>
-        <div className="space-y-4">
+        <h3 className="mb-3 sm:mb-4 text-lg sm:text-xl font-semibold text-slate-900 dark:text-white">{t("activeHeartbeats")}</h3>
+        <div className="space-y-3 sm:space-y-4">
           {heartbeats?.map((heartbeat) => (
-            <div key={heartbeat.id} className="rounded-lg border border-white/10 bg-white/5 p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <h4 className="font-semibold text-slate-900 dark:text-white">{heartbeat.monitor.name}</h4>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">
+            <div key={heartbeat.id} className="rounded-lg border border-white/10 bg-white/5 p-3 sm:p-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex-1 min-w-0 w-full">
+                  <h4 className="font-semibold text-slate-900 dark:text-white truncate">{heartbeat.monitor.name}</h4>
+                  <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
                     {t("heartbeatEvery")} {heartbeat.heartbeatEvery}s
                   </p>
                   {heartbeat.lastHeartbeat && (
@@ -153,13 +153,13 @@ export const HeartbeatsRoute = () => {
                       {t("lastCheck")}: {format(new Date(heartbeat.lastHeartbeat), "MMM dd, HH:mm:ss")}
                     </p>
                   )}
-                  <div className="mt-2 flex items-center gap-2">
-                    <code className="text-xs bg-black/20 px-2 py-1 rounded">
+                  <div className="mt-2 flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                    <code className="text-xs bg-black/20 px-2 py-1 rounded break-all">
                       POST /api/heartbeat/{heartbeat.tokenHash}
                     </code>
                     <button
                       onClick={() => copyToClipboard(`/api/heartbeat/${heartbeat.tokenHash}`)}
-                      className="text-slate-400 hover:text-white"
+                      className="text-slate-400 hover:text-white shrink-0"
                     >
                       <Copy className="h-4 w-4" />
                     </button>
@@ -173,6 +173,7 @@ export const HeartbeatsRoute = () => {
                     }
                   }}
                   disabled={deleteMutation.isPending}
+                  className="shrink-0"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>

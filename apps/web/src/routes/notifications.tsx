@@ -220,7 +220,7 @@ export const NotificationsRoute = () => {
           <p className="text-sm text-slate-600 dark:text-slate-400">{t("notificationChannelDescription")}</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-2">
             <div>
               <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("name")}</label>
               <input

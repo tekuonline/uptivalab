@@ -182,7 +182,7 @@ export const MaintenanceRoute = () => {
           <div className="space-y-4">
             <div className="rounded-xl bg-white/5 border border-white/10 p-4">
               <label className="mb-3 block text-sm font-medium text-slate-900 dark:text-white">{t("startTime")}</label>
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-xs text-slate-400">{t("date")}</label>
                   <input
@@ -220,7 +220,7 @@ export const MaintenanceRoute = () => {
 
             <div className="rounded-xl bg-white/5 border border-white/10 p-4">
               <label className="mb-3 block text-sm font-medium text-slate-900 dark:text-white">{t("endTime")}</label>
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-xs text-slate-400">{t("date")}</label>
                   <input
@@ -407,7 +407,7 @@ export const MaintenanceRoute = () => {
                 ⚠️ {t("pleaseSelectMonitors")}
               </p>
             )}
-            <div className="grid gap-2 md:grid-cols-2">
+            <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               {monitors?.map((monitor: any) => (
                 <label
                   key={monitor.id}

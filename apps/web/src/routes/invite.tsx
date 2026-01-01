@@ -73,9 +73,9 @@ export const InviteAcceptRoute = () => {
 
   if (!inviteInfo && !error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
-        <div className="glass-panel w-full max-w-md space-y-6 rounded-3xl p-8">
-          <p className="text-center text-slate-400">{t("verifyingInvitation")}</p>
+      <div className="flex min-h-screen items-center justify-center bg-background text-foreground px-4 py-8">
+        <div className="glass-panel w-full max-w-md space-y-4 sm:space-y-6 rounded-2xl sm:rounded-3xl p-6 sm:p-8">
+          <p className="text-center text-xs sm:text-sm text-slate-400">{t("verifyingInvitation")}</p>
         </div>
       </div>
     );
@@ -83,13 +83,13 @@ export const InviteAcceptRoute = () => {
 
   if (error && !inviteInfo) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
-        <div className="glass-panel w-full max-w-md space-y-6 rounded-3xl p-8">
+      <div className="flex min-h-screen items-center justify-center bg-background text-foreground px-4 py-8">
+        <div className="glass-panel w-full max-w-md space-y-4 sm:space-y-6 rounded-2xl sm:rounded-3xl p-6 sm:p-8">
           <div>
-            <p className="text-xs uppercase tracking-[0.35em] text-slate-400">UPTIVALAB</p>
-            <h1 className="text-3xl font-semibold text-slate-900 dark:text-white">{t("invalidInvitation")}</h1>
+            <p className="text-[10px] sm:text-xs uppercase tracking-[0.3em] sm:tracking-[0.35em] text-slate-400">UPTIVALAB</p>
+            <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900 dark:text-white">{t("invalidInvitation")}</h1>
           </div>
-          <p className="text-red-400">{error}</p>
+          <p className="text-sm text-red-400">{error}</p>
           <Button onClick={() => window.location.href = "/login"} className="w-full">
             Go to Login
           </Button>
@@ -99,26 +99,26 @@ export const InviteAcceptRoute = () => {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
-      <div className="glass-panel w-full max-w-md space-y-6 rounded-3xl p-8">
+    <div className="flex min-h-screen items-center justify-center bg-background text-foreground px-4 py-8">
+      <div className="glass-panel w-full max-w-md space-y-4 sm:space-y-6 rounded-2xl sm:rounded-3xl p-6 sm:p-8">
         <div>
-          <p className="text-xs uppercase tracking-[0.35em] text-slate-400">UPTIVALAB</p>
-          <h1 className="text-3xl font-semibold text-slate-900 dark:text-white">{t("acceptInvitation")}</h1>
-          <p className="text-sm text-slate-600 dark:text-slate-400">
+          <p className="text-[10px] sm:text-xs uppercase tracking-[0.3em] sm:tracking-[0.35em] text-slate-400">UPTIVALAB</p>
+          <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900 dark:text-white">{t("acceptInvitation")}</h1>
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
             You've been invited to join as a {inviteInfo?.role.toLowerCase()}
           </p>
         </div>
 
-        <div className="rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-4">
-          <p className="text-sm text-slate-600 dark:text-slate-400">{t("email")}</p>
-          <p className="font-medium text-slate-900 dark:text-white">{inviteInfo?.email}</p>
+        <div className="rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-3 sm:p-4">
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">{t("email")}</p>
+          <p className="font-medium text-sm sm:text-base text-slate-900 dark:text-white break-all">{inviteInfo?.email}</p>
         </div>
 
-        <form className="space-y-4" onSubmit={handleAccept}>
-          <div className="space-y-2">
-            <label className="text-xs uppercase tracking-[0.4em] text-slate-400">{t("password")}</label>
+        <form className="space-y-3 sm:space-y-4" onSubmit={handleAccept}>
+          <div className="space-y-1 sm:space-y-2">
+            <label className="text-[10px] sm:text-xs uppercase tracking-[0.3em] sm:tracking-[0.4em] text-slate-400">{t("password")}</label>
             <input
-              className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
+              className="w-full rounded-xl sm:rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 sm:px-4 py-2 sm:py-3 text-sm text-slate-900 dark:text-white"
               type="password"
               placeholder="Minimum 8 characters"
               value={password}
@@ -127,10 +127,10 @@ export const InviteAcceptRoute = () => {
               minLength={8}
             />
           </div>
-          <div className="space-y-2">
-            <label className="text-xs uppercase tracking-[0.4em] text-slate-400">{t("repeatPassword")}</label>
+          <div className="space-y-1 sm:space-y-2">
+            <label className="text-[10px] sm:text-xs uppercase tracking-[0.3em] sm:tracking-[0.4em] text-slate-400">{t("repeatPassword")}</label>
             <input
-              className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
+              className="w-full rounded-xl sm:rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 sm:px-4 py-2 sm:py-3 text-sm text-slate-900 dark:text-white"
               type="password"
               placeholder={t("repeatYourPassword")}
               value={repeatPassword}
