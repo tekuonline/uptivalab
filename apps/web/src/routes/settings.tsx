@@ -664,7 +664,7 @@ export const SettingsRoute = () => {
       </div>
 
       <div className="glass-panel rounded-3xl p-6">
-        <div className="grid grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
           {/* Sidebar */}
           <div className="col-span-3 space-y-1">
             {tabs.map((tab) => (
@@ -1699,7 +1699,7 @@ export const SettingsRoute = () => {
               <div className="space-y-6">
                 <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">{t("backupRestore")}</h2>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
                   {/* Export Section */}
                   <div className="space-y-4 rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-6">
                     <div className="flex items-center gap-3">

@@ -184,25 +184,25 @@ export const MonitorDetailRoute = () => {
   const monitorType = monitor.kind || "http";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 w-full sm:w-auto">
           <Link to="/monitors">
-            <Button variant="ghost">
+            <Button variant="ghost" className="-ml-2">
               <ArrowLeft className="h-4 w-4 mr-2" />
               {t("back")}
             </Button>
           </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{monitor.name}</h1>
-            <div className="flex items-center gap-2 mt-1">
+          <div className="min-w-0 flex-1 sm:flex-initial">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white truncate">{monitor.name}</h1>
+            <div className="flex flex-wrap items-center gap-2 mt-1">
               <span className="text-xs uppercase px-2 py-1 rounded bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30">
                 {monitorType}
               </span>
-              <p className="text-sm text-slate-600 dark:text-slate-400">{monitorUrl}</p>
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 truncate">{monitorUrl}</p>
               {monitorType === 'certificate' && (monitor as any).meta?.certificateDaysLeft && (
-                <span className={`text-sm font-semibold px-3 py-1 rounded-full ${
+                <span className={`text-xs sm:text-sm font-semibold px-2 sm:px-3 py-1 rounded-full ${
                   (monitor as any).meta.certificateDaysLeft < 7
                     ? 'bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/30'
                     : (monitor as any).meta.certificateDaysLeft < 30
@@ -215,26 +215,26 @@ export const MonitorDetailRoute = () => {
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <StatusBadge status={monitor.status ?? "pending"} />
           {!isEditing && (
             <>
               {(monitor as any).paused ? (
-                <Button variant="ghost" onClick={() => resumeMutation.mutate()} disabled={resumeMutation.isPending}>
+                <Button variant="ghost" onClick={() => resumeMutation.mutate()} disabled={resumeMutation.isPending} className="text-xs sm:text-sm">
                   <Play className="h-4 w-4 mr-2" />
                   {resumeMutation.isPending ? t("loading") : t("resume")}
                 </Button>
               ) : (
-                <Button variant="ghost" onClick={() => pauseMutation.mutate()} disabled={pauseMutation.isPending}>
+                <Button variant="ghost" onClick={() => pauseMutation.mutate()} disabled={pauseMutation.isPending} className="text-xs sm:text-sm">
                   <Pause className="h-4 w-4 mr-2" />
                   {pauseMutation.isPending ? t("loading") : t("pause")}
                 </Button>
               )}
-              <Button variant="ghost" onClick={handleEdit}>
+              <Button variant="ghost" onClick={handleEdit} className="text-xs sm:text-sm">
                 <Edit2 className="h-4 w-4 mr-2" />
                 {t("edit")}
               </Button>
-              <Button variant="ghost" onClick={handleDelete} disabled={deleteMutation.isPending}>
+              <Button variant="ghost" onClick={handleDelete} disabled={deleteMutation.isPending} className="text-xs sm:text-sm">
                 <Trash2 className="h-4 w-4 mr-2" />
                 {t("delete")}
               </Button>
@@ -246,19 +246,19 @@ export const MonitorDetailRoute = () => {
       {/* Push/Heartbeat Instructions */}
       {monitor.kind === "push" && (monitor as any).heartbeats && (
         <Card className="border-2 border-blue-500/30 bg-blue-50 dark:bg-blue-500/5">
-          <div className="space-y-4">
-            <div className="flex items-start gap-3">
-              <div className="text-2xl">🫀</div>
-              <div className="flex-1">
-                <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">{t("heartbeatUrl")}</h3>
-                <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+          <div className="space-y-3 sm:space-y-4">
+            <div className="flex items-start gap-2 sm:gap-3">
+              <div className="text-xl sm:text-2xl">🫀</div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg sm:text-xl font-semibold text-slate-900 dark:text-white mb-2">{t("heartbeatUrl")}</h3>
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mb-3 sm:mb-4">
                   Send a POST request to this URL every <strong className="text-slate-900 dark:text-white">{(monitor as any).heartbeats.heartbeatEvery} seconds</strong> from your application, cron job, or script. 
                   If we don't receive a heartbeat within the expected interval, we'll mark this monitor as down and send alerts.
                 </p>
                 
-                <div className="rounded-lg bg-slate-900 dark:bg-slate-900 p-4 mb-4">
+                <div className="rounded-lg bg-slate-900 dark:bg-slate-900 p-3 sm:p-4 mb-3 sm:mb-4">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-semibold text-slate-400 uppercase">{t("heartbeatEndpoint")}</span>
+                    <span className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase">{t("heartbeatEndpoint")}</span>
                     <button
                       onClick={() => {
                         const url = `${window.location.origin}/api/heartbeat/${(monitor as any).heartbeats.tokenHash}`;
@@ -269,15 +269,15 @@ export const MonitorDetailRoute = () => {
                       📋 Copy
                     </button>
                   </div>
-                  <code className="text-sm text-green-400 dark:text-green-400 break-all">
+                  <code className="text-xs sm:text-sm text-green-400 dark:text-green-400 break-all">
                     {window.location.origin}/api/heartbeat/{(monitor as any).heartbeats.tokenHash}
                   </code>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   <div>
-                    <p className="text-xs font-semibold text-slate-400 uppercase mb-2">{t("exampleCurl")}</p>
-                    <div className="rounded-lg bg-slate-900 p-3">
+                    <p className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase mb-2">{t("exampleCurl")}</p>
+                    <div className="rounded-lg bg-slate-900 p-2 sm:p-3">
                       <code className="text-xs text-slate-300 break-all">
                         curl -X POST {window.location.origin}/api/heartbeat/{(monitor as any).heartbeats.tokenHash}
                       </code>
