@@ -11,10 +11,9 @@ const windowSchema = z.object({
 });
 
 const maintenancePlugin = async (fastify: FastifyInstance) => {
-  fastify.addHook("preHandler", fastify.authenticate);
 
   // GET /maintenance - List all maintenance windows (frontend expects this endpoint)
-  fastify.get("/maintenance", async () => {
+  fastify.get("/maintenance", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async () => {
     return prisma.maintenanceWindow.findMany({
       include: { monitors: true },
       orderBy: { startsAt: "desc" },
@@ -22,14 +21,14 @@ const maintenancePlugin = async (fastify: FastifyInstance) => {
   });
 
   // GET /maintenance/list - Alternative endpoint
-  fastify.get("/maintenance/list", async () => {
+  fastify.get("/maintenance/list", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async () => {
     return prisma.maintenanceWindow.findMany({
       include: { monitors: true },
       orderBy: { startsAt: "desc" },
     });
   });
 
-  fastify.post("/maintenance", async (request) => {
+  fastify.post("/maintenance", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request) => {
     const body = windowSchema.parse(request.body);
     const window = await prisma.maintenanceWindow.create({
       data: {
@@ -43,7 +42,7 @@ const maintenancePlugin = async (fastify: FastifyInstance) => {
     return window;
   });
 
-  fastify.put("/maintenance/:id", async (request) => {
+  fastify.put("/maintenance/:id", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request) => {
     const params = z.object({ id: z.string() }).parse(request.params);
     const body = windowSchema.partial().parse(request.body);
     const window = await prisma.maintenanceWindow.update({
@@ -64,7 +63,7 @@ const maintenancePlugin = async (fastify: FastifyInstance) => {
     return window;
   });
 
-  fastify.delete("/maintenance/:id", async (request, reply) => {
+  fastify.delete("/maintenance/:id", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request, reply) => {
     const params = z.object({ id: z.string() }).parse(request.params);
     await prisma.maintenanceWindow.delete({ where: { id: params.id } });
     reply.code(204).send();

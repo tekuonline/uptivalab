@@ -42,6 +42,7 @@ const getSummaryLabel = (t: any, status: StatusState): string => {
     up: t("allSystemsThriving"),
     down: t("incidentActive"),
     pending: t("awaitingData"),
+    paused: t("monitorPaused"),
   };
   return labels[status];
 };
@@ -134,7 +135,7 @@ const CertificateExpiryWidget = () => {
     <Card>
       <div className="mb-4 flex items-center gap-3">
         <AlertTriangle className="h-5 w-5 text-yellow-400" />
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">SSL Certificate Expiry</h3>
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{t("sslCertificateExpiry")}</h3>
       </div>
       <div className="space-y-3">
         {certificateMonitors.slice(0, 5).map((cert) => (
@@ -151,7 +152,7 @@ const CertificateExpiryWidget = () => {
             </div>
             <div className={`text-right ${cert.color}`}>
               <p className="text-2xl font-bold">{cert.daysRemaining}</p>
-              <p className="text-xs">days</p>
+              <p className="text-xs">{t("days")}</p>
             </div>
           </Link>
         ))}
@@ -168,8 +169,6 @@ export const DashboardRoute = () => {
 
   useEffect(() => {
     if (data) {
-      console.log('Dashboard data received:', data);
-      console.log('Certificate monitors:', data.filter((m: any) => m.kind === 'certificate'));
       setSnapshots(data as StatusSnapshot[]);
     }
   }, [data]);
@@ -197,12 +196,12 @@ export const DashboardRoute = () => {
         acc[monitor.status] += 1;
         return acc;
       },
-      { up: 0, down: 0, pending: 0 } as Record<StatusState, number>
+      { up: 0, down: 0, pending: 0, paused: 0 } as Record<StatusState, number>
     );
   }, [snapshots]);
 
   if (isLoading && snapshots.length === 0) {
-    return <p className="text-slate-600 dark:text-slate-400">Loading telemetry...</p>;
+    return <p className="text-slate-600 dark:text-slate-400">{t("loadingTelemetry")}</p>;
   }
 
   return (
@@ -214,7 +213,7 @@ export const DashboardRoute = () => {
             <div className="flex items-end justify-between">
               <div>
                 <div className="text-4xl font-semibold text-slate-900 dark:text-white">{counts[status]}</div>
-                <p className="text-sm text-slate-600 dark:text-slate-400">monitors {status}</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400">{t("monitorsStatus", { status })}</p>
               </div>
               <StatusBadge status={status} />
             </div>
@@ -276,7 +275,7 @@ export const DashboardRoute = () => {
                         )}
                       </div>
                     ) : (
-                      <span className="text-slate-400">Certificate monitor - awaiting check</span>
+                      <span className="text-slate-400">{t("certificateMonitorAwaitingCheck")}</span>
                     )}
                   </div>
                 )}

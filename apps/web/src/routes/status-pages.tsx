@@ -106,6 +106,9 @@ export const StatusPagesRoute = () => {
         theme: ((fullPage as any).theme as "light" | "dark" | "system") || "system",
       });
       setShowForm(true);
+    }).catch((error) => {
+      console.error("Failed to fetch status page:", error);
+      // Could show a toast notification here
     });
   };
 
@@ -251,7 +254,7 @@ export const StatusPagesRoute = () => {
                 <option value="dark">Dark</option>
                 <option value="system">System</option>
               </select>
-              <p className="text-xs text-slate-600 dark:text-slate-500 mt-1">Choose the theme for your public status page</p>
+              <p className="text-xs text-slate-600 dark:text-slate-500 mt-1">{t("chooseTheme")}</p>
             </div>
             <Button onClick={handleCreate} disabled={createMutation.isPending || updateMutation.isPending || !form.name || !form.slug}>
               {(createMutation.isPending || updateMutation.isPending) 

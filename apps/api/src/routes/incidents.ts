@@ -14,10 +14,8 @@ const eventSchema = z.object({
 });
 
 const incidentsPlugin = async (fastify: FastifyInstance) => {
-  fastify.addHook("preHandler", fastify.authenticate);
-
   // GET /incidents - List all incidents (frontend expects this endpoint)
-  fastify.get("/incidents", async (request) => {
+  fastify.get("/incidents", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async (request) => {
     const query = incidentSchema.parse(request.query);
     return prisma.incident.findMany({
       where: {
@@ -33,7 +31,7 @@ const incidentsPlugin = async (fastify: FastifyInstance) => {
   });
 
   // GET /incidents/list - Alternative endpoint
-  fastify.get("/incidents/list", async (request) => {
+  fastify.get("/incidents/list", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async (request) => {
     const query = incidentSchema.parse(request.query);
     return prisma.incident.findMany({
       where: {
@@ -48,7 +46,7 @@ const incidentsPlugin = async (fastify: FastifyInstance) => {
     });
   });
 
-  fastify.get("/incidents/:id", async (request, reply) => {
+  fastify.get("/incidents/:id", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async (request, reply) => {
     const params = z.object({ id: z.string() }).parse(request.params);
     const incident = await prisma.incident.findUnique({
       where: { id: params.id },
@@ -61,7 +59,7 @@ const incidentsPlugin = async (fastify: FastifyInstance) => {
     return incident;
   });
 
-  fastify.post("/incidents/:id/events", async (request, reply) => {
+  fastify.post("/incidents/:id/events", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request, reply) => {
     const params = z.object({ id: z.string() }).parse(request.params);
     const body = eventSchema.parse(request.body);
     const incident = await prisma.incident.findUnique({ where: { id: params.id } });
@@ -74,7 +72,7 @@ const incidentsPlugin = async (fastify: FastifyInstance) => {
   });
 
   // PATCH /incidents/:id - Update incident status
-  fastify.patch("/incidents/:id", async (request, reply) => {
+  fastify.patch("/incidents/:id", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request, reply) => {
     const params = z.object({ id: z.string() }).parse(request.params);
     const body = z.object({ 
       status: z.enum(["OPEN", "INVESTIGATING", "MITIGATED", "RESOLVED"]) 

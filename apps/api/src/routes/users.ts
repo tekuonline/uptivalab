@@ -5,9 +5,62 @@ import { prisma } from "../db/prisma.js";
 import { hashPassword } from "../auth/password.js";
 
 const usersPlugin = async (fastify: FastifyInstance) => {
+  // Get current user
+  fastify.get("/users/me", {
+    preHandler: fastify.authenticateAnyWithPermission('READ'),
+    handler: async (request) => {
+      const user = (request as any).user;
+      return {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      };
+    },
+  });
+
+  // Get user by ID (admin only)
+  fastify.get("/users/:id", {
+    preHandler: fastify.authenticateAnyWithPermission('READ'),
+    handler: async (request, reply) => {
+      try {
+        const { id } = request.params as { id: string };
+        const user = await prisma.user.findUnique({
+          where: { id },
+          select: {
+            id: true,
+            email: true,
+            role: true,
+            createdAt: true,
+            updatedAt: true,
+            _count: {
+              select: {
+                apiKeys: true,
+              },
+            },
+          },
+        });
+
+        if (!user) {
+          return reply.code(404).send({
+            error: "User not found",
+            message: "The requested user does not exist",
+          });
+        }
+
+        return user;
+      } catch (error) {
+        console.error("Failed to fetch user:", error);
+        return reply.code(500).send({
+          error: "Failed to fetch user",
+          message: "An error occurred while fetching the user",
+        });
+      }
+    },
+  });
+
   // Get all users (admin only)
   fastify.get("/users", {
-    onRequest: [fastify.authenticate],
+    preHandler: fastify.authenticateAnyWithPermission('READ'),
     handler: async (request, reply) => {
       try {
         const users = await prisma.user.findMany({
@@ -41,7 +94,7 @@ const usersPlugin = async (fastify: FastifyInstance) => {
   fastify.post<{ Body: { email: string; password: string; role: "ADMIN" | "VIEWER" } }>(
     "/users",
     {
-      onRequest: [fastify.authenticate],
+      preHandler: fastify.authenticateAnyWithPermission('WRITE'),
       handler: async (request, reply) => {
         try {
           const body = z
@@ -103,7 +156,7 @@ const usersPlugin = async (fastify: FastifyInstance) => {
   fastify.put<{ Params: { id: string }; Body: { role: "ADMIN" | "VIEWER" } }>(
     "/users/:id/role",
     {
-      onRequest: [fastify.authenticate],
+      preHandler: fastify.authenticateAnyWithPermission('WRITE'),
       handler: async (request, reply) => {
         try {
           const body = z
@@ -144,7 +197,7 @@ const usersPlugin = async (fastify: FastifyInstance) => {
 
   // Delete user (admin only)
   fastify.delete<{ Params: { id: string } }>("/users/:id", {
-    onRequest: [fastify.authenticate],
+    preHandler: fastify.authenticateAnyWithPermission('WRITE'),
     handler: async (request, reply) => {
       try {
         // Prevent deleting yourself

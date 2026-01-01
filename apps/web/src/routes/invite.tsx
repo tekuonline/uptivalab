@@ -75,7 +75,7 @@ export const InviteAcceptRoute = () => {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
         <div className="glass-panel w-full max-w-md space-y-6 rounded-3xl p-8">
-          <p className="text-center text-slate-400">Verifying invitation...</p>
+          <p className="text-center text-slate-400">{t("verifyingInvitation")}</p>
         </div>
       </div>
     );
@@ -87,7 +87,7 @@ export const InviteAcceptRoute = () => {
         <div className="glass-panel w-full max-w-md space-y-6 rounded-3xl p-8">
           <div>
             <p className="text-xs uppercase tracking-[0.35em] text-slate-400">UPTIVALAB</p>
-            <h1 className="text-3xl font-semibold text-slate-900 dark:text-white">Invalid Invitation</h1>
+            <h1 className="text-3xl font-semibold text-slate-900 dark:text-white">{t("invalidInvitation")}</h1>
           </div>
           <p className="text-red-400">{error}</p>
           <Button onClick={() => window.location.href = "/login"} className="w-full">
@@ -103,20 +103,20 @@ export const InviteAcceptRoute = () => {
       <div className="glass-panel w-full max-w-md space-y-6 rounded-3xl p-8">
         <div>
           <p className="text-xs uppercase tracking-[0.35em] text-slate-400">UPTIVALAB</p>
-          <h1 className="text-3xl font-semibold text-slate-900 dark:text-white">Accept Invitation</h1>
+          <h1 className="text-3xl font-semibold text-slate-900 dark:text-white">{t("acceptInvitation")}</h1>
           <p className="text-sm text-slate-600 dark:text-slate-400">
             You've been invited to join as a {inviteInfo?.role.toLowerCase()}
           </p>
         </div>
 
         <div className="rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-4">
-          <p className="text-sm text-slate-600 dark:text-slate-400">Email</p>
+          <p className="text-sm text-slate-600 dark:text-slate-400">{t("email")}</p>
           <p className="font-medium text-slate-900 dark:text-white">{inviteInfo?.email}</p>
         </div>
 
         <form className="space-y-4" onSubmit={handleAccept}>
           <div className="space-y-2">
-            <label className="text-xs uppercase tracking-[0.4em] text-slate-400">Password</label>
+            <label className="text-xs uppercase tracking-[0.4em] text-slate-400">{t("password")}</label>
             <input
               className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
               type="password"
@@ -128,7 +128,7 @@ export const InviteAcceptRoute = () => {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-xs uppercase tracking-[0.4em] text-slate-400">Repeat Password</label>
+            <label className="text-xs uppercase tracking-[0.4em] text-slate-400">{t("repeatPassword")}</label>
             <input
               className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
               type="password"

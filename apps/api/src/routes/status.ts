@@ -5,25 +5,33 @@ import { z } from "zod";
 import { maintenanceService } from "../services/maintenance/suppressor.js";
 
 const statusPlugin = async (fastify: FastifyInstance) => {
+
   // GET /status - List monitor statuses (frontend expects this endpoint)
-  fastify.get("/status", { preHandler: fastify.authenticate }, async () => {
+  fastify.get("/status", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async () => {
+    const { prisma } = await import("../db/prisma.js");
+    const { maintenanceService } = await import("../services/maintenance/suppressor.js");
+
     const monitors = await prisma.monitor.findMany({
       include: {
         checks: { orderBy: { checkedAt: "desc" }, take: 1 },
         incidents: { orderBy: { startedAt: "desc" }, take: 1 },
+        group: true,
+        tags: true,
       },
     });
-    
+
     const results = await Promise.all(
       monitors.map(async (monitor: typeof monitors[number]) => {
         const inMaintenance = await maintenanceService.isSuppressed(monitor.id);
         const latestCheck = monitor.checks[0];
         const payload = latestCheck?.payload as any;
+
         // Extract certificate metadata - it's directly in payload, not payload.meta
         const meta = monitor.kind === 'certificate' && payload ? {
           certificateExpiresAt: payload.certificateExpiresAt,
           certificateDaysLeft: payload.certificateDaysLeft,
         } : null;
+
         return {
           id: monitor.id,
           name: monitor.name,
@@ -36,7 +44,7 @@ const statusPlugin = async (fastify: FastifyInstance) => {
         };
       })
     );
-    
+
     return results;
   });
 
@@ -99,6 +107,11 @@ const statusPlugin = async (fastify: FastifyInstance) => {
     });
     if (!page) return reply.code(404).send({ message: "Not found" });
     return page;
+  });
+
+  // Test endpoint that requires WRITE permissions
+  fastify.post("/status/test-write", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request, reply) => {
+    return { message: "WRITE permission required and granted" };
   });
 };
 

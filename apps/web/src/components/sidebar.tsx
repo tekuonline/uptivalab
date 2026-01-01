@@ -28,7 +28,7 @@ export const Sidebar = () => {
     <aside className="glass-panel flex h-full w-64 flex-col rounded-3xl p-6">
       <div className="mb-10">
         <p className="text-xs uppercase tracking-[0.35em] text-slate-500 dark:text-slate-400">UptivaLab</p>
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Command Center</h1>
+        <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">{t("commandCenter")}</h1>
       </div>
       <nav className="space-y-2">
         {links.map((link) => (

@@ -1,0 +1,17 @@
+{
+  "name": "uptivalab-tests",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node tests/api/api-test-suite.js",
+    "test:api": "node tests/api/api-test-suite.js",
+    "test:e2e": "pnpm --filter uptivalab-e2e test",
+    "test:all": "npm run test:api && npm run test:e2e"
+  },
+  "dependencies": {
+    "axios": "^1.13.2",
+    "chai": "^6.2.2",
+    "mocha": "^11.7.5"
+  }
+}

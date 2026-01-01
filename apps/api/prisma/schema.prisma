@@ -39,13 +39,14 @@ model UserInvitation {
 }
 
 model ApiKey {
-  id         String   @id @default(cuid())
-  label      String
-  tokenHash  String
-  lastUsedAt DateTime?
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId     String
-  createdAt  DateTime @default(now())
+  id           String   @id @default(cuid())
+  label        String
+  tokenHash    String
+  permissions  String   @default("READ")
+  lastUsedAt   DateTime?
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  createdAt    DateTime @default(now())
 }
 
 model Monitor {

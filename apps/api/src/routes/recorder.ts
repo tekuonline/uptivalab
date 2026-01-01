@@ -4,8 +4,7 @@ import { z } from "zod";
 
 const recorderPlugin = async (fastify: FastifyInstance) => {
   // Get codegen command for manual recording
-  fastify.post("/recorder/codegen", async (request, reply) => {
-    await request.jwtVerify();
+  fastify.post("/recorder/codegen", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request, reply) => {
 
     const Body = z.object({
       url: z.string().url(),
@@ -29,8 +28,7 @@ const recorderPlugin = async (fastify: FastifyInstance) => {
   });
 
   // Parse Playwright-generated code into steps
-  fastify.post("/recorder/parse", async (request, reply) => {
-    await request.jwtVerify();
+  fastify.post("/recorder/parse", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request, reply) => {
 
     const Body = z.object({
       code: z.string(),

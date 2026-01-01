@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTranslation } from "../hooks/use-translation.js";
 
 interface UptimeBarProps {
   checks: Array<{ status: string; checkedAt: string }>;
@@ -6,6 +7,7 @@ interface UptimeBarProps {
 }
 
 export const UptimeBar = ({ checks, hours = 24 }: UptimeBarProps) => {
+  const { t } = useTranslation();
   const segments = useMemo(() => {
     // Filter checks from the last X hours
     const now = new Date();
@@ -27,7 +29,7 @@ export const UptimeBar = ({ checks, hours = 24 }: UptimeBarProps) => {
   if (segments.length === 0) {
     return (
       <div className="h-7 w-full rounded flex items-center justify-center bg-slate-800/50">
-        <span className="text-xs text-slate-500">No data</span>
+        <span className="text-xs text-slate-500">{t("noData")}</span>
       </div>
     );
   }

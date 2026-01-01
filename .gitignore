@@ -2,6 +2,7 @@
 node_modules
 .pnpm-store
 pnpm-debug.log*
+package-lock.json
 
 # Environment Variables
 .env
@@ -15,11 +16,20 @@ build
 .cache
 *.tsbuildinfo
 
+# Generated/Transpiled JS files in TypeScript projects
+apps/web/src/**/*.js
+apps/web/src/**/*.jsx
+!apps/web/src/**/*.config.js
+!apps/web/src/**/*.setup.js
+
 # Testing
 coverage
 playwright-report
 blob-report
 test-results
+tests/**/*.log
+tests/**/node_modules
+tests/test-credentials.json
 
 # Logs
 logs

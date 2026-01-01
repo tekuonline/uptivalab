@@ -51,7 +51,7 @@ export const PublicStatusRoute = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-slate-600 dark:text-slate-400">Loading status page...</p>
+        <p className="text-slate-600 dark:text-slate-400">{t("loadingStatusPage")}</p>
       </div>
     );
   }
@@ -61,8 +61,8 @@ export const PublicStatusRoute = () => {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="max-w-md text-center">
           <XCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Status Page Not Found</h1>
-          <p className="text-slate-600 dark:text-slate-400">The status page you're looking for doesn't exist.</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">{t("statusPageNotFound")}</h1>
+          <p className="text-slate-600 dark:text-slate-400">{t("statusPageNotFoundMessage")}</p>
         </Card>
       </div>
     );
@@ -107,7 +107,7 @@ export const PublicStatusRoute = () => {
 
         {/* Monitors */}
         <div className="space-y-4">
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Services</h2>
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">{t("services")}</h2>
           {data.monitors.map((monitor) => (
             <Card key={monitor.id} className="flex items-center justify-between">
               <div className="flex-1">
@@ -123,7 +123,7 @@ export const PublicStatusRoute = () => {
                   <p className="text-sm font-semibold text-slate-900 dark:text-white">
                     {monitor.uptimePercentage.toFixed(2)}%
                   </p>
-                  <p className="text-xs text-slate-600 dark:text-slate-400">Uptime</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">{t("uptime")}</p>
                 </div>
                 {(monitor as any).kind === "certificate" && (monitor as any).meta?.certificateDaysLeft !== undefined && (
                   <div className="text-right">
@@ -136,15 +136,15 @@ export const PublicStatusRoute = () => {
                     }`}>
                       🔒 {(monitor as any).meta.certificateDaysLeft}d
                     </p>
-                    <p className="text-xs text-slate-600 dark:text-slate-400">Cert Expiry</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400">{t("certExpiry")}</p>
                   </div>
                 )}
-                <StatusBadge status={monitor.status as "up" | "down" | "pending"} />
+                <StatusBadge status={monitor.status as "up" | "down" | "pending" | "paused"} />
               </div>
             </Card>
           ))}
           {data.monitors.length === 0 && (
-            <p className="text-center text-slate-600 dark:text-slate-400 py-8">No services configured yet.</p>
+            <p className="text-center text-slate-600 dark:text-slate-400 py-8">{t("noServicesConfigured")}</p>
           )}
         </div>
 

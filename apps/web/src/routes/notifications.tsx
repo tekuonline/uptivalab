@@ -381,12 +381,12 @@ export const NotificationsRoute = () => {
                 {testStatus.success ? (
                   <>
                     <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
-                    <p className="text-sm font-semibold text-green-700 dark:text-green-200">Test Successful!</p>
+                    <p className="text-sm font-semibold text-green-700 dark:text-green-200">{t("testSuccessful")}</p>
                   </>
                 ) : (
                   <>
                     <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
-                    <p className="text-sm font-semibold text-red-700 dark:text-red-200">Test Failed</p>
+                    <p className="text-sm font-semibold text-red-700 dark:text-red-200">{t("testFailed")}</p>
                   </>
                 )}
               </div>

@@ -1,0 +1,2861 @@
+{
+	"info": {
+		"_postman_id": "b08fa7ab-38f8-4323-953d-a87d96a6864d",
+		"name": "UptivaLab API",
+		"description": "Complete API collection for UptivaLab monitoring platform",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "39347459",
+		"_collection_link": "https://test55-2283.postman.co/workspace/uptivlab~4fd09c49-0ff6-4c18-88f6-9e5888d1be48/collection/39347459-b08fa7ab-38f8-4323-953d-a87d96a6864d?action=share&source=collection_link&creator=39347459"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Check Setup Needed",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/auth/setup-needed",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"setup-needed"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Setup First Admin User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"SecurePassword123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/setup",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"setup"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Register User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"SecurePassword123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"register"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('jwt_token', response.token);",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"admin@uptivalab.com\",\n  \"password\": \"Pass1234!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Users",
+			"item": [
+				{
+					"name": "List Users",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get User by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/{{user_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{user_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update User Role",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"role\": \"VIEWER\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/{{user_id}}/role",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{user_id}}",
+								"role"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Invitations",
+			"item": [
+				{
+					"name": "List Invitations",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('invitation_id', response.id);",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/invitations",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"invitations"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Invitation",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('invitation_id', response.id);",
+									"    pm.collectionVariables.set('invitation_token', response.token);",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{$randomEmail}}\",\n  \"role\": \"VIEWER\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/invitations",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"invitations"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Invitation by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/invitations/{{invitation_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"invitations",
+								"{{invitation_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Verify Invitation Token",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/invitations/verify/{{invitation_token}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"invitations",
+								"verify",
+								"{{invitation_token}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Accept Invitation",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"token\": \"{{invitation_token}}\",\n  \"password\": \"NewUserPassword123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/invitations/accept",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"invitations",
+								"accept"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Invitation",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/invitations/{{invitation_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"invitations",
+								"{{invitation_id}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Monitors",
+			"item": [
+				{
+					"name": "List Monitors (JWT Auth)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response is an array\", function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.be.an('array');",
+									"});",
+									"",
+									"pm.test(\"Monitor objects have required properties\", function () {",
+									"    const response = pm.response.json();",
+									"    if (response.length > 0) {",
+									"        const monitor = response[0];",
+									"        pm.expect(monitor).to.have.property('id');",
+									"        pm.expect(monitor).to.have.property('name');",
+									"        pm.expect(monitor).to.have.property('kind');",
+									"        pm.expect(monitor).to.have.property('status');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/monitors",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"monitors"
+							]
+						}
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{jwt_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/monitors",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"monitors"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "content-type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "[\n  {\n    \"id\": \"cmjv4r9hk0001fgw7eqdlpuvu\",\n    \"name\": \"API Health Check\",\n    \"kind\": \"http\",\n    \"config\": {\n      \"method\": \"GET\",\n      \"expectedStatusCodes\": [200]\n    },\n    \"interval\": 60000,\n    \"timeout\": 30000,\n    \"paused\": false,\n    \"status\": \"up\",\n    \"group\": null,\n    \"tags\": [],\n    \"latestCheck\": {\n      \"status\": \"up\",\n      \"responseTime\": 245,\n      \"timestamp\": \"2026-01-01T07:36:00.000Z\"\n    },\n    \"incident\": null,\n    \"inMaintenance\": false,\n    \"createdAt\": \"2026-01-01T07:35:16.424Z\",\n    \"updatedAt\": \"2026-01-01T07:35:16.424Z\"\n  }\n]"
+						}
+					]
+				},
+				{
+					"name": "List Monitors (Simple) (JWT Auth)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/monitors/list",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"monitors",
+								"list"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Monitor - HTTP",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('monitor_id', response.id);",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"avg\",\n    \"interval\": 60000,\n    \"timeout\": 48000,\n    \"kind\": \"http\",\n    \"config\": {\n        \"url\": \"https://avangrid.com\",\n        \"method\": \"GET\",\n        \"ignoreTls\": false,\n        \"maxRedirects\": 10,\n        \"acceptedStatusCodes\": \"200-299\",\n        \"upsideDown\": false\n    },\n    \"notificationIds\": []\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/monitors",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"monitors"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Monitor - DNS",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"DNS Monitor\",\n    \"interval\": 60000,\n    \"timeout\": 48000,\n    \"kind\": \"dns\",\n    \"config\": {\n        \"record\": \"google.com\",\n        \"type\": \"A\"\n    },\n    \"notificationIds\": [\n        \"cmjc8wifi00015hh9luf42c3z\"\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/monitors",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"monitors"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Monitor - TCP Port",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Port Monitor\",\n    \"interval\": 60000,\n    \"timeout\": 48000,\n    \"kind\": \"tcp\",\n    \"config\": {\n        \"host\": \"10.0.1.1\",\n        \"port\": 22\n    },\n    \"notificationIds\": [\n        \"cmjc8wifi00015hh9luf42c3z\"\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/monitors",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"monitors"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Docker Resources",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    ",
+									"    // Check if there are containers in the response",
+									"    if (response.containers && response.containers.length > 0) {",
+									"        // Save the ID of the very first container in the array",
+									"        const firstContainerName = response.containers[0].name;",
+									"        ",
+									"        pm.collectionVariables.set(\"docker_container_name\", firstContainerName);",
+									"        ",
+									"        console.log(\"Saved first container Name:\", firstContainerName);",
+									"    } else {",
+									"        console.log(\"No containers found in the response.\");",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Pragma",
+								"value": "no-cache"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbWprMHRubGgwMDNldjRtZ25nMzV1NnB0IiwiZW1haWwiOiJhZG1pbkB1cHRpdmFsYWIuY29tIiwiaWF0IjoxNzY2NTgyNTUyfQ.hJe-kbVIgpzUJk8neWSjoJSs3nmTmVVmzeDFkxlt-4M"
+							},
+							{
+								"key": "Sec-Fetch-Site",
+								"value": "same-site"
+							},
+							{
+								"key": "Accept-Language",
+								"value": "en-US,en;q=0.9"
+							},
+							{
+								"key": "Cache-Control",
+								"value": "no-cache"
+							},
+							{
+								"key": "Sec-Fetch-Mode",
+								"value": "cors"
+							},
+							{
+								"key": "Accept-Encoding",
+								"value": "gzip, deflate"
+							},
+							{
+								"key": "Origin",
+								"value": "http://localhost:4173"
+							},
+							{
+								"key": "Referer",
+								"value": "http://localhost:4173/"
+							},
+							{
+								"key": "User-Agent",
+								"value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.1 Safari/605.1.15"
+							},
+							{
+								"key": "Connection",
+								"value": "keep-alive"
+							},
+							{
+								"key": "Sec-Fetch-Dest",
+								"value": "empty"
+							},
+							{
+								"key": "Priority",
+								"value": "u=3, i"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/settings/docker-hosts/{{docker_host_id}}/resources",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"settings",
+								"docker-hosts",
+								"{{docker_host_id}}",
+								"resources"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Monitor - Docker",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Docker Test\",\n    \"interval\": 60000,\n    \"timeout\": 48000,\n    \"kind\": \"docker\",\n    \"config\": {\n        \"containerName\": \"{{docker_container_name}}\"\n    },\n    \"notificationIds\": [\n        \"cmjc8wifi00015hh9luf42c3z\"\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/monitors",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"monitors"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Monitor by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/monitors/{{monitor_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"monitors",
+								"{{monitor_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Monitor",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Monitor Name\",\n  \"interval\": 30000\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/monitors/{{monitor_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"monitors",
+								"{{monitor_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Monitor History",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/monitors/{{monitor_id}}/history",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"monitors",
+								"{{monitor_id}}",
+								"history"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Monitor Uptime",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/monitors/{{monitor_id}}/uptime",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"monitors",
+								"{{monitor_id}}",
+								"uptime"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Pause Monitor",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/monitors/{{monitor_id}}/pause",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"monitors",
+								"{{monitor_id}}",
+								"pause"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Resume Monitor",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/monitors/{{monitor_id}}/resume",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"monitors",
+								"{{monitor_id}}",
+								"resume"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Run Monitor Check",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/monitors/{{monitor_id}}/run",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"monitors",
+								"{{monitor_id}}",
+								"run"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Monitor",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/monitors/{{monitor_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"monitors",
+								"{{monitor_id}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Status",
+			"item": [
+				{
+					"name": "Get Status (API Key Auth)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{api_key}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"status"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Status (JWT Auth)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/status/list",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"status",
+								"list"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Monitor Status History",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/status/{{monitor_id}}/history",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"status",
+								"{{monitor_id}}",
+								"history"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Test Write Permissions",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/status/test-write",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"status",
+								"test-write"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Heartbeats",
+			"item": [
+				{
+					"name": "Create Heartbeat Monitor",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Test Heartbeat Monitor\",\n    \"interval\": 60000,\n    \"timeout\": 48000,\n    \"kind\": \"push\",\n    \"config\": {\n        \"heartbeatSeconds\": 300\n    },\n    \"notificationIds\": [\n        \"cmjc8wifi00015hh9luf42c3z\"\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/heartbeats",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"heartbeats"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Send Heartbeat",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/heartbeat/{{heartbeat_token}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"heartbeat",
+								"{{heartbeat_token}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Heartbeat Monitors",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/heartbeats",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"heartbeats"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Heartbeat History",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/heartbeats/{{heartbeat_id}}/history",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"heartbeats",
+								"{{heartbeat_id}}",
+								"history"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Heartbeat Monitor",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/heartbeats/{{heartbeat_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"heartbeats",
+								"{{heartbeat_id}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Incidents",
+			"item": [
+				{
+					"name": "List Incidents",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/incidents?monitorId={{monitor_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"incidents"
+							],
+							"query": [
+								{
+									"key": "monitorId",
+									"value": "{{monitor_id}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Incidents (Simple)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/incidents/list",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"incidents",
+								"list"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Incident Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/incidents/{{incident_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"incidents",
+								"{{incident_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Incident",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"INVESTIGATING\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/incidents/{{incident_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"incidents",
+								"{{incident_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add Incident Event",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"message\": \"Investigating the issue\",\n  \"status\": \"investigating\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/incidents/{{incident_id}}/events",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"incidents",
+								"{{incident_id}}",
+								"events"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Maintenance",
+			"item": [
+				{
+					"name": "List Maintenance Windows",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/maintenance",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"maintenance"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Maintenance Window",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('maintenance_id', response.id);",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Server Maintenance\",\n  \"description\": \"Scheduled server updates\",\n  \"startsAt\": \"2024-12-25T02:00:00Z\",\n  \"endsAt\": \"2024-12-25T04:00:00Z\",\n  \"monitorIds\": [\"{{monitor_id}}\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/maintenance",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"maintenance"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Maintenance Window",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Maintenance\",\n  \"endTime\": \"2024-12-25T05:00:00Z\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/maintenance/{{maintenance_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"maintenance",
+								"{{maintenance_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Maintenance Window",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/maintenance/{{maintenance_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"maintenance",
+								"{{maintenance_id}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Notifications",
+			"item": [
+				{
+					"name": "List Notification Channels",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/notifications",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"notifications"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Email Notification",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('notification_id', response.id);",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Admin Email\",\n  \"type\": \"email\",\n  \"config\": {\n    \"to\": \"admin@example.com\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/notifications",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"notifications"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Discord Notification",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Discord Alerts\",\n  \"type\": \"discord\",\n  \"config\": {\n    \"webhookUrl\": \"https://discord.com/api/webhooks/...\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/notifications",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"notifications"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Test Notification Channel",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"tek\",\n    \"type\": \"ntfy\",\n    \"config\": {\n        \"topic\": \"teknepal\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/notifications/test",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"notifications",
+								"test"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Notification Channel",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Channel Name\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/notifications/{{notification_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"notifications",
+								"{{notification_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Notification Channel",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/notifications/{{notification_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"notifications",
+								"{{notification_id}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Status Pages",
+			"item": [
+				{
+					"name": "List Status Pages",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/status-pages",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"status-pages"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Status Page",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Generate a random alphanumeric string of desired length (here: 10 characters)",
+									"const length = 7;  // Change this to any length >= 3 you want",
+									"let slug = '';",
+									"const characters = 'abcdefghijklmnopqrstuvwxyz';",
+									"",
+									"for (let i = 0; i < length; i++) {",
+									"    slug += characters.charAt(Math.floor(Math.random() * characters.length));",
+									"}",
+									"",
+									"// Set it as an environment or collection variable (e.g., environment for reuse)",
+									" pm.collectionVariables.set('status_page_slug', slug);"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('status_page_id', response.id);",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Public Status Page\",\n  \"slug\": \"{{status_page_slug}}\",\n  \"description\": \"Service status and uptime\",\n  \"monitorIds\": [\"{{monitor_id}}\"],\n  \"isPublic\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/status-pages",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"status-pages"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Status Page",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/status-pages/{{status_page_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"status-pages",
+								"{{status_page_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Public Status Page",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/public/status/{{status_page_slug}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"public",
+								"status",
+								"{{status_page_slug}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Status Page",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Status Page\",\n  \"description\": \"Updated description\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/status-pages/{{status_page_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"status-pages",
+								"{{status_page_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Public Status Page",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/status/public/{{status_page_slug}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"status",
+								"public",
+								"{{status_page_slug}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Status Page",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/status-pages/{{status_page_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"status-pages",
+								"{{status_page_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Public Status Page Monitor History",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/public/status/{{status_page_slug}}/history/{{monitor_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"public",
+								"status",
+								"{{status_page_slug}}",
+								"history",
+								"{{monitor_id}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Heartbeats",
+			"item": [
+				{
+					"name": "List Heartbeat Monitors",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/heartbeats",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"heartbeats"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Heartbeat Monitor",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"My App Heartbeat\",\n  \"heartbeatSeconds\": 300,\n  \"heartbeatEvery\": 60,\n  \"monitorId\": \"cmjc9powl003y5hh9bvrgobpb\" \n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/heartbeats",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"heartbeats"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Heartbeat Monitor",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/heartbeats/{{heartbeat_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"heartbeats",
+								"{{heartbeat_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Send Heartbeat Ping",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"up\",\n  \"message\": \"Service is healthy\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/heartbeat/{{heartbeat_token}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"heartbeat",
+								"{{heartbeat_token}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Recorder",
+			"item": [
+				{
+					"name": "Generate Playwright Codegen Command",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"url\": \"https://example.com\",\n  \"browser\": \"chromium\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/recorder/codegen",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"recorder",
+								"codegen"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Parse Playwright Code",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"code\": \"await page.goto('https://example.com');\\nawait page.click('button');\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/recorder/parse",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"recorder",
+								"parse"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Cloudflare Tunnel",
+			"item": [
+				{
+					"name": "Get Tunnel Status",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/cloudflare-tunnel/status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"cloudflare-tunnel",
+								"status"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Start Tunnel",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/cloudflare-tunnel/start",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"cloudflare-tunnel",
+								"start"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Stop Tunnel",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/cloudflare-tunnel/stop",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"cloudflare-tunnel",
+								"stop"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Restart Tunnel",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/cloudflare-tunnel/restart",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"cloudflare-tunnel",
+								"restart"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Settings & API Keys",
+			"item": [
+				{
+					"name": "Get Settings",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has settings object\", function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.be.an('object');",
+									"});",
+									"",
+									"pm.test(\"Response contains expected settings keys\", function () {",
+									"    const response = pm.response.json();",
+									"    // Check for common settings keys",
+									"    const expectedKeys = ['smtpHost', 'smtpPort', 'serverTimezone'];",
+									"    expectedKeys.forEach(key => {",
+									"        if (response.hasOwnProperty(key)) {",
+									"            pm.expect(response[key]).to.exist;",
+									"        }",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/settings",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"settings"
+							]
+						}
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{jwt_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/settings",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"settings"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "content-type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"smtpHost\": \"smtp.example.com\",\n  \"smtpPort\": 587,\n  \"smtpUser\": \"uptivalab\",\n  \"serverTimezone\": \"America/New_York\",\n  \"dockerSocketPath\": \"/var/run/docker.sock\",\n  \"appriseUrl\": \"http://apprise:8000\",\n  \"playwrightWsEndpoint\": \"ws://playwright:9222/\"\n}"
+						}
+					]
+				},
+				{
+					"name": "List API Keys",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/settings/api-keys",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"settings",
+								"api-keys"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create API Key",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('api_key', response.token);",
+									"    pm.collectionVariables.set('api_key_id', response.id);",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"label\": \"My API Key\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/settings/api-keys",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"settings",
+								"api-keys"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete API Key",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/settings/api-keys/{{api_key_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"settings",
+								"api-keys",
+								"{{api_key_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Docker Hosts",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/settings/docker-hosts",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"settings",
+								"docker-hosts"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add Docker Host",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('docker_host_id', response.id);",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Local Docker\",\n  \"url\": \"unix:///var/run/docker.sock\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/settings/docker-hosts",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"settings",
+								"docker-hosts"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Remote Browsers",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/settings/remote-browsers",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"settings",
+								"remote-browsers"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add Remote Browser",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Browserless.io\",\n  \"url\": \"https://chrome.browserless.io\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/settings/remote-browsers",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"settings",
+								"remote-browsers"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Change Password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"currentPassword\": \"CurrentPassword123!\",\n  \"newPassword\": \"NewPassword123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/settings/change-password",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"settings",
+								"change-password"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Batch Update Settings",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"smtpHost\": \"smtp.example.com\",\n  \"smtpPort\": 587,\n  \"serverTimezone\": \"America/New_York\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/settings/batch",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"settings",
+								"batch"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Proxies",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/settings/proxies",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"settings",
+								"proxies"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Proxy",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('proxy_id', response.id);",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"My Proxy\",\n  \"protocol\": \"http\",\n  \"host\": \"proxy.example.com\",\n  \"port\": 8080,\n  \"auth\": {\n    \"username\": \"proxyuser\",\n    \"password\": \"proxypass\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/settings/proxies",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"settings",
+								"proxies"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Proxy",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/settings/proxies/{{proxy_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"settings",
+								"proxies",
+								"{{proxy_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Check for Updates",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/settings/check-updates",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"settings",
+								"check-updates"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Test Docker Host Connection",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/settings/docker-hosts/{{docker_host_id}}/test",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"settings",
+								"docker-hosts",
+								"{{docker_host_id}}",
+								"test"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Test Remote Browser Connection",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"url\": \"http://localhost:9222\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/settings/remote-browsers/test",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"settings",
+								"remote-browsers",
+								"test"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Miscellaneous",
+			"item": [
+				{
+					"name": "Get Robots.txt",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/robots.txt",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"robots.txt"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"health"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"requests": {},
+				"exec": [
+					"// Add any pre-request scripts here"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"requests": {},
+				"exec": [
+					"// Add any test scripts here"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "{{base_url_{{environment}}}}"
+		},
+		{
+			"key": "jwt_token",
+			"value": ""
+		},
+		{
+			"key": "api_key",
+			"value": ""
+		},
+		{
+			"key": "user_id",
+			"value": ""
+		},
+		{
+			"key": "monitor_id",
+			"value": ""
+		},
+		{
+			"key": "invitation_id",
+			"value": ""
+		},
+		{
+			"key": "invitation_token",
+			"value": ""
+		},
+		{
+			"key": "heartbeat_id",
+			"value": ""
+		},
+		{
+			"key": "heartbeat_token",
+			"value": ""
+		},
+		{
+			"key": "incident_id",
+			"value": ""
+		},
+		{
+			"key": "maintenance_id",
+			"value": ""
+		},
+		{
+			"key": "notification_id",
+			"value": ""
+		},
+		{
+			"key": "status_page_id",
+			"value": ""
+		},
+		{
+			"key": "status_page_slug",
+			"value": ""
+		},
+		{
+			"key": "api_key_id",
+			"value": ""
+		},
+		{
+			"key": "docker_host_id",
+			"value": ""
+		},
+		{
+			"key": "docker_container_id",
+			"value": ""
+		},
+		{
+			"key": "docker_container_name",
+			"value": ""
+		},
+		{
+			"key": "proxy_id",
+			"value": ""
+		},
+		{
+			"key": "slug",
+			"value": ""
+		},
+		{
+			"key": "environment",
+			"value": "development"
+		},
+		{
+			"key": "base_url_dev",
+			"value": "http://localhost:8080/api"
+		},
+		{
+			"key": "base_url_staging",
+			"value": "https://api-staging.uptivalab.com/api"
+		},
+		{
+			"key": "base_url_prod",
+			"value": "https://api.uptivalab.com/api"
+		},
+		{
+			"key": "admin_email_dev",
+			"value": "admin@example.com"
+		},
+		{
+			"key": "admin_email_staging",
+			"value": "admin@staging.uptivalab.com"
+		},
+		{
+			"key": "admin_email_prod",
+			"value": "admin@uptivalab.com"
+		},
+		{
+			"key": "test_monitor_url",
+			"value": "https://httpbin.org/status/200"
+		}
+	]
+}

@@ -4,6 +4,7 @@ interface AuthContextValue {
   token: string | null;
   isAuthenticated: boolean;
   setupNeeded: boolean | null;
+  user: { id: string; email: string; role: string } | null;
   login: (value: { email: string; password: string }) => Promise<void>;
   register: (value: { email: string; password: string }) => Promise<void>;
   setup: (value: { email: string; password: string }) => Promise<void>;
@@ -19,6 +20,7 @@ import { API_BASE } from "../lib/config.js";
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(STORAGE_KEY));
   const [setupNeeded, setSetupNeeded] = useState<boolean | null>(null);
+  const [user, setUser] = useState<{ id: string; email: string; role: string } | null>(null);
 
   useEffect(() => {
     if (token) {
@@ -27,6 +29,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       localStorage.removeItem(STORAGE_KEY);
     }
   }, [token]);
+
+  const fetchUser = useCallback(async () => {
+    if (!token) {
+      setUser(null);
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${API_BASE}/api/users/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
+      } else {
+        setUser(null);
+      }
+    } catch (error) {
+      console.error("Failed to fetch user:", error);
+      setUser(null);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    fetchUser();
+  }, [fetchUser]);
 
   // Check setup status on mount
   useEffect(() => {
@@ -72,8 +100,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = useCallback(() => setToken(null), []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ token, isAuthenticated: Boolean(token), setupNeeded, login, register, setup, logout, checkSetupNeeded }),
-    [login, logout, register, setup, token, setupNeeded, checkSetupNeeded]
+    () => ({ token, isAuthenticated: Boolean(token), setupNeeded, user, login, register, setup, logout, checkSetupNeeded }),
+    [login, logout, register, setup, token, setupNeeded, user, checkSetupNeeded]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

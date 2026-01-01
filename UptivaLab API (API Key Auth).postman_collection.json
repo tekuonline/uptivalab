@@ -1,0 +1,1251 @@
+{
+	"info": {
+		"_postman_id": "a1b2c3d4-5678-90ab-cdef-123456789abc",
+		"name": "UptivaLab API (API Key Auth)",
+		"description": "Complete API collection for UptivaLab monitoring platform using API Key authentication instead of JWT tokens.\n\n**Setup Instructions:**\n1. Login using JWT to get admin access\n2. Create API keys via the Settings endpoints\n3. Set the `api_key_read` and `api_key_write` variables\n4. Use API key authenticated endpoints\n\n**Permission Model:**\n- READ API keys: Can access GET endpoints (list monitors, view status, etc.)\n- WRITE API keys: Can access all endpoints including POST, PUT, DELETE operations",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Setup - Get API Keys",
+			"item": [
+				{
+					"name": "1. Login (JWT)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('jwt_token', response.token);",
+									"    console.log('✅ JWT token saved. Use it to create API keys.');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"admin@uptivalab.com\",\n  \"password\": \"Pass1234!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login to get JWT token. This token is needed to create API keys."
+					},
+					"response": []
+				},
+				{
+					"name": "2. Create READ API Key",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('api_key_read', response.token);",
+									"    console.log('✅ READ API Key created:', response.token);",
+									"    console.log('💡 Copy this key to the collection variable \"api_key_read\"');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"label\": \"Postman READ Key\",\n  \"permissions\": \"READ\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/settings/api-keys",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"settings",
+								"api-keys"
+							]
+						},
+						"description": "Create a READ-only API key. This key can access GET endpoints only."
+					},
+					"response": []
+				},
+				{
+					"name": "3. Create WRITE API Key",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('api_key_write', response.token);",
+									"    console.log('✅ WRITE API Key created:', response.token);",
+									"    console.log('💡 Copy this key to the collection variable \"api_key_write\"');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"label\": \"Postman WRITE Key\",\n  \"permissions\": \"WRITE\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/settings/api-keys",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"settings",
+								"api-keys"
+							]
+						},
+						"description": "Create a WRITE API key. This key can access all endpoints including POST, PUT, DELETE operations."
+					},
+					"response": []
+				},
+				{
+					"name": "4. List All API Keys",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/settings/api-keys",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"settings",
+								"api-keys"
+							]
+						},
+						"description": "List all API keys for the authenticated user."
+					},
+					"response": []
+				}
+			],
+			"description": "Use these requests to set up API keys for the collection. Run them in order:\n1. Login to get JWT token\n2. Create READ API key\n3. Create WRITE API key\n4. Copy the keys to collection variables"
+		},
+		{
+			"name": "Monitors (READ)",
+			"item": [
+				{
+					"name": "List Monitors",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_read}}",
+								"description": "READ API Key"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/monitors",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"monitors"
+							]
+						},
+						"description": "List all monitors. Requires READ permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Monitor by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_read}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/monitors/{{monitor_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"monitors",
+								"{{monitor_id}}"
+							]
+						},
+						"description": "Get details of a specific monitor. Requires READ permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Monitor History",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_read}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/monitors/{{monitor_id}}/history?limit=100",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"monitors",
+								"{{monitor_id}}",
+								"history"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "100"
+								}
+							]
+						},
+						"description": "Get check history for a monitor. Requires READ permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Monitor Uptime",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_read}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/monitors/{{monitor_id}}/uptime?period=24h",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"monitors",
+								"{{monitor_id}}",
+								"uptime"
+							],
+							"query": [
+								{
+									"key": "period",
+									"value": "24h"
+								}
+							]
+						},
+						"description": "Get uptime statistics for a monitor. Requires READ permission."
+					},
+					"response": []
+				}
+			],
+			"description": "Monitor READ operations using API key with READ permission."
+		},
+		{
+			"name": "Monitors (WRITE)",
+			"item": [
+				{
+					"name": "Create Monitor",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_write}}",
+								"description": "WRITE API Key"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Example HTTP Monitor\",\n  \"kind\": \"http\",\n  \"config\": {\n    \"url\": \"https://httpbin.org/status/200\",\n    \"method\": \"GET\",\n    \"expectedStatusCodes\": [200]\n  },\n  \"interval\": 60000,\n  \"timeout\": 30000\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/monitors",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"monitors"
+							]
+						},
+						"description": "Create a new monitor. Requires WRITE permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Monitor",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_write}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Monitor Name\",\n  \"interval\": 120000\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/monitors/{{monitor_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"monitors",
+								"{{monitor_id}}"
+							]
+						},
+						"description": "Update an existing monitor. Requires WRITE permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Run Monitor Check",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_write}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/monitors/{{monitor_id}}/run",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"monitors",
+								"{{monitor_id}}",
+								"run"
+							]
+						},
+						"description": "Manually trigger a monitor check. Requires WRITE permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Pause Monitor",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_write}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/monitors/{{monitor_id}}/pause",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"monitors",
+								"{{monitor_id}}",
+								"pause"
+							]
+						},
+						"description": "Pause a monitor. Requires WRITE permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Resume Monitor",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_write}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/monitors/{{monitor_id}}/resume",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"monitors",
+								"{{monitor_id}}",
+								"resume"
+							]
+						},
+						"description": "Resume a paused monitor. Requires WRITE permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Monitor",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_write}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/monitors/{{monitor_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"monitors",
+								"{{monitor_id}}"
+							]
+						},
+						"description": "Delete a monitor. Requires WRITE permission."
+					},
+					"response": []
+				}
+			],
+			"description": "Monitor WRITE operations using API key with WRITE permission."
+		},
+		{
+			"name": "Status (READ)",
+			"item": [
+				{
+					"name": "Get System Status",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_read}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"status"
+							]
+						},
+						"description": "Get overall system status. Requires READ permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Health Check (No Auth)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"health"
+							]
+						},
+						"description": "Public health check endpoint. No authentication required."
+					},
+					"response": []
+				}
+			],
+			"description": "Status and health check endpoints."
+		},
+		{
+			"name": "Incidents (READ)",
+			"item": [
+				{
+					"name": "List Incidents",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_read}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/incidents",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"incidents"
+							]
+						},
+						"description": "List all incidents. Requires READ permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Incident by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_read}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/incidents/{{incident_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"incidents",
+								"{{incident_id}}"
+							]
+						},
+						"description": "Get details of a specific incident. Requires READ permission."
+					},
+					"response": []
+				}
+			],
+			"description": "Incident READ operations."
+		},
+		{
+			"name": "Incidents (WRITE)",
+			"item": [
+				{
+					"name": "Acknowledge Incident",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_write}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/incidents/{{incident_id}}/acknowledge",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"incidents",
+								"{{incident_id}}",
+								"acknowledge"
+							]
+						},
+						"description": "Acknowledge an incident. Requires WRITE permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Resolve Incident",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_write}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/incidents/{{incident_id}}/resolve",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"incidents",
+								"{{incident_id}}",
+								"resolve"
+							]
+						},
+						"description": "Resolve an incident. Requires WRITE permission."
+					},
+					"response": []
+				}
+			],
+			"description": "Incident WRITE operations."
+		},
+		{
+			"name": "Notifications (READ)",
+			"item": [
+				{
+					"name": "List Notification Channels",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_read}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/notifications/channels",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"notifications",
+								"channels"
+							]
+						},
+						"description": "List all notification channels. Requires READ permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Notification Channel",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_read}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/notifications/channels/{{channel_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"notifications",
+								"channels",
+								"{{channel_id}}"
+							]
+						},
+						"description": "Get a specific notification channel. Requires READ permission."
+					},
+					"response": []
+				}
+			],
+			"description": "Notification READ operations."
+		},
+		{
+			"name": "Notifications (WRITE)",
+			"item": [
+				{
+					"name": "Create Notification Channel",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_write}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Slack Alerts\",\n  \"kind\": \"slack\",\n  \"config\": {\n    \"webhookUrl\": \"https://hooks.slack.com/services/YOUR/WEBHOOK/URL\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/notifications/channels",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"notifications",
+								"channels"
+							]
+						},
+						"description": "Create a notification channel. Requires WRITE permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Notification Channel",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_write}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Channel Name\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/notifications/channels/{{channel_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"notifications",
+								"channels",
+								"{{channel_id}}"
+							]
+						},
+						"description": "Update a notification channel. Requires WRITE permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Notification Channel",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_write}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/notifications/channels/{{channel_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"notifications",
+								"channels",
+								"{{channel_id}}"
+							]
+						},
+						"description": "Delete a notification channel. Requires WRITE permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Test Notification Channel",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_write}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/notifications/channels/{{channel_id}}/test",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"notifications",
+								"channels",
+								"{{channel_id}}",
+								"test"
+							]
+						},
+						"description": "Send a test notification. Requires WRITE permission."
+					},
+					"response": []
+				}
+			],
+			"description": "Notification WRITE operations."
+		},
+		{
+			"name": "Maintenance Windows (READ)",
+			"item": [
+				{
+					"name": "List Maintenance Windows",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_read}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/maintenance",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"maintenance"
+							]
+						},
+						"description": "List all maintenance windows. Requires READ permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Maintenance Window",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_read}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/maintenance/{{maintenance_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"maintenance",
+								"{{maintenance_id}}"
+							]
+						},
+						"description": "Get a specific maintenance window. Requires READ permission."
+					},
+					"response": []
+				}
+			],
+			"description": "Maintenance window READ operations."
+		},
+		{
+			"name": "Maintenance Windows (WRITE)",
+			"item": [
+				{
+					"name": "Create Maintenance Window",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_write}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Server Maintenance\",\n  \"description\": \"Scheduled server maintenance\",\n  \"startTime\": \"2026-01-15T02:00:00Z\",\n  \"endTime\": \"2026-01-15T04:00:00Z\",\n  \"affectedMonitors\": []\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/maintenance",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"maintenance"
+							]
+						},
+						"description": "Create a maintenance window. Requires WRITE permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Maintenance Window",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_write}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Maintenance Window\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/maintenance/{{maintenance_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"maintenance",
+								"{{maintenance_id}}"
+							]
+						},
+						"description": "Update a maintenance window. Requires WRITE permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Maintenance Window",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_write}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/maintenance/{{maintenance_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"maintenance",
+								"{{maintenance_id}}"
+							]
+						},
+						"description": "Delete a maintenance window. Requires WRITE permission."
+					},
+					"response": []
+				}
+			],
+			"description": "Maintenance window WRITE operations."
+		},
+		{
+			"name": "API Key Management (WRITE)",
+			"item": [
+				{
+					"name": "List API Keys",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_write}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/settings/api-keys",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"settings",
+								"api-keys"
+							]
+						},
+						"description": "List all API keys for the authenticated user. Requires WRITE permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Create API Key",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_write}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"label\": \"New API Key\",\n  \"permissions\": \"READ\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/settings/api-keys",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"settings",
+								"api-keys"
+							]
+						},
+						"description": "Create a new API key. Requires WRITE permission."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete API Key",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_write}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/settings/api-keys/{{api_key_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"settings",
+								"api-keys",
+								"{{api_key_id}}"
+							]
+						},
+						"description": "Delete an API key. Requires WRITE permission."
+					},
+					"response": []
+				}
+			],
+			"description": "API key management operations. Note: API keys can also manage other API keys."
+		},
+		{
+			"name": "Test Permissions",
+			"item": [
+				{
+					"name": "Test READ Key on GET Endpoint",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"READ key should work on GET endpoint\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_read}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"status"
+							]
+						},
+						"description": "✅ This should succeed - READ key on GET endpoint"
+					},
+					"response": []
+				},
+				{
+					"name": "Test READ Key on POST Endpoint (Should Fail)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"READ key should fail on POST endpoint\", function () {",
+									"    pm.response.to.have.status(401);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_read}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/monitors/{{monitor_id}}/run",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"monitors",
+								"{{monitor_id}}",
+								"run"
+							]
+						},
+						"description": "❌ This should fail - READ key cannot access POST endpoints"
+					},
+					"response": []
+				},
+				{
+					"name": "Test WRITE Key on POST Endpoint",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"WRITE key should work on POST endpoint\", function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_write}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/monitors/{{monitor_id}}/run",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"monitors",
+								"{{monitor_id}}",
+								"run"
+							]
+						},
+						"description": "✅ This should succeed - WRITE key on POST endpoint"
+					},
+					"response": []
+				},
+				{
+					"name": "Test WRITE Key on GET Endpoint",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"WRITE key should work on GET endpoint\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "{{api_key_write}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/monitors",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"monitors"
+							]
+						},
+						"description": "✅ This should succeed - WRITE key also works on GET endpoints"
+					},
+					"response": []
+				}
+			],
+			"description": "Test requests to verify API key permissions are working correctly."
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080/api",
+			"type": "string"
+		},
+		{
+			"key": "jwt_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "api_key_read",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "api_key_write",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "monitor_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "incident_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "channel_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "maintenance_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "api_key_id",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

@@ -176,7 +176,7 @@ export default function SyntheticRecorder() {
 
                 {showCommand && (
                   <div className="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md p-3 space-y-2">
-                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Run this in your terminal:</p>
+                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">{t("runThisInTerminal")}</p>
                     <code className="block text-xs bg-black text-green-400 p-2 rounded overflow-x-auto">
                       {showCommand}
                     </code>

@@ -27,7 +27,9 @@ import {
   RefreshCw,
   Users,
   Mail,
-  UserPlus
+  UserPlus,
+  Download,
+  Upload
 } from "lucide-react";
 
 type SettingsTab = 
@@ -43,6 +45,7 @@ type SettingsTab =
   | "api-keys" 
   | "users"
   | "proxies" 
+  | "backup-restore"
   | "about";
 
 interface Settings {
@@ -70,6 +73,7 @@ interface Settings {
 interface ApiKey {
   id: string;
   label: string;
+  permissions?: string;
   token?: string;
   createdAt: string;
   lastUsedAt?: string | null;
@@ -124,7 +128,7 @@ interface Invitation {
 
 export const SettingsRoute = () => {
   const { t } = useTranslation();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { settings: globalSettings, updateSettings: updateGlobalSettings } = useSettings();
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [localSettings, setLocalSettings] = useState<Settings>({});
@@ -150,6 +154,7 @@ export const SettingsRoute = () => {
   // API Keys
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [newApiKeyLabel, setNewApiKeyLabel] = useState("");
+  const [newApiKeyPermissions, setNewApiKeyPermissions] = useState<"READ" | "WRITE">("READ");
   const [copiedKey, setCopiedKey] = useState("");
 
   // Docker Hosts
@@ -184,6 +189,12 @@ export const SettingsRoute = () => {
   // Cloudflare Tunnel state
   const [tunnelStatus, setTunnelStatus] = useState<{ running: boolean; installed: boolean } | null>(null);
   const [tunnelLoading, setTunnelLoading] = useState(false);
+
+  // Backup & Restore
+  const [exportPassword, setExportPassword] = useState("");
+  const [importPassword, setImportPassword] = useState("");
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [backupRestoreLoading, setBackupRestoreLoading] = useState(false);
 
   // Fetch Cloudflare Tunnel status
   const fetchTunnelStatus = async () => {
@@ -229,6 +240,13 @@ export const SettingsRoute = () => {
     fetchTunnelStatus();
   }, [globalSettings]);
 
+  // Reset API key permission to READ if user is not admin
+  useEffect(() => {
+    if (user && user.role !== "ADMIN" && newApiKeyPermissions === "WRITE") {
+      setNewApiKeyPermissions("READ");
+    }
+  }, [user, newApiKeyPermissions]);
+
   const saveSettings = async () => {
     setLoading(true);
     const tokenChanged = localSettings.cloudflareTunnelToken !== globalSettings.cloudflareTunnelToken;
@@ -270,6 +288,66 @@ export const SettingsRoute = () => {
     }
   };
 
+  // Backup & Restore functions
+  const exportSettings = async () => {
+    setBackupRestoreLoading(true);
+    try {
+      const data = await api.exportSettings(token, exportPassword || undefined);
+      
+      // Create and download file
+      const blob = new Blob([data], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `uptivalab-settings-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      alert("Settings exported successfully!");
+      setExportPassword("");
+    } catch (error) {
+      console.error("Failed to export settings:", error);
+      alert("Failed to export settings");
+    } finally {
+      setBackupRestoreLoading(false);
+    }
+  };
+
+  const importSettings = async () => {
+    if (!importFile) {
+      alert("Please select a file to import");
+      return;
+    }
+
+    if (!confirm("This will replace all your current settings and data. Are you sure you want to continue?")) {
+      return;
+    }
+
+    setBackupRestoreLoading(true);
+    try {
+      const fileContent = await importFile.text();
+      const result = await api.importSettings(token, fileContent, importPassword || undefined);
+      
+      if (result.success) {
+        alert("Settings imported successfully! Please refresh the page.");
+        // Reset form
+        setImportFile(null);
+        setImportPassword("");
+        // Optionally reload the page
+        window.location.reload();
+      } else {
+        alert(result.message || "Failed to import settings");
+      }
+    } catch (error) {
+      console.error("Failed to import settings:", error);
+      alert("Failed to import settings");
+    } finally {
+      setBackupRestoreLoading(false);
+    }
+  };
+
   const loadApiKeys = async () => {
     try {
       const keys = await api.listApiKeys(token);
@@ -283,9 +361,13 @@ export const SettingsRoute = () => {
     if (!newApiKeyLabel.trim()) return;
 
     try {
-      const newKey = await api.createApiKey(token, { label: newApiKeyLabel });
+      const newKey = await api.createApiKey(token, { 
+        label: newApiKeyLabel,
+        permissions: newApiKeyPermissions 
+      } as any);
       setApiKeys([...apiKeys, newKey]);
       setNewApiKeyLabel("");
+      setNewApiKeyPermissions("READ");
     } catch (error) {
       console.error("Failed to create API key:", error);
     }
@@ -564,6 +646,7 @@ export const SettingsRoute = () => {
     { id: "api-keys", label: t("apiKeys"), icon: Key },
     { id: "users", label: t("userManagement"), icon: Users },
     { id: "proxies", label: t("proxies"), icon: Network },
+    { id: "backup-restore", label: "Backup & Restore", icon: Download },
     { id: "about", label: t("about"), icon: Info },
   ];
 
@@ -572,7 +655,7 @@ export const SettingsRoute = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-slate-900 dark:text-white">{t("settings")}</h1>
         {activeTab !== "security" && activeTab !== "api-keys" && activeTab !== "docker-hosts" && 
-         activeTab !== "remote-browsers" && activeTab !== "proxies" && activeTab !== "users" && (
+         activeTab !== "remote-browsers" && activeTab !== "proxies" && activeTab !== "users" && activeTab !== "backup-restore" && (
           <Button onClick={saveSettings} disabled={loading} className="gap-2">
             {saved ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
             {saved ? t("saved") : t("save")}
@@ -650,7 +733,7 @@ export const SettingsRoute = () => {
                       <option value="Pacific/Fiji">Pacific/Fiji (FJT)</option>
                       <option value="Pacific/Honolulu">Pacific/Honolulu (HST)</option>
                     </select>
-                    <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">Timezone for displaying dates and times in the UI</p>
+                    <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{t("timezoneForDisplayingDates")}</p>
                   </div>
 
                   <div>
@@ -921,7 +1004,7 @@ export const SettingsRoute = () => {
                       💡 To get a tunnel token:
                     </p>
                     <ol className="mt-1 ml-4 list-decimal text-xs text-slate-600 dark:text-slate-400 space-y-1">
-                      <li>Visit <a href="https://one.dash.cloudflare.com/" target="_blank" rel="noopener" className="text-blue-600 dark:text-blue-400 hover:underline">Cloudflare Zero Trust Dashboard</a></li>
+                      <li>{t("visitCloudflareZeroTrustDashboard")} <a href="https://one.dash.cloudflare.com/" target="_blank" rel="noopener" className="text-blue-600 dark:text-blue-400 hover:underline">{t("cloudflareTunnelUrl")}</a></li>
                       <li>Go to Networks → Tunnels</li>
                       <li>Create a new tunnel or use existing one</li>
                       <li>Copy the tunnel token and paste it above</li>
@@ -996,7 +1079,7 @@ export const SettingsRoute = () => {
                 
                 {dockerHosts.length === 0 ? (
                   <div className="rounded-xl border border-slate-500/20 bg-slate-500/10 p-8 text-center">
-                    <p className="text-slate-400">Not available, please set up.</p>
+                    <p className="text-slate-400">{t("notAvailablePleaseSetUp")}</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -1142,7 +1225,7 @@ export const SettingsRoute = () => {
                         setBrowserTestResult(null);
                       }}
                     />
-                    <p className="text-xs text-slate-500">Example: ws://playwright:9222/ or ws://192.168.1.100:9222/</p>
+                    <p className="text-xs text-slate-500">{t("exampleWebsocketUrl")}</p>
                     
                     {browserTestResult && (
                       <div className={`rounded-lg p-3 text-sm ${
@@ -1276,6 +1359,7 @@ export const SettingsRoute = () => {
                               {key.lastUsedAt && (
                                 <span>• {t("lastUsed")}: {new Date(key.lastUsedAt).toLocaleDateString()}</span>
                               )}
+                              <span>• Permissions: {key.permissions || 'READ'}</span>
                             </>
                           )}
                         </div>
@@ -1293,13 +1377,35 @@ export const SettingsRoute = () => {
 
                 <div className="rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-4">
                   <h3 className="mb-4 font-semibold text-slate-900 dark:text-white">{t("generateNewApiKey")}</h3>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder={t("keyLabelPlaceholder")}
-                      value={newApiKeyLabel}
-                      onChange={(e) => setNewApiKeyLabel(e.target.value)}
-                    />
-                    <Button onClick={createApiKey} className="gap-2 whitespace-nowrap">
+                  <div className="space-y-4">
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <Label htmlFor="api-key-label" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                          Label
+                        </Label>
+                        <Input
+                          id="api-key-label"
+                          placeholder={t("keyLabelPlaceholder")}
+                          value={newApiKeyLabel}
+                          onChange={(e) => setNewApiKeyLabel(e.target.value)}
+                        />
+                      </div>
+                      <div className="w-32">
+                        <Label htmlFor="api-key-permissions" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                          Permissions
+                        </Label>
+                        <select
+                          id="api-key-permissions"
+                          value={newApiKeyPermissions}
+                          onChange={(e) => setNewApiKeyPermissions(e.target.value as "READ" | "WRITE")}
+                          className="h-[46px] w-full rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 text-slate-900 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-500 focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                        >
+                          <option value="READ">READ</option>
+                          {user?.role === "ADMIN" && <option value="WRITE">WRITE</option>}
+                        </select>
+                      </div>
+                    </div>
+                    <Button onClick={createApiKey} className="gap-2 w-full sm:w-auto">
                       <Plus className="h-4 w-4" />
                       {t("generate")}
                     </Button>
@@ -1420,10 +1526,10 @@ export const SettingsRoute = () => {
                 
                 {/* Users List */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Users</h3>
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{t("users")}</h3>
                   {users.length === 0 ? (
                     <div className="rounded-xl border border-slate-500/20 bg-slate-500/10 p-8 text-center">
-                      <p className="text-slate-400">No users found</p>
+                      <p className="text-slate-400">{t("noUsersFound")}</p>
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -1498,10 +1604,10 @@ export const SettingsRoute = () => {
 
                 {/* Invitations Section */}
                 <div className="space-y-4 border-t border-slate-300 dark:border-white/10 pt-6">
-                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Pending Invitations</h3>
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{t("pendingInvitations")}</h3>
                   {invitations.length === 0 ? (
                     <div className="rounded-xl border border-slate-500/20 bg-slate-500/10 p-8 text-center">
-                      <p className="text-slate-400">No pending invitations</p>
+                      <p className="text-slate-400">{t("noPendingInvitations")}</p>
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -1542,7 +1648,7 @@ export const SettingsRoute = () => {
 
                 {/* Create Invitation Form */}
                 <div className="rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-4">
-                  <h3 className="mb-4 font-semibold text-slate-900 dark:text-white">Send Email Invitation</h3>
+                  <h3 className="mb-4 font-semibold text-slate-900 dark:text-white">{t("sendEmailInvitation")}</h3>
                   <div className="space-y-3">
                     <Input
                       type="email"
@@ -1585,6 +1691,131 @@ export const SettingsRoute = () => {
                       An invitation link will be generated and copied to your clipboard
                     </p>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === "backup-restore" && (
+              <div className="space-y-6">
+                <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">{t("backupRestore")}</h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Export Section */}
+                  <div className="space-y-4 rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-6">
+                    <div className="flex items-center gap-3">
+                      <Download className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+                      <h3 className="text-lg font-medium text-slate-900 dark:text-white">{t("exportSettings")}</h3>
+                    </div>
+                    
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                      Export all your settings, monitors, notification channels, and other configuration data to a JSON file.
+                    </p>
+                    
+                    <div className="space-y-3">
+                      <div>
+                        <Label htmlFor="export-password" className="text-sm font-medium">
+                          Encryption Password (Optional)
+                        </Label>
+                        <Input
+                          id="export-password"
+                          type="password"
+                          value={exportPassword}
+                          onChange={(e) => setExportPassword(e.target.value)}
+                          placeholder="Leave empty for unencrypted export"
+                          className="mt-1"
+                        />
+                        <p className="text-xs text-slate-500 mt-1">
+                          Password protects your exported data with AES-256 encryption
+                        </p>
+                      </div>
+                      
+                      <Button 
+                        onClick={exportSettings} 
+                        disabled={backupRestoreLoading}
+                        className="w-full gap-2"
+                      >
+                        <Download className="h-4 w-4" />
+                        {backupRestoreLoading ? "Exporting..." : "Export Settings"}
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {/* Import Section */}
+                  <div className="space-y-4 rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-6">
+                    <div className="flex items-center gap-3">
+                      <Upload className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+                      <h3 className="text-lg font-medium text-slate-900 dark:text-white">{t("importSettings")}</h3>
+                    </div>
+                    
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                      Import settings from a previously exported JSON file. This will replace all current data.
+                    </p>
+                    
+                    <div className="space-y-3">
+                      <div>
+                        <Label htmlFor="import-file" className="text-sm font-medium">
+                          Settings File
+                        </Label>
+                        <Input
+                          id="import-file"
+                          type="file"
+                          accept=".json"
+                          onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                          className="mt-1"
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="import-password" className="text-sm font-medium">
+                          Decryption Password (if encrypted)
+                        </Label>
+                        <Input
+                          id="import-password"
+                          type="password"
+                          value={importPassword}
+                          onChange={(e) => setImportPassword(e.target.value)}
+                          placeholder="Leave empty if not encrypted"
+                          className="mt-1"
+                        />
+                      </div>
+                      
+                      <Button 
+                        onClick={importSettings} 
+                        disabled={backupRestoreLoading || !importFile}
+                        className="w-full gap-2 bg-red-600 hover:bg-red-700 text-white"
+                      >
+                        <Upload className="h-4 w-4" />
+                        {backupRestoreLoading ? "Importing..." : "Import Settings"}
+                      </Button>
+                      
+                      <p className="text-xs text-red-600 dark:text-red-400">
+                        ⚠️ This action cannot be undone. Make sure to backup your current settings first.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Information Section */}
+                <div className="rounded-xl border border-blue-300 dark:border-blue-500/20 bg-blue-50 dark:bg-blue-500/10 p-6">
+                  <h4 className="text-lg font-medium text-blue-900 dark:text-blue-100 mb-2">{t("whatGetsExported")}</h4>
+                  <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                    <li>• Application settings and preferences</li>
+                    <li>• All monitors and their configurations</li>
+                    <li>• Monitor groups and tags</li>
+                    <li>• Notification channels</li>
+                    <li>• Maintenance windows</li>
+                    <li>• Status pages</li>
+                    <li>• API keys (without actual tokens)</li>
+                    <li>• Docker hosts and remote browsers</li>
+                    <li>• Proxy configurations</li>
+                    <li>• User accounts and invitations</li>
+                  </ul>
+                  
+                  <h4 className="text-lg font-medium text-blue-900 dark:text-blue-100 mt-4 mb-2">{t("securityNote")}</h4>
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    Exported files can be encrypted with AES-256 encryption. Always use a strong password and keep it safe.
+                    The export does not include sensitive data like actual API tokens or passwords.
+                  </p>
                 </div>
               </div>
             )}
