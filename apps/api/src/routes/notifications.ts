@@ -11,10 +11,9 @@ const channelSchema = z.object({
 });
 
 const notificationsPlugin = async (fastify: FastifyInstance) => {
-  fastify.addHook("preHandler", fastify.authenticate);
 
   // GET /notifications - List all notification channels (frontend expects this endpoint)
-  fastify.get("/notifications", async () => {
+  fastify.get("/notifications", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async () => {
     const channels = await prisma.notificationChannel.findMany({ include: { monitors: true }, orderBy: { createdAt: "desc" } });
     // Mask sensitive fields
     return channels.map(channel => {
@@ -33,7 +32,7 @@ const notificationsPlugin = async (fastify: FastifyInstance) => {
   });
 
   // GET /notifications/list - Alternative endpoint
-  fastify.get("/notifications/list", async () => {
+  fastify.get("/notifications/list", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async () => {
     const channels = await prisma.notificationChannel.findMany({ include: { monitors: true }, orderBy: { createdAt: "desc" } });
     // Mask sensitive fields
     return channels.map(channel => {
@@ -51,7 +50,7 @@ const notificationsPlugin = async (fastify: FastifyInstance) => {
     });
   });
 
-  fastify.post("/notifications", async (request) => {
+  fastify.post("/notifications", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request) => {
     const body = channelSchema.parse(request.body);
     const { monitorIds, ...channelData } = body;
     const channel = await prisma.notificationChannel.create({
@@ -64,7 +63,7 @@ const notificationsPlugin = async (fastify: FastifyInstance) => {
     return channel;
   });
 
-  fastify.put("/notifications/:id", async (request) => {
+  fastify.put("/notifications/:id", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request) => {
     const params = z.object({ id: z.string() }).parse(request.params);
     const body = channelSchema.partial().parse(request.body);
     const { monitorIds, ...channelData } = body;
@@ -84,14 +83,14 @@ const notificationsPlugin = async (fastify: FastifyInstance) => {
     return channel;
   });
 
-  fastify.delete("/notifications/:id", async (request, reply) => {
+  fastify.delete("/notifications/:id", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request, reply) => {
     const params = z.object({ id: z.string() }).parse(request.params);
     await prisma.notificationChannel.delete({ where: { id: params.id } });
     reply.code(204).send();
   });
 
   // POST /notifications/test - Test notification channel before saving
-  fastify.post("/notifications/test", async (request, reply) => {
+  fastify.post("/notifications/test", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request, reply) => {
     const body = channelSchema.parse(request.body);
     
     try {

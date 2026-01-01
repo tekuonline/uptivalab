@@ -7,8 +7,7 @@ import { settingsService } from "../services/settings/service.js";
 
 const settingsPlugin = async (fastify: FastifyInstance) => {
   // Get all settings
-  fastify.get("/settings", async (request) => {
-    await request.jwtVerify();
+  fastify.get("/settings", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async (request) => {
     
     const settings = await prisma.setting.findMany();
     const settingsMap = settings.reduce((acc: Record<string, any>, s: any) => {
@@ -20,8 +19,7 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
   });
 
   // Get a specific setting
-  fastify.get<{ Params: { key: string } }>("/settings/:key", async (request) => {
-    await request.jwtVerify();
+  fastify.get<{ Params: { key: string } }>("/settings/:key", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async (request) => {
     
     const setting = await prisma.setting.findUnique({
       where: { key: request.params.key },
@@ -35,8 +33,7 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
   });
 
   // Update or create a setting
-  fastify.put<{ Params: { key: string }; Body: any }>("/settings/:key", async (request) => {
-    await request.jwtVerify();
+  fastify.put<{ Params: { key: string }; Body: any }>("/settings/:key", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request) => {
 
     const setting = await prisma.setting.upsert({
       where: { key: request.params.key },
@@ -51,8 +48,7 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
   });
 
   // Batch update settings
-  fastify.post<{ Body: Record<string, any> }>("/settings/batch", async (request) => {
-    await request.jwtVerify();
+  fastify.post<{ Body: Record<string, any> }>("/settings/batch", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request) => {
 
     const updates = Object.entries(request.body);
     
@@ -75,8 +71,8 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
   // Change password
   fastify.post<{ Body: { currentPassword: string; newPassword: string } }>(
     "/settings/change-password",
+    { preHandler: fastify.authenticateAnyWithPermission('WRITE') },
     async (request, reply) => {
-      await request.jwtVerify();
       const userId = (request.user as any).userId;
 
       const body = z
@@ -105,8 +101,7 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
   );
 
   // API Keys management
-  fastify.get("/settings/api-keys", async (request) => {
-    await request.jwtVerify();
+  fastify.get("/settings/api-keys", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async (request) => {
     const userId = (request.user as any).userId;
 
     const apiKeys = await prisma.apiKey.findMany({
@@ -114,6 +109,7 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
       select: {
         id: true,
         label: true,
+        permissions: true,
         lastUsedAt: true,
         createdAt: true,
       },
@@ -122,11 +118,35 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
     return apiKeys;
   });
 
-  fastify.post<{ Body: { label: string } }>("/settings/api-keys", async (request, reply) => {
-    await request.jwtVerify();
+  fastify.post<{ Body: { label: string; permissions?: string } }>("/settings/api-keys", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request, reply) => {
     const userId = (request.user as any).userId;
+    
+    // Fetch user data from database
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true }
+    });
+    
+    if (!user) {
+      return reply.code(401).send({ message: "User not found" });
+    }
+    
+    const userRole = user.role;
 
-    const body = z.object({ label: z.string().min(1) }).parse(request.body);
+    const body = z.object({ 
+      label: z.string().min(1),
+      permissions: z.enum(["READ", "WRITE"]).optional().default("READ")
+    }).parse(request.body);
+
+    // Check permissions: Viewers can only create READ API keys, Admins can create both
+    if (body.permissions === "WRITE" && userRole !== "ADMIN") {
+      return reply.code(403).send({ message: "Only administrators can create API keys with write permissions" });
+    }
+    
+    // Viewers can only create READ API keys
+    if (userRole === "VIEWER" && body.permissions !== "READ") {
+      return reply.code(403).send({ message: "Viewers can only create read-only API keys" });
+    }
 
     // Generate a random API key
     const token = `ulk_${Array.from({ length: 32 }, () =>
@@ -140,16 +160,22 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
       data: {
         label: body.label,
         tokenHash,
+        permissions: body.permissions,
         userId,
+      },
+      select: {
+        id: true,
+        label: true,
+        permissions: true,
+        createdAt: true,
       },
     });
 
     // Return the plain token only once
-    return { id: apiKey.id, token, label: apiKey.label };
+    return { id: apiKey.id, token, label: apiKey.label, permissions: apiKey.permissions };
   });
 
-  fastify.delete<{ Params: { id: string } }>("/settings/api-keys/:id", async (request, reply) => {
-    await request.jwtVerify();
+  fastify.delete<{ Params: { id: string } }>("/settings/api-keys/:id", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request, reply) => {
     const userId = (request.user as any).userId;
 
     await prisma.apiKey.deleteMany({
@@ -160,8 +186,7 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
   });
 
   // Docker Hosts management
-  fastify.get("/settings/docker-hosts", async (request) => {
-    await request.jwtVerify();
+  fastify.get("/settings/docker-hosts", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async (request) => {
     
     const setting = await prisma.setting.findUnique({
       where: { key: "dockerHosts" },
@@ -170,8 +195,7 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
     return setting?.value || [];
   });
 
-  fastify.post<{ Body: { name: string; url: string } }>("/settings/docker-hosts", async (request) => {
-    await request.jwtVerify();
+  fastify.post<{ Body: { name: string; url: string } }>("/settings/docker-hosts", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request) => {
 
     const body = z
       .object({
@@ -197,8 +221,7 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
     return newHost;
   });
 
-  fastify.delete<{ Params: { id: string } }>("/settings/docker-hosts/:id", async (request) => {
-    await request.jwtVerify();
+  fastify.delete<{ Params: { id: string } }>("/settings/docker-hosts/:id", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request) => {
 
     const setting = await prisma.setting.findUnique({
       where: { key: "dockerHosts" },
@@ -221,8 +244,7 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
   });
 
   // Docker API - Test connection
-  fastify.post<{ Body: { dockerHostId: string } }>("/settings/docker-hosts/:id/test", async (request, reply) => {
-    await request.jwtVerify();
+  fastify.post<{ Body: { dockerHostId: string } }>("/settings/docker-hosts/:id/test", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request, reply) => {
 
     try {
       const setting = await prisma.setting.findUnique({
@@ -252,8 +274,7 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
   });
 
   // Docker API - Get containers, networks, volumes
-  fastify.get<{ Params: { id: string } }>("/settings/docker-hosts/:id/resources", async (request, reply) => {
-    await request.jwtVerify();
+  fastify.get<{ Params: { id: string } }>("/settings/docker-hosts/:id/resources", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async (request, reply) => {
 
     try {
       const setting = await prisma.setting.findUnique({
@@ -298,8 +319,7 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
   });
 
   // Remote Browsers management (similar to Docker Hosts)
-  fastify.get("/settings/remote-browsers", async (request) => {
-    await request.jwtVerify();
+  fastify.get("/settings/remote-browsers", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async (request) => {
     
     const setting = await prisma.setting.findUnique({
       where: { key: "remoteBrowsers" },
@@ -308,8 +328,7 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
     return setting?.value || [];
   });
 
-  fastify.post<{ Body: { name: string; url: string } }>("/settings/remote-browsers", async (request) => {
-    await request.jwtVerify();
+  fastify.post<{ Body: { name: string; url: string } }>("/settings/remote-browsers", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request) => {
 
     const body = z
       .object({
@@ -335,8 +354,7 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
     return newBrowser;
   });
 
-  fastify.delete<{ Params: { id: string } }>("/settings/remote-browsers/:id", async (request) => {
-    await request.jwtVerify();
+  fastify.delete<{ Params: { id: string } }>("/settings/remote-browsers/:id", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request) => {
 
     const setting = await prisma.setting.findUnique({
       where: { key: "remoteBrowsers" },
@@ -359,8 +377,7 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
   });
 
   // Test remote browser connection
-  fastify.post<{ Body: { url: string } }>("/settings/remote-browsers/test", async (request, reply) => {
-    await request.jwtVerify();
+  fastify.post<{ Body: { url: string } }>("/settings/remote-browsers/test", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request, reply) => {
 
     const body = z
       .object({
@@ -395,8 +412,7 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
   });
 
   // Proxies management
-  fastify.get("/settings/proxies", async (request) => {
-    await request.jwtVerify();
+  fastify.get("/settings/proxies", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async (request) => {
     
     const setting = await prisma.setting.findUnique({
       where: { key: "proxies" },
@@ -407,8 +423,8 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
 
   fastify.post<{ Body: { name: string; protocol: string; host: string; port: number; auth?: { username: string; password: string } } }>(
     "/settings/proxies",
+    { preHandler: fastify.authenticateAnyWithPermission('WRITE') },
     async (request) => {
-      await request.jwtVerify();
 
       const body = z
         .object({
@@ -441,8 +457,7 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
     }
   );
 
-  fastify.delete<{ Params: { id: string } }>("/settings/proxies/:id", async (request) => {
-    await request.jwtVerify();
+  fastify.delete<{ Params: { id: string } }>("/settings/proxies/:id", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request) => {
 
     const setting = await prisma.setting.findUnique({
       where: { key: "proxies" },
@@ -469,6 +484,416 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
     const { updateChecker } = await import("../services/updates/checker.js");
     const versionInfo = await updateChecker.checkForUpdates();
     return versionInfo;
+  });
+
+  // Export all settings and configuration
+  fastify.post<{ Body: { encrypt?: boolean; password?: string } }>("/settings/export", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request, reply) => {
+
+    try {
+      const { encrypt = false, password } = request.body;
+      // Gather all data to export
+      const [
+        settings,
+        monitors,
+        monitorGroups,
+        tags,
+        notificationChannels,
+        maintenanceWindows,
+        statusPages,
+        apiKeys,
+        dockerHosts,
+        remoteBrowsers,
+        proxies,
+        users,
+        invitations,
+      ] = await Promise.all([
+        prisma.setting.findMany().catch(() => []),
+        prisma.monitor.findMany({
+          include: {
+            tags: { include: { tag: true } },
+            notificationChannels: true,
+            statusPages: true,
+            group: true,
+          },
+        }).catch(() => []),
+        prisma.monitorGroup.findMany().catch(() => []),
+        prisma.tag.findMany().catch(() => []),
+        prisma.notificationChannel.findMany().catch(() => []),
+        prisma.maintenanceWindow.findMany({
+          include: { monitors: true },
+        }).catch(() => []),
+        prisma.publicStatusPage.findMany({
+          include: { monitors: true },
+        }).catch(() => []),
+        prisma.apiKey.findMany({
+          include: { user: { select: { email: true } } },
+        }).catch(() => []),
+        prisma.setting.findUnique({ where: { key: "dockerHosts" } }).catch(() => null),
+        prisma.setting.findUnique({ where: { key: "remoteBrowsers" } }).catch(() => null),
+        prisma.setting.findUnique({ where: { key: "proxies" } }).catch(() => null),
+        prisma.user.findMany({
+          select: {
+            id: true,
+            email: true,
+            role: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        }).catch(() => []),
+        prisma.userInvitation.findMany({
+          include: { createdBy: { select: { email: true } } },
+        }).catch(() => []),
+      ]);
+
+      const exportData = {
+        version: "1.0",
+        exportedAt: new Date().toISOString(),
+        settings: settings.reduce((acc: Record<string, any>, s: any) => {
+          acc[s.key] = s.value;
+          return acc;
+        }, {}),
+        monitors: monitors.map(m => ({
+          id: m.id,
+          name: m.name,
+          kind: m.kind,
+          config: m.config,
+          interval: m.interval,
+          timeout: m.timeout,
+          paused: m.paused,
+          tags: m.tags.map(mt => mt.tag.name),
+          notificationChannelIds: m.notificationChannels.map(nc => nc.id),
+          statusPageIds: m.statusPages.map(sp => sp.id),
+          groupName: m.group?.name,
+          createdAt: m.createdAt,
+          updatedAt: m.updatedAt,
+        })),
+        monitorGroups,
+        tags,
+        notificationChannels,
+        maintenanceWindows: maintenanceWindows.map(mw => ({
+          id: mw.id,
+          name: mw.name,
+          startsAt: mw.startsAt,
+          endsAt: mw.endsAt,
+          monitorIds: mw.monitors.map(m => m.id),
+          createdAt: mw.createdAt,
+        })),
+        statusPages: statusPages.map(sp => ({
+          id: sp.id,
+          name: sp.name,
+          slug: sp.slug,
+          monitorIds: sp.monitors.map(m => m.id),
+          createdAt: sp.createdAt,
+        })),
+        // apiKeys: apiKeys.map(ak => ({
+        //   id: ak.id,
+        //   label: ak.label,
+        //   userEmail: ak.user.email,
+        //   createdAt: ak.createdAt,
+        // })),
+        dockerHosts: dockerHosts?.value || [],
+        remoteBrowsers: remoteBrowsers?.value || [],
+        proxies: proxies?.value || [],
+        users,
+        invitations: invitations.map(inv => ({
+          id: inv.id,
+          email: inv.email,
+          role: inv.role,
+          token: inv.token, // Note: This might be sensitive
+          expiresAt: inv.expiresAt,
+          createdByEmail: inv.createdBy.email,
+          createdAt: inv.createdAt,
+          updatedAt: inv.updatedAt,
+        })),
+      };
+
+      let jsonData = JSON.stringify(exportData, null, 2);
+
+      // Encrypt if requested and password provided
+      if (encrypt && password) {
+        const crypto = await import("crypto");
+        const algorithm = "aes-256-gcm";
+        const key = crypto.scryptSync(password, "salt", 32);
+        const iv = crypto.randomBytes(16);
+        const cipher = crypto.createCipherGCM(algorithm, key, iv);
+        cipher.setAAD(Buffer.from("uptivalab-export"));
+        
+        let encrypted = cipher.update(jsonData, "utf8", "hex");
+        encrypted += cipher.final("hex");
+        
+        const authTag = cipher.getAuthTag();
+        
+        jsonData = JSON.stringify({
+          encrypted: true,
+          data: encrypted,
+          iv: iv.toString("hex"),
+          authTag: authTag.toString("hex"),
+        }, null, 2);
+      }
+
+      reply
+        .header("Content-Type", "application/json")
+        .header("Content-Disposition", `attachment; filename="uptivalab-settings-${new Date().toISOString().split('T')[0]}.json"`)
+        .send(jsonData);
+    } catch (error) {
+      console.error("Export error:", error);
+      return reply.code(500).send({ message: "Failed to export settings" });
+    }
+  });
+
+  // Import settings and configuration
+  fastify.post<{ Body: { data: string; password?: string } }>("/settings/import", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request, reply) => {
+
+    const { data, password } = request.body;
+
+    try {
+      let importData: any;
+
+      // Try to parse as JSON first
+      try {
+        importData = JSON.parse(data);
+      } catch {
+        return reply.code(400).send({ message: "Invalid JSON data" });
+      }
+
+      // Decrypt if needed
+      if (importData.encrypted && password) {
+        const crypto = await import("crypto");
+        const algorithm = "aes-256-gcm";
+        const key = crypto.scryptSync(password, "salt", 32);
+        const iv = Buffer.from(importData.iv, "hex");
+        const decipher = crypto.createDecipherGCM(algorithm, key, iv);
+        decipher.setAAD(Buffer.from("uptivalab-export"));
+        decipher.setAuthTag(Buffer.from(importData.authTag, "hex"));
+        
+        let decrypted = decipher.update(importData.data, "hex", "utf8");
+        decrypted += decipher.final("utf8");
+        
+        importData = JSON.parse(decrypted);
+      } else if (importData.encrypted) {
+        return reply.code(400).send({ message: "Password required for encrypted data" });
+      }
+
+      // Validate import data structure
+      if (!importData.version || !importData.settings) {
+        return reply.code(400).send({ message: "Invalid import data format" });
+      }
+
+      // Start transaction for atomic import
+      await prisma.$transaction(async (tx) => {
+        // Clear existing data (optional - could be configurable)
+        await tx.monitor.deleteMany();
+        await tx.monitorGroup.deleteMany();
+        await tx.tag.deleteMany();
+        await tx.notificationChannel.deleteMany();
+        await tx.maintenanceWindow.deleteMany();
+        await tx.publicStatusPage.deleteMany();
+        await tx.apiKey.deleteMany();
+        await tx.userInvitation.deleteMany();
+        // Keep users and settings for now
+
+        // Import settings
+        for (const [key, value] of Object.entries(importData.settings)) {
+          await tx.setting.upsert({
+            where: { key },
+            update: { value },
+            create: { key, value },
+          });
+        }
+
+        // Import tags first (needed for monitors)
+        for (const tag of importData.tags || []) {
+          await tx.tag.upsert({
+            where: { id: tag.id },
+            update: tag,
+            create: tag,
+          });
+        }
+
+        // Import monitor groups
+        for (const group of importData.monitorGroups || []) {
+          await tx.monitorGroup.upsert({
+            where: { id: group.id },
+            update: group,
+            create: group,
+          });
+        }
+
+        // Import notification channels
+        for (const channel of importData.notificationChannels || []) {
+          await tx.notificationChannel.upsert({
+            where: { id: channel.id },
+            update: channel,
+            create: channel,
+          });
+        }
+
+        // Import monitors
+        for (const monitor of importData.monitors || []) {
+          const { tags: tagNames, notificationChannelIds, statusPageIds, groupName, ...monitorData } = monitor;
+          
+          const createdMonitor = await tx.monitor.upsert({
+            where: { id: monitor.id },
+            update: monitorData,
+            create: monitorData,
+          });
+
+          // Connect tags
+          if (tagNames?.length) {
+            const tagIds = await Promise.all(
+              tagNames.map(async (name: string) => {
+                const tag = await tx.tag.findUnique({ where: { name } });
+                return tag?.id;
+              })
+            );
+            
+            await tx.monitor.update({
+              where: { id: createdMonitor.id },
+              data: {
+                tags: {
+                  create: tagIds.filter(Boolean).map((id: string) => ({ tagId: id })),
+                },
+              },
+            });
+          }
+
+          // Connect notification channels
+          if (notificationChannelIds?.length) {
+            // Filter to only existing channels
+            const existingChannels = await Promise.all(
+              notificationChannelIds.map(async (id: string) => {
+                const channel = await tx.notificationChannel.findUnique({ where: { id } });
+                return channel ? id : null;
+              })
+            );
+            const validChannelIds = existingChannels.filter(Boolean);
+            
+            if (validChannelIds.length > 0) {
+              await tx.monitor.update({
+                where: { id: createdMonitor.id },
+                data: {
+                  notificationChannels: {
+                    connect: validChannelIds.map((id: string) => ({ id })),
+                  },
+                },
+              });
+            }
+          }
+
+          // Connect group
+          if (groupName) {
+            const group = await tx.monitorGroup.findUnique({ where: { name: groupName } });
+            if (group) {
+              await tx.monitor.update({
+                where: { id: createdMonitor.id },
+                data: { groupId: group.id },
+              });
+            }
+          }
+        }
+
+        // Import status pages
+        for (const page of importData.statusPages || []) {
+          const { monitorIds, ...pageData } = page;
+          const createdPage = await tx.publicStatusPage.upsert({
+            where: { id: page.id },
+            update: pageData,
+            create: pageData,
+          });
+
+          // Connect monitors
+          if (monitorIds?.length) {
+            // Filter to only existing monitors
+            const existingMonitors = await Promise.all(
+              monitorIds.map(async (id: string) => {
+                const monitor = await tx.monitor.findUnique({ where: { id } });
+                return monitor ? id : null;
+              })
+            );
+            const validMonitorIds = existingMonitors.filter(Boolean);
+            
+            if (validMonitorIds.length > 0) {
+              await tx.publicStatusPage.update({
+                where: { id: createdPage.id },
+                data: {
+                  monitors: {
+                    connect: validMonitorIds.map((id: string) => ({ id })),
+                  },
+                },
+              });
+            }
+          }
+        }
+
+        // Import maintenance windows
+        for (const window of importData.maintenanceWindows || []) {
+          const { monitorIds, ...windowData } = window;
+          const createdWindow = await tx.maintenanceWindow.upsert({
+            where: { id: window.id },
+            update: windowData,
+            create: windowData,
+          });
+
+          // Connect monitors
+          if (monitorIds?.length) {
+            // Filter to only existing monitors
+            const existingMonitors = await Promise.all(
+              monitorIds.map(async (id: string) => {
+                const monitor = await tx.monitor.findUnique({ where: { id } });
+                return monitor ? id : null;
+              })
+            );
+            const validMonitorIds = existingMonitors.filter(Boolean);
+            
+            if (validMonitorIds.length > 0) {
+              await tx.maintenanceWindow.update({
+                where: { id: createdWindow.id },
+                data: {
+                  monitors: {
+                    connect: validMonitorIds.map((id: string) => ({ id })),
+                  },
+                },
+              });
+            }
+          }
+        }
+
+        // Import API keys
+        // for (const apiKey of importData.apiKeys || []) {
+        //   const { userEmail, ...keyData } = apiKey;
+        //   const user = await tx.user.findUnique({ where: { email: userEmail } });
+        //   if (user) {
+        //     await tx.apiKey.upsert({
+        //       where: { id: keyData.id },
+        //       update: { ...keyData, userId: user.id },
+        //       create: { ...keyData, userId: user.id },
+        //     });
+        //   }
+        // }
+
+        // Import invitations
+        for (const invitation of importData.invitations || []) {
+          const { createdByEmail, ...invData } = invitation;
+          const creator = await tx.user.findUnique({ where: { email: createdByEmail } });
+          if (creator) {
+            await tx.userInvitation.upsert({
+              where: { id: invitation.id },
+              update: { ...invData, createdById: creator.id },
+              create: { ...invData, createdById: creator.id },
+            });
+          }
+        }
+      });
+
+      // Clear settings cache
+      settingsService.clearCache();
+
+      return { success: true, message: "Settings imported successfully" };
+    } catch (error) {
+      console.error("Import error details:", error);
+      console.error("Error stack:", error.stack);
+      return reply.code(500).send({ message: "Failed to import settings", details: error.message });
+    }
   });
 };
 

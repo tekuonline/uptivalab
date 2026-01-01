@@ -88,6 +88,52 @@ const cancelMonitor = async (monitorId: string) => {
   await monitorQueue.removeRepeatable("monitor", { jobId: `monitor:${monitorId}` });
 };
 
+const runMonitorCheck = async (monitorId: string): Promise<MonitorResult> => {
+  const monitor = await prisma.monitor.findUnique({
+    where: { id: monitorId },
+    include: { heartbeats: true },
+  });
+
+  if (!monitor) {
+    throw new Error("Monitor not found");
+  }
+
+  const config = toConfigObject(monitor.config);
+  if (monitor.kind === "push" && monitor.heartbeats) {
+    const pushConfig = config as Record<string, unknown> & {
+      heartbeatSeconds?: number;
+      lastHeartbeatAt?: string;
+    };
+    if (typeof pushConfig.heartbeatSeconds !== "number") {
+      pushConfig.heartbeatSeconds = monitor.heartbeats.heartbeatEvery;
+    }
+    pushConfig.lastHeartbeatAt = monitor.heartbeats.lastHeartbeat?.toISOString() ?? undefined;
+  }
+
+  const suppressed = await maintenanceService.isSuppressed(monitor.id);
+  const result = await monitorEngine.runMonitor({
+    id: monitor.id,
+    name: monitor.name,
+    kind: monitor.kind as any,
+    interval: monitor.interval,
+    timeout: monitor.timeout ?? undefined,
+    config,
+  });
+
+  const enrichedResult = suppressed && result.status === "down"
+    ? {
+        ...result,
+        message: `${result.message} (maintenance window)`.replace(/\s+/g, " ").trim(),
+        meta: { ...result.meta, maintenanceSuppressed: true },
+      }
+    : result;
+
+  // Handle the result (save to DB, send notifications, etc.)
+  await handleResult(enrichedResult, { id: monitor.id, name: monitor.name }, { suppressed });
+
+  return enrichedResult;
+};
+
 const bootstrapMonitors = async () => {
   const monitors = await prisma.monitor.findMany({ 
     where: { paused: false },
@@ -121,6 +167,7 @@ export const monitorOrchestrator = {
   queue: monitorQueue,
   scheduleMonitor,
   cancelMonitor,
+  runMonitorCheck,
   bootstrap: bootstrapMonitors,
   handleResult,
 };

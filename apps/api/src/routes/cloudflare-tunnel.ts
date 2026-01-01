@@ -4,8 +4,7 @@ import { cloudflareTunnel } from "../services/cloudflare-tunnel/service.js";
 
 const cloudflareTunnelPlugin = async (fastify: FastifyInstance) => {
   // Get tunnel status
-  fastify.get("/cloudflare-tunnel/status", async (request) => {
-    await request.jwtVerify();
+  fastify.get("/cloudflare-tunnel/status", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async (request) => {
     
     const status = cloudflareTunnel.getStatus();
     const installed = await cloudflareTunnel.isInstalled();
@@ -17,24 +16,21 @@ const cloudflareTunnelPlugin = async (fastify: FastifyInstance) => {
   });
 
   // Start tunnel
-  fastify.post("/cloudflare-tunnel/start", async (request) => {
-    await request.jwtVerify();
+  fastify.post("/cloudflare-tunnel/start", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request) => {
     
     const result = await cloudflareTunnel.start();
     return result;
   });
 
   // Stop tunnel
-  fastify.post("/cloudflare-tunnel/stop", async (request) => {
-    await request.jwtVerify();
+  fastify.post("/cloudflare-tunnel/stop", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request) => {
     
     const result = await cloudflareTunnel.stop();
     return result;
   });
 
   // Restart tunnel
-  fastify.post("/cloudflare-tunnel/restart", async (request) => {
-    await request.jwtVerify();
+  fastify.post("/cloudflare-tunnel/restart", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request) => {
     
     const result = await cloudflareTunnel.restart();
     return result;

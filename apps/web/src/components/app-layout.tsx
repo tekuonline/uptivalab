@@ -2,9 +2,11 @@ import { Outlet } from "react-router-dom";
 import { useAuth } from "../providers/auth-context.js";
 import { Button } from "./ui/button.js";
 import { Sidebar } from "./sidebar.js";
+import { useTranslation } from "../hooks/use-translation.js";
 
 export const AppLayout = () => {
   const { logout } = useAuth();
+  const { t } = useTranslation();
 
   return (
     <div className="flex min-h-screen gap-6 bg-background/95 px-6 py-8 text-foreground">
@@ -12,8 +14,8 @@ export const AppLayout = () => {
       <main className="flex-1 space-y-6">
         <header className="flex items-center justify-between">
           <div>
-            <p className="text-sm uppercase tracking-[0.4em] text-slate-500 dark:text-slate-600 dark:text-slate-400">Realtime overview</p>
-            <h2 className="text-3xl font-semibold text-slate-900 dark:text-white">Monitoring dashboard</h2>
+            <p className="text-sm uppercase tracking-[0.4em] text-slate-500 dark:text-slate-600 dark:text-slate-400">{t("realtimeOverview")}</p>
+            <h2 className="text-3xl font-semibold text-slate-900 dark:text-white">{t("monitoringDashboard")}</h2>
           </div>
           <Button variant="ghost" onClick={logout}>
             Log out

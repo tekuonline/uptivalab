@@ -3,6 +3,7 @@ import fp from "fastify-plugin";
 import { z } from "zod";
 import { prisma } from "../db/prisma.js";
 import { hashPassword } from "../auth/password.js";
+import { handleApiError } from "../utils/error-handler.js";
 
 const baseSchema = z.object({
   name: z.string(),
@@ -17,101 +18,147 @@ const baseSchema = z.object({
 });
 
 const statusPagesPlugin = async (fastify: FastifyInstance) => {
-  fastify.addHook("preHandler", fastify.authenticate);
-
   // GET /status-pages - List all status pages (frontend expects this endpoint)
-  fastify.get("/status-pages", async () => {
-    return prisma.publicStatusPage.findMany({
-      include: { monitors: true },
-      orderBy: { createdAt: "desc" },
-    });
+  fastify.get("/status-pages", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async (request, reply) => {
+    try {
+      return await prisma.publicStatusPage.findMany({
+        include: { monitors: true },
+        orderBy: { createdAt: "desc" },
+      });
+    } catch (error) {
+      const apiError = handleApiError(error, "list status pages");
+      return reply.code(500).send(apiError);
+    }
   });
 
   // GET /status-pages/list - Alternative endpoint
-  fastify.get("/status-pages/list", async () => {
-    return prisma.publicStatusPage.findMany({
-      include: { monitors: true },
-      orderBy: { createdAt: "desc" },
-    });
+  fastify.get("/status-pages/list", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async (request, reply) => {
+    try {
+      return await prisma.publicStatusPage.findMany({
+        include: { monitors: true },
+        orderBy: { createdAt: "desc" },
+      });
+    } catch (error) {
+      const apiError = handleApiError(error, "list status pages");
+      return reply.code(500).send(apiError);
+    }
   });
 
-  fastify.post("/status-pages", async (request) => {
-    const body = baseSchema.parse(request.body);
-    const page = await prisma.publicStatusPage.create({
-      data: {
+  fastify.post("/status-pages", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request, reply) => {
+    try {
+      const body = baseSchema.parse(request.body);
+      const page = await prisma.publicStatusPage.create({
+        data: {
+          name: body.name,
+          slug: body.slug,
+          heroMessage: body.heroMessage,
+          customDomain: body.customDomain,
+          theme: body.theme,
+          passwordHash: body.password ? await hashPassword(body.password) : undefined,
+          showIncidents: body.showIncidents,
+          showMaintenance: body.showMaintenance,
+          monitors: body.monitorIds.length ? { connect: body.monitorIds.map((id) => ({ id })) } : undefined,
+        },
+        include: { monitors: true },
+      });
+      return page;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.code(400).send({
+          error: "Validation failed",
+          message: error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')
+        });
+      }
+      const apiError = handleApiError(error, "create status page");
+      return reply.code(500).send(apiError);
+    }
+  });
+
+  fastify.put("/status-pages/:id", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request, reply) => {
+    try {
+      const params = z.object({ id: z.string() }).parse(request.params);
+      const body = baseSchema.partial().parse(request.body);
+
+      const data: Record<string, unknown> = {
         name: body.name,
         slug: body.slug,
         heroMessage: body.heroMessage,
         customDomain: body.customDomain,
         theme: body.theme,
-        passwordHash: body.password ? await hashPassword(body.password) : undefined,
         showIncidents: body.showIncidents,
         showMaintenance: body.showMaintenance,
-        monitors: body.monitorIds.length ? { connect: body.monitorIds.map((id) => ({ id })) } : undefined,
-      },
-      include: { monitors: true },
-    });
-    return page;
-  });
+      };
 
-  fastify.put("/status-pages/:id", async (request) => {
-    const params = z.object({ id: z.string() }).parse(request.params);
-    const body = baseSchema.partial().parse(request.body);
+      if (body.password) {
+        data.passwordHash = await hashPassword(body.password);
+      }
 
-    const data: Record<string, unknown> = {
-      name: body.name,
-      slug: body.slug,
-      heroMessage: body.heroMessage,
-      customDomain: body.customDomain,
-      theme: body.theme,
-      showIncidents: body.showIncidents,
-      showMaintenance: body.showMaintenance,
-    };
-
-    if (body.password) {
-      data.passwordHash = await hashPassword(body.password);
+      const page = await prisma.publicStatusPage.update({
+        where: { id: params.id },
+        data: {
+          ...data,
+          monitors: body.monitorIds
+            ? {
+                set: [],
+                connect: body.monitorIds.map((id) => ({ id })),
+              }
+            : undefined,
+        },
+        include: { monitors: true },
+      });
+      return page;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.code(400).send({
+          error: "Validation failed",
+          message: error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')
+        });
+      }
+      const apiError = handleApiError(error, "update status page");
+      return reply.code(500).send(apiError);
     }
-
-    const page = await prisma.publicStatusPage.update({
-      where: { id: params.id },
-      data: {
-        ...data,
-        monitors: body.monitorIds
-          ? {
-              set: [],
-              connect: body.monitorIds.map((id) => ({ id })),
-            }
-          : undefined,
-      },
-      include: { monitors: true },
-    });
-    return page;
   });
 
-  fastify.delete("/status-pages/:id", async (request, reply) => {
-    const params = z.object({ id: z.string() }).parse(request.params);
-    await prisma.publicStatusPage.delete({ where: { id: params.id } });
-    reply.code(204).send();
+  fastify.delete("/status-pages/:id", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request, reply) => {
+    try {
+      const params = z.object({ id: z.string() }).parse(request.params);
+      await prisma.publicStatusPage.delete({ where: { id: params.id } });
+      reply.code(204).send();
+    } catch (error) {
+      const apiError = handleApiError(error, "delete status page");
+      return reply.code(500).send(apiError);
+    }
   });
 
   // GET /status-pages/:id - Get a specific status page (authenticated)
-  fastify.get("/status-pages/:id", async (request) => {
-    const params = z.object({ id: z.string() }).parse(request.params);
-    return prisma.publicStatusPage.findUniqueOrThrow({
-      where: { id: params.id },
-      include: {
-        monitors: {
-          include: {
-            checks: { orderBy: { checkedAt: "desc" }, take: 100 },
-            incidents: {
-              where: { status: "OPEN" },
-              orderBy: { startedAt: "desc" },
-              include: { events: { orderBy: { createdAt: "desc" }, take: 5 } },
+  fastify.get("/status-pages/:id", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async (request, reply) => {
+    try {
+      const params = z.object({ id: z.string() }).parse(request.params);
+      const page = await prisma.publicStatusPage.findUnique({
+        where: { id: params.id },
+        include: {
+          monitors: {
+            include: {
+              checks: { orderBy: { checkedAt: "desc" }, take: 100 },
+              incidents: {
+                where: { status: "OPEN" },
+                orderBy: { startedAt: "desc" },
+                include: { events: { orderBy: { createdAt: "desc" }, take: 5 } },
+              },
             },
           },
         },
-      },
-    });
+      });
+
+      if (!page) {
+        return reply.code(404).send({ message: "Status page not found" });
+      }
+
+      return page;
+    } catch (error) {
+      const apiError = handleApiError(error, "get status page");
+      return reply.code(500).send(apiError);
+    }
   });
 };
 
@@ -119,35 +166,36 @@ const statusPagesPlugin = async (fastify: FastifyInstance) => {
 const publicStatusPagePlugin = async (fastify: FastifyInstance) => {
   // GET /public/status/:slug - Get public status page by slug (no auth required)
   fastify.get("/public/status/:slug", async (request, reply) => {
-    const params = z.object({ slug: z.string() }).parse(request.params);
-    
-    const page = await prisma.publicStatusPage.findUnique({
-      where: { slug: params.slug },
-      include: {
-        monitors: {
-          include: {
-            checks: { orderBy: { checkedAt: "desc" }, take: 100 },
-            incidents: {
-              where: {
-                status: { not: "RESOLVED" }, // Exclude resolved incidents
+    try {
+      const params = z.object({ slug: z.string() }).parse(request.params);
+      
+      const page = await prisma.publicStatusPage.findUnique({
+        where: { slug: params.slug },
+        include: {
+          monitors: {
+            include: {
+              checks: { orderBy: { checkedAt: "desc" }, take: 100 },
+              incidents: {
+                where: {
+                  status: { not: "RESOLVED" }, // Exclude resolved incidents
+                },
+                orderBy: { startedAt: "desc" },
+                include: { events: { orderBy: { createdAt: "desc" }, take: 5 } },
               },
-              orderBy: { startedAt: "desc" },
-              include: { events: { orderBy: { createdAt: "desc" }, take: 5 } },
-            },
-            maintenance: {
-              where: {
-                endsAt: { gte: new Date() }, // Only current and future maintenance
+              maintenance: {
+                where: {
+                  endsAt: { gte: new Date() }, // Only current and future maintenance
+                },
+                orderBy: { startsAt: "asc" },
               },
-              orderBy: { startsAt: "asc" },
             },
           },
         },
-      },
-    });
+      });
 
-    if (!page) {
-      return reply.code(404).send({ message: "Status page not found" });
-    }
+      if (!page) {
+        return reply.code(404).send({ message: "Status page not found" });
+      }
 
     // Check if password protected
     if (page.passwordHash) {
@@ -230,42 +278,47 @@ const publicStatusPagePlugin = async (fastify: FastifyInstance) => {
       upcomingMaintenance,
       updatedAt: new Date().toISOString(),
     };
+    } catch (error) {
+      const apiError = handleApiError(error, "get public status page");
+      return reply.code(500).send(apiError);
+    }
   });
 
   // GET /public/status/:slug/history/:monitorId - Get detailed history for a monitor on public page
   fastify.get("/public/status/:slug/history/:monitorId", async (request, reply) => {
-    const params = z.object({
-      slug: z.string(),
-      monitorId: z.string(),
-    }).parse(request.params);
-    
-    const query = z.object({
-      days: z.coerce.number().min(1).max(90).default(7),
-    }).parse(request.query);
+    try {
+      const params = z.object({
+        slug: z.string(),
+        monitorId: z.string(),
+      }).parse(request.params);
+      
+      const query = z.object({
+        days: z.coerce.number().min(1).max(90).default(7),
+      }).parse(request.query);
 
-    const page = await prisma.publicStatusPage.findUnique({
-      where: { slug: params.slug },
-      include: {
-        monitors: {
-          where: { id: params.monitorId },
+      const page = await prisma.publicStatusPage.findUnique({
+        where: { slug: params.slug },
+        include: {
+          monitors: {
+            where: { id: params.monitorId },
+          },
         },
-      },
-    });
+      });
 
-    if (!page || page.monitors.length === 0) {
-      return reply.code(404).send({ message: "Monitor not found on this status page" });
-    }
+      if (!page || page.monitors.length === 0) {
+        return reply.code(404).send({ message: "Monitor not found on this status page" });
+      }
 
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - query.days);
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - query.days);
 
-    const checks = await prisma.checkResult.findMany({
-      where: {
-        monitorId: params.monitorId,
-        checkedAt: { gte: startDate },
-      },
-      orderBy: { checkedAt: "asc" },
-    });
+      const checks = await prisma.checkResult.findMany({
+        where: {
+          monitorId: params.monitorId,
+          checkedAt: { gte: startDate },
+        },
+        orderBy: { checkedAt: "asc" },
+      });
 
     // Group by hour for better visualization
     const hourlyStats: Record<string, { up: number; down: number; total: number; avgResponseTime: number }> = {};
@@ -313,6 +366,10 @@ const publicStatusPagePlugin = async (fastify: FastifyInstance) => {
           : 0,
       },
     };
+    } catch (error) {
+      const apiError = handleApiError(error, "get monitor history");
+      return reply.code(500).send(apiError);
+    }
   });
 };
 

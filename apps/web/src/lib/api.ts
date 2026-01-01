@@ -64,8 +64,8 @@ export const api = {
     }>(`/api/monitors/${id}/history?limit=${limit}`, { token }),
   getMonitorUptime: (token: string | null, id: string, days = 30) =>
     request<{
-      days: Array<{ date: string; uptimePercentage: number; totalChecks: number; upChecks: number }>;
-      overall: { totalChecks: number; upChecks: number; uptimePercentage: number };
+      stats: { totalChecks: number; upChecks: number; downChecks: number; uptimePercentage: number; avgResponseTime: number | null };
+      days: Array<{ date: string; uptimePercentage: number }>;
     }>(`/api/monitors/${id}/uptime?days=${days}`, { token }),
   listNotifications: (token: string | null) => request<NotificationChannel[]>("/api/notifications", { token }),
   createNotification: (token: string | null, payload: { name: string; type: string; config: Record<string, string> }) =>
@@ -287,6 +287,35 @@ export const api = {
       token,
       headers: jsonHeaders,
       body: JSON.stringify(payload),
+    }),
+  // Settings export/import
+  exportSettings: async (token: string | null, password?: string): Promise<string> => {
+    const headers = new Headers();
+    headers.set("Accept", "application/json");
+    headers.set("Content-Type", "application/json");
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+    
+    const response = await fetch(`${API_BASE}/api/settings/export`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ encrypt: !!password, password }),
+    });
+    
+    if (!response.ok) {
+      const body = (await response.json().catch(() => ({}))) as { message?: string };
+      throw new Error(body.message ?? `Request failed: ${response.status}`);
+    }
+    
+    return await response.text();
+  },
+  importSettings: (token: string | null, data: string, password?: string) =>
+    request<{ success: boolean; message: string }>("/api/settings/import", {
+      method: "POST",
+      token,
+      headers: jsonHeaders,
+      body: JSON.stringify({ data, password }),
     }),
 };
 

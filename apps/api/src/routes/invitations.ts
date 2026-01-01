@@ -8,7 +8,7 @@ import crypto from "crypto";
 const invitationsPlugin = async (fastify: FastifyInstance) => {
   // Get all invitations (admin only)
   fastify.get("/invitations", {
-    onRequest: [fastify.authenticate],
+    preHandler: fastify.authenticateAnyWithPermission('READ'),
     handler: async (request, reply) => {
       try {
         // @ts-ignore - UserInvitation model exists in runtime Prisma Client
@@ -44,11 +44,55 @@ const invitationsPlugin = async (fastify: FastifyInstance) => {
     },
   });
 
+  // Get invitation by ID (admin only)
+  fastify.get("/invitations/:id", {
+    preHandler: fastify.authenticateAnyWithPermission('READ'),
+    handler: async (request, reply) => {
+      try {
+        const { id } = request.params as { id: string };
+
+        // @ts-ignore - UserInvitation model exists in runtime Prisma Client
+        const invitation = await prisma.userInvitation.findUnique({
+          where: { id },
+          select: {
+            id: true,
+            email: true,
+            token: true,
+            role: true,
+            expiresAt: true,
+            usedAt: true,
+            createdAt: true,
+            createdBy: {
+              select: {
+                email: true,
+              },
+            },
+          },
+        });
+
+        if (!invitation) {
+          return reply.code(404).send({
+            error: "Invitation not found",
+            message: "The requested invitation does not exist",
+          });
+        }
+
+        return invitation;
+      } catch (error) {
+        console.error("Failed to fetch invitation:", error);
+        return reply.code(500).send({
+          error: "Failed to fetch invitation",
+          message: "An error occurred while fetching the invitation",
+        });
+      }
+    },
+  });
+
   // Create invitation (admin only)
   fastify.post<{ Body: { email: string; role: "ADMIN" | "VIEWER"; expiresInDays?: number } }>(
     "/invitations",
     {
-      onRequest: [fastify.authenticate],
+      preHandler: fastify.authenticateAnyWithPermission('WRITE'),
       handler: async (request, reply) => {
         try {
           const body = z
@@ -132,7 +176,7 @@ const invitationsPlugin = async (fastify: FastifyInstance) => {
 
   // Delete invitation (admin only)
   fastify.delete<{ Params: { id: string } }>("/invitations/:id", {
-    onRequest: [fastify.authenticate],
+    preHandler: fastify.authenticateAnyWithPermission('WRITE'),
     handler: async (request, reply) => {
       try {
         await prisma.userInvitation.delete({

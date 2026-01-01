@@ -487,10 +487,13 @@ The API is fully documented with OpenAPI/Swagger.
 
 ### Authentication
 
-All API endpoints require JWT authentication:
+UptivaLab supports two authentication methods:
+
+#### JWT Authentication (Recommended for interactive use)
+All API endpoints require JWT authentication. Include the token in the Authorization header:
 
 ```bash
-# Login
+# Login to get JWT token
 curl -X POST http://localhost:8080/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email": "admin@example.com", "password": "password"}'
@@ -499,6 +502,27 @@ curl -X POST http://localhost:8080/api/auth/login \
 curl http://localhost:8080/api/monitors \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
+
+#### API Key Authentication (Recommended for automation)
+API keys provide secure, long-lived authentication for automated systems and integrations:
+
+```bash
+# Create an API key (requires JWT authentication)
+curl -X POST http://localhost:8080/api/auth/api-keys \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"label": "My Integration"}'
+
+# Use the API key
+curl http://localhost:8080/api/status \
+  -H "X-API-Key: ulk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# Or in Authorization header
+curl http://localhost:8080/api/status \
+  -H "Authorization: Bearer ulk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+API keys are prefixed with `ulk_` and provide the same access as the user who created them.
 
 ---
 

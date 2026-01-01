@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const StatusStateSchema = z.enum(["up", "down", "pending"]);
+export const StatusStateSchema = z.enum(["up", "down", "pending", "paused"]);
 export type StatusState = z.infer<typeof StatusStateSchema>;
 
 export const MonitorSchema = z.object({

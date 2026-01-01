@@ -250,7 +250,6 @@ export const MonitorsRoute = () => {
     try {
       const data = await api.getDockerHostResources(token, dockerHostId);
       setDockerResources(data);
-      console.log("Docker resources loaded:", data);
     } catch (error) {
       console.error("Failed to load Docker resources:", error);
       alert(`Failed to load Docker resources: ${error instanceof Error ? error.message : error}\n\nCheck:\n- Docker host settings in Settings → Docker Hosts\n- Browser console for detailed errors\n- Docker daemon configuration`);
@@ -341,10 +340,6 @@ export const MonitorsRoute = () => {
   const handleEdit = (monitor: any) => {
     setEditingId(monitor.id);
     const config = monitor.config as any;
-    
-    console.log("Editing monitor:", monitor.id);
-    console.log("Monitor notificationIds:", monitor.notificationIds);
-    console.log("Is array?", Array.isArray(monitor.notificationIds));
     
     setForm({
       name: monitor.name,
@@ -731,12 +726,12 @@ export const MonitorsRoute = () => {
                   <div className="flex items-start gap-2">
                     <div className="text-purple-600 dark:text-purple-400 mt-0.5">🎭</div>
                     <div className="flex-1 text-sm text-slate-600 dark:text-slate-300">
-                      <p className="font-semibold text-slate-900 dark:text-white mb-1">Synthetic Journey Monitoring</p>
+                      <p className="font-semibold text-slate-900 dark:text-white mb-1">{t("syntheticJourneyMonitoring")}</p>
                       <p className="mb-2">
-                        Create multi-step browser automation tests to monitor complex user flows like login sequences, form submissions, and e-commerce checkouts.
+                        {t("createMultiStepTests")}
                       </p>
                       <p className="text-xs text-slate-400">
-                        💡 Uses Playwright to simulate real user interactions. See <a href="https://github.com/tekuonline/uptivaLab/blob/main/SYNTHETIC_MONITORING.md" target="_blank" rel="noopener" className="text-purple-500 hover:underline">SYNTHETIC_MONITORING.md</a> for examples.
+                        {t("usesPlaywright")}
                       </p>
                     </div>
                   </div>
@@ -753,19 +748,19 @@ export const MonitorsRoute = () => {
                 </div>
                 
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">Base URL (Optional)</label>
+                  <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("baseUrlOptional")}</label>
                   <input
                     className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                     placeholder="https://example.com"
                     value={form.url}
                     onChange={(e) => setForm((prev) => ({ ...prev, url: e.target.value }))}
                   />
-                  <p className="mt-1 text-xs text-slate-500">Base URL for relative paths in steps (e.g., /login becomes https://example.com/login)</p>
+                  <p className="mt-1 text-xs text-slate-500">{t("baseUrlHelp")}</p>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">Browser Type</label>
+                    <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("browserType")}</label>
                     <select
                       className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white h-[46px]"
                       value={form.browser || 'chromium'}
@@ -778,7 +773,7 @@ export const MonitorsRoute = () => {
                   </div>
                   
                   <div>
-                    <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">Browser Mode</label>
+                    <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("browserMode")}</label>
                     <select
                       className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white h-[46px]"
                       value={form.useLocalBrowser ? 'local' : 'remote'}
@@ -805,7 +800,7 @@ export const MonitorsRoute = () => {
                     required
                   />
                   <p className="mt-1 text-xs text-slate-500">
-                    Available actions: goto, click, fill, waitForSelector, screenshot, wait. See <a href="https://github.com/tekuonline/uptivaLab/blob/main/SYNTHETIC_MONITORING.md#available-step-actions" target="_blank" rel="noopener" className="text-purple-500 hover:underline">documentation</a> for details.
+                    {t("availableActions")} <a href="https://github.com/tekuonline/uptivaLab/blob/main/SYNTHETIC_MONITORING.md#available-step-actions" target="_blank" rel="noopener" className="text-purple-500 hover:underline">{t("documentation")}</a> {t("forDetails")}
                   </p>
                 </div>
 

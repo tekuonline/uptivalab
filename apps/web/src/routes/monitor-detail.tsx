@@ -250,7 +250,7 @@ export const MonitorDetailRoute = () => {
             <div className="flex items-start gap-3">
               <div className="text-2xl">🫀</div>
               <div className="flex-1">
-                <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">Heartbeat URL</h3>
+                <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">{t("heartbeatUrl")}</h3>
                 <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
                   Send a POST request to this URL every <strong className="text-slate-900 dark:text-white">{(monitor as any).heartbeats.heartbeatEvery} seconds</strong> from your application, cron job, or script. 
                   If we don't receive a heartbeat within the expected interval, we'll mark this monitor as down and send alerts.
@@ -258,7 +258,7 @@ export const MonitorDetailRoute = () => {
                 
                 <div className="rounded-lg bg-slate-900 dark:bg-slate-900 p-4 mb-4">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-semibold text-slate-400 uppercase">Heartbeat Endpoint</span>
+                    <span className="text-xs font-semibold text-slate-400 uppercase">{t("heartbeatEndpoint")}</span>
                     <button
                       onClick={() => {
                         const url = `${window.location.origin}/api/heartbeat/${(monitor as any).heartbeats.tokenHash}`;
@@ -276,7 +276,7 @@ export const MonitorDetailRoute = () => {
 
                 <div className="space-y-3">
                   <div>
-                    <p className="text-xs font-semibold text-slate-400 uppercase mb-2">Example: cURL</p>
+                    <p className="text-xs font-semibold text-slate-400 uppercase mb-2">{t("exampleCurl")}</p>
                     <div className="rounded-lg bg-slate-900 p-3">
                       <code className="text-xs text-slate-300 break-all">
                         curl -X POST {window.location.origin}/api/heartbeat/{(monitor as any).heartbeats.tokenHash}
@@ -285,17 +285,17 @@ export const MonitorDetailRoute = () => {
                   </div>
 
                   <div>
-                    <p className="text-xs font-semibold text-slate-400 uppercase mb-2">Example: Cron Job</p>
+                    <p className="text-xs font-semibold text-slate-400 uppercase mb-2">{t("exampleCronJob")}</p>
                     <div className="rounded-lg bg-slate-900 p-3">
                       <code className="text-xs text-slate-300">
                         */5 * * * * curl -X POST {window.location.origin}/api/heartbeat/{(monitor as any).heartbeats.tokenHash}
                       </code>
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">Sends a heartbeat every 5 minutes</p>
+                    <p className="text-xs text-slate-400 mt-1">{t("sendsHeartbeatEvery5Minutes")}</p>
                   </div>
 
                   <div>
-                    <p className="text-xs font-semibold text-slate-400 uppercase mb-2">Example: Python</p>
+                    <p className="text-xs font-semibold text-slate-400 uppercase mb-2">{t("examplePython")}</p>
                     <div className="rounded-lg bg-slate-900 p-3">
                       <code className="text-xs text-slate-300 whitespace-pre">
 {`import requests
@@ -480,7 +480,7 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
             {monitor.kind === "tcp" && (
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-slate-600 dark:text-slate-400 block mb-2">Host</label>
+                  <label className="text-sm text-slate-600 dark:text-slate-400 block mb-2">{t("host")}</label>
                   <input
                     className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                     value={editForm.host}
@@ -488,7 +488,7 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-slate-600 dark:text-slate-400 block mb-2">Port</label>
+                  <label className="text-sm text-slate-600 dark:text-slate-400 block mb-2">{t("port")}</label>
                   <input
                     type="number"
                     className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
@@ -543,7 +543,7 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
             {monitor.kind === "certificate" && (
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-slate-600 dark:text-slate-400 block mb-2">Host</label>
+                  <label className="text-sm text-slate-600 dark:text-slate-400 block mb-2">{t("host")}</label>
                   <input
                     className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                     value={editForm.host}
@@ -551,7 +551,7 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-slate-600 dark:text-slate-400 block mb-2">Port</label>
+                  <label className="text-sm text-slate-600 dark:text-slate-400 block mb-2">{t("port")}</label>
                   <input
                     type="number"
                     className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
@@ -597,25 +597,25 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
       )}
 
       {/* Stats */}
-      {history && (
+      {uptime && (
         <div className="grid gap-6 md:grid-cols-4">
           <Card>
             <p className="text-sm text-slate-600 dark:text-slate-400">{t("uptime")}</p>
-            <p className="text-3xl font-bold text-slate-900 dark:text-slate-900 dark:text-white mt-2">{history.stats.uptimePercentage.toFixed(2)}%</p>
+            <p className="text-3xl font-bold text-slate-900 dark:text-slate-900 dark:text-white mt-2">{uptime.stats.uptimePercentage.toFixed(2)}%</p>
           </Card>
           <Card>
             <p className="text-sm text-slate-600 dark:text-slate-400">{t("avgResponseTime")}</p>
             <p className="text-3xl font-bold text-slate-900 dark:text-slate-900 dark:text-white mt-2">
-              {history.stats.avgResponseTime !== null ? `${history.stats.avgResponseTime}ms` : "N/A"}
+              {uptime.stats.avgResponseTime !== null ? `${uptime.stats.avgResponseTime.toFixed(0)}ms` : "N/A"}
             </p>
           </Card>
           <Card>
             <p className="text-sm text-slate-600 dark:text-slate-400">{t("totalChecks")}</p>
-            <p className="text-3xl font-bold text-slate-900 dark:text-slate-900 dark:text-white mt-2">{history.stats.totalChecks}</p>
+            <p className="text-3xl font-bold text-slate-900 dark:text-slate-900 dark:text-white mt-2">{uptime.stats.totalChecks}</p>
           </Card>
           <Card>
             <p className="text-sm text-slate-600 dark:text-slate-400">{t("failedChecks")}</p>
-            <p className="text-3xl font-bold text-slate-900 dark:text-slate-900 dark:text-white mt-2">{history.stats.downChecks}</p>
+            <p className="text-3xl font-bold text-slate-900 dark:text-slate-900 dark:text-white mt-2">{uptime.stats.downChecks}</p>
           </Card>
         </div>
       )}
