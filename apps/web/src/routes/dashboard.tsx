@@ -101,6 +101,7 @@ const MiniGraph = ({ monitorId, status }: { monitorId: string; status: StatusSta
 
 const CertificateExpiryWidget = () => {
   const { token } = useAuth();
+  const { t } = useTranslation();
   const { data: monitors } = useQuery({
     queryKey: ["monitors"],
     queryFn: () => api.listMonitors(token),
@@ -213,7 +214,7 @@ export const DashboardRoute = () => {
             <div className="flex items-end justify-between">
               <div>
                 <div className="text-4xl font-semibold text-slate-900 dark:text-white">{counts[status]}</div>
-                <p className="text-sm text-slate-600 dark:text-slate-400">{t("monitorsStatus", { status })}</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400">{t("monitorsStatus").replace("{status}", status)}</p>
               </div>
               <StatusBadge status={status} />
             </div>

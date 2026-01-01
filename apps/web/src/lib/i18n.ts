@@ -802,36 +802,15 @@ export const translations = {
     loadingStatusPage: "Loading status page...",
     statusPageNotFound: "Status Page Not Found",
     statusPageNotFoundMessage: "The status page you're looking for doesn't exist.",
-    services: "Services",
-    uptime: "Uptime",
     certExpiry: "Cert Expiry",
-    noServicesConfigured: "No services configured yet.",
-    loading: "Loading...",
     verifyingInvitation: "Verifying invitation...",
     invalidInvitation: "Invalid Invitation",
-    acceptInvitation: "Accept Invitation",
     repeatPassword: "Repeat Password",
-    sslCertificateExpiry: "SSL Certificate Expiry",
-    loadingTelemetry: "Loading telemetry...",
-    monitorsStatus: "monitors",
     certificateMonitorAwaitingCheck: "Certificate monitor - awaiting check",
     testSuccessful: "Test Successful!",
-    testFailed: "Test Failed",
-    baseUrlOptional: "Base URL (Optional)",
-    baseUrlHelp: "Base URL for relative paths in steps (e.g., /login becomes https://example.com/login)",
-    browserType: "Browser Type",
-    browserMode: "Browser Mode",
-    heartbeatUrl: "Heartbeat URL",
-    heartbeatEndpoint: "Heartbeat Endpoint",
-    exampleCurl: "Example: cURL",
-    exampleCronJob: "Example: Cron Job",
     sendsHeartbeatEvery5Minutes: "Sends a heartbeat every 5 minutes",
-    examplePython: "Example: Python",
-    host: "Host",
-    port: "Port",
     timezoneForDisplayingDates: "Timezone for displaying dates and times in the UI",
     timezoneForServer: "Timezone for the server. Requires API restart to take effect.",
-    status: "Status",
     visitCloudflareZeroTrustDashboard: "Visit",
     cloudflareTunnelUrl: "Cloudflare Zero Trust Dashboard",
     notAvailablePleaseSetUp: "Not available, please set up.",
@@ -846,7 +825,6 @@ export const translations = {
     importSettings: "Import Settings",
     whatGetsExported: "What gets exported?",
     securityNote: "Security Note",
-    chooseTheme: "Choose the theme for your public status page",
     runThisInTerminal: "Run this in your terminal:",
   },
   es: {
@@ -1458,48 +1436,14 @@ export const translations = {
     intervalSeconds: "Intervalo (segundos)",
     noLatencyDataAvailable: "Aún no hay datos de latencia disponibles.",
     noUptimeDataAvailable: "Aún no hay datos de tiempo de actividad disponibles.",
-    tags: "Etiquetas",
-    notificationChannels: "Canales de Notificación",
-    retryInterval: "Intervalo de Reintento",
-    requestTimeout: "Tiempo de Espera de Solicitud",
-    authUsername: "Usuario de Autenticación",
-    authPassword: "Contraseña de Autenticación",
-    recordType: "Tipo de Registro",
-    port: "Puerto",
     dockerHost: "Host Docker",
-    containerName: "Nombre del Contenedor",
-    running: "En Ejecución",
-    timeout: "Tiempo de Espera",
-    uptime: "Tiempo de Actividad",
     avgResponseTime: "Tiempo de Resp. Promedio",
-    incidents: "Incidentes",
-    viewDetails: "Ver Detalles",
     testing: "Probando...",
     testFailed: "Prueba fallida:",
     lastChecked: "Última Verificación",
     recentChecks: "Verificaciones Recientes",
     latency: "Latencia",
-    seconds: "segundos",
-    minutes: "minutos",
-    hours: "horas",
-    days: "días",
-    weeks: "semanas",
-    months: "meses",
-    noData: "Sin Datos",
     unknown: "Desconocido",
-    warning: "Advertencia",
-    info: "Información",
-    copyToClipboard: "Copiar al portapapeles",
-    copiedToClipboard: "Copiado al portapapeles",
-    confirmDelete: "Confirmar Eliminación",
-    areYouSure: "¿Está seguro?",
-    loadingEllipsis: "Cargando…",
-    submit: "Enviar",
-    apply: "Aplicar",
-    reset: "Restablecer",
-    clear: "Limpiar",
-    selectAll: "Seleccionar todo",
-    deselectAll: "Deseleccionar todo",
     steps: "Pasos",
     repeatYourPassword: "Repita su contraseña",
     creatingAccount: "Creando cuenta...",
@@ -1660,27 +1604,13 @@ export const translations = {
     loadingStatusPage: "Cargando página de estado...",
     statusPageNotFound: "Página de Estado No Encontrada",
     statusPageNotFoundMessage: "La página de estado que buscas no existe.",
-    services: "Servicios",
     certExpiry: "Vencimiento de Cert",
-    noServicesConfigured: "Aún no hay servicios configurados.",
     verifyingInvitation: "Verificando invitación...",
     invalidInvitation: "Invitación Inválida",
-    acceptInvitation: "Aceptar Invitación",
     repeatPassword: "Repetir Contraseña",
-    sslCertificateExpiry: "Vencimiento de Certificado SSL",
     certificateMonitorAwaitingCheck: "Monitor de certificado - esperando verificación",
     testSuccessful: "¡Prueba Exitosa!",
-    testFailed: "Prueba Fallida",
-    baseUrlOptional: "URL Base (Opcional)",
-    baseUrlHelp: "URL base para rutas relativas en pasos (ej., /login se convierte en https://example.com/login)",
-    browserType: "Tipo de Navegador",
-    browserMode: "Modo de Navegador",
-    heartbeatUrl: "URL de Latido",
-    heartbeatEndpoint: "Punto Final de Latido",
-    exampleCurl: "Ejemplo: cURL",
-    exampleCronJob: "Ejemplo: Tarea Cron",
     sendsHeartbeatEvery5Minutes: "Envía un latido cada 5 minutos",
-    examplePython: "Ejemplo: Python",
     timezoneForDisplayingDates: "Zona horaria para mostrar fechas y horas en la UI",
     timezoneForServer: "Zona horaria para el servidor. Requiere reinicio de API para tener efecto.",
     visitCloudflareZeroTrustDashboard: "Visitar",
@@ -2282,7 +2212,6 @@ export const translations = {
     expect: "Erwarten",
     wait: "Warten",
     screenshot: "Screenshot",
-    timeout: "Zeitüberschreitung",
 
 
 
@@ -2305,27 +2234,19 @@ export const translations = {
 
 
 
-    tags: "Tags",
-
-
-    notificationChannels: "Benachrichtigungskanäle",
-    headers: "Header",
-
-
-    body: "Body",
-
-
-    none: "Keine",
 
 
 
-    token: "Token",
 
 
 
-    acceptedStatusCodes: "Akzeptierte Statuscodes",
 
-    maxRedirects: "Max. Weiterleitungen",
+
+
+
+
+
+
 
 
 
@@ -2340,14 +2261,7 @@ export const translations = {
 
 
 
-    seconds: "Sekunden",
-    minutes: "Minuten",
-    hours: "Stunden",
-    days: "Tage",
-    pending: "Ausstehend",
-    maintenance: "Wartung",
     unknown: "Unbekannt",
-    degraded: "Beeinträchtigt",
 
     totalChecks: "Gesamtprüfungen",
 
@@ -2403,8 +2317,6 @@ export const translations = {
     recentUptime24h: "Aktuelle Verfügbarkeit (24 Stunden)",
     expiresInDays: "🔒 Läuft in {days} Tagen ab ({date})",
     certificateMonitorAwaiting: "Zertifikatmonitor - wartet auf Überprüfung",
-    totalChecks: "Gesamtprüfungen",
-    failedChecks: "Fehlgeschlagene Prüfungen",
     responseTimeHistory: "Antwortzeitverlauf",
     responseTimeMs: "Antwortzeit (ms)",
     noLatencyData: "Noch keine Latenzdaten verfügbar.",
@@ -2421,7 +2333,6 @@ export const translations = {
     downCount: "Inaktiv: {count} ({percent}%)",
     totalChecksLabel: "Gesamtprüfungen: {count}",
     timeLabel: "Zeit",
-    stepsPassed: "{count} bestanden",
     na: "N/V",
     noHostsConfigured: "Keine Hosts konfiguriert",
     selectDockerHost: "Docker-Host auswählen",
@@ -2493,7 +2404,6 @@ export const translations = {
     fromEmailPlaceholder: "noreply@beispiel.de",
     testFailed: "Test fehlgeschlagen",
     testing: "Teste...",
-    testNotification: "Testbenachrichtigung",
     nameRequired: "Name ist erforderlich",
     fieldRequiredError: "{field} ist erforderlich",
     emailRequired: "Mindestens ein E-Mail-Empfänger ist erforderlich",
@@ -2560,26 +2470,13 @@ export const translations = {
     loadingStatusPage: "Statusseite wird geladen...",
     statusPageNotFound: "Statusseite nicht gefunden",
     statusPageNotFoundMessage: "Die gesuchte Statusseite existiert nicht.",
-    services: "Dienste",
     certExpiry: "Zertifikatsablauf",
-    noServicesConfigured: "Noch keine Dienste konfiguriert.",
     verifyingInvitation: "Einladung wird überprüft...",
     invalidInvitation: "Ungültige Einladung",
-    acceptInvitation: "Einladung annehmen",
     repeatPassword: "Passwort wiederholen",
-    sslCertificateExpiry: "SSL-Zertifikatsablauf",
     certificateMonitorAwaitingCheck: "Zertifikatsmonitor - wartet auf Prüfung",
     testSuccessful: "Test erfolgreich!",
-    testFailed: "Test fehlgeschlagen",
-    baseUrlOptional: "Basis-URL (Optional)",
-    browserType: "Browsertyp",
-    browserMode: "Browsermodus",
-    heartbeatUrl: "Heartbeat-URL",
-    heartbeatEndpoint: "Heartbeat-Endpunkt",
-    exampleCurl: "Beispiel: cURL",
-    exampleCronJob: "Beispiel: Cron-Job",
     sendsHeartbeatEvery5Minutes: "Sendet alle 5 Minuten einen Heartbeat",
-    examplePython: "Beispiel: Python",
     timezoneForDisplayingDates: "Zeitzone zur Anzeige von Datum und Uhrzeit in der Benutzeroberfläche",
     timezoneForServer: "Zeitzone für den Server. Erfordert Neustart der API, um wirksam zu werden.",
     visitCloudflareZeroTrustDashboard: "Besuchen",
@@ -3181,7 +3078,6 @@ export const translations = {
     expect: "Attendre",
     wait: "Patienter",
     screenshot: "Capture d'écran",
-    timeout: "Délai d'expiration",
 
 
 
@@ -3204,27 +3100,19 @@ export const translations = {
 
 
 
-    tags: "Étiquettes",
-
-
-    notificationChannels: "Canaux de notification",
-    headers: "En-têtes",
-
-
-    body: "Corps",
-
-
-    none: "Aucun",
 
 
 
-    token: "Jeton",
 
 
 
-    acceptedStatusCodes: "Codes de statut acceptés",
 
-    maxRedirects: "Redirections max.",
+
+
+
+
+
+
 
 
 
@@ -3239,14 +3127,7 @@ export const translations = {
 
 
 
-    seconds: "Secondes",
-    minutes: "Minutes",
-    hours: "Heures",
-    days: "Jours",
-    pending: "En attente",
-    maintenance: "Maintenance",
     unknown: "Inconnu",
-    degraded: "Dégradé",
 
     totalChecks: "Vérifications totales",
 
@@ -3302,8 +3183,6 @@ export const translations = {
     recentUptime24h: "Temps de disponibilité récent (24 heures)",
     expiresInDays: "🔒 Expire dans {days} jours ({date})",
     certificateMonitorAwaiting: "Moniteur de certificat - en attente de vérification",
-    totalChecks: "Vérifications totales",
-    failedChecks: "Vérifications échouées",
     responseTimeHistory: "Historique des temps de réponse",
     responseTimeMs: "Temps de réponse (ms)",
     noLatencyData: "Aucune donnée de latence disponible pour le moment.",
@@ -3320,7 +3199,6 @@ export const translations = {
     downCount: "Inactif : {count} ({percent}%)",
     totalChecksLabel: "Vérifications totales : {count}",
     timeLabel: "Temps",
-    stepsPassed: "{count} réussi",
     na: "N/D",
     noHostsConfigured: "Aucun hôte configuré",
     selectDockerHost: "Sélectionner l'hôte Docker",
@@ -3392,7 +3270,6 @@ export const translations = {
     fromEmailPlaceholder: "noreply@exemple.com",
     testFailed: "Test échoué",
     testing: "Test en cours...",
-    testNotification: "Notification de test",
     nameRequired: "Le nom est obligatoire",
     fieldRequiredError: "{field} est obligatoire",
     emailRequired: "Au moins un destinataire d'e-mail est requis",
@@ -3459,26 +3336,13 @@ export const translations = {
     loadingStatusPage: "Chargement de la page d'état...",
     statusPageNotFound: "Page d'état introuvable",
     statusPageNotFoundMessage: "La page d'état que vous recherchez n'existe pas.",
-    services: "Services",
     certExpiry: "Expiration du certificat",
-    noServicesConfigured: "Aucun service configuré pour le moment.",
     verifyingInvitation: "Vérification de l'invitation...",
     invalidInvitation: "Invitation invalide",
-    acceptInvitation: "Accepter l'invitation",
     repeatPassword: "Répéter le mot de passe",
-    sslCertificateExpiry: "Expiration du certificat SSL",
     certificateMonitorAwaitingCheck: "Moniteur de certificat - en attente de vérification",
     testSuccessful: "Test réussi !",
-    testFailed: "Test échoué",
-    baseUrlOptional: "URL de base (Optionnel)",
-    browserType: "Type de navigateur",
-    browserMode: "Mode navigateur",
-    heartbeatUrl: "URL de battement de cœur",
-    heartbeatEndpoint: "Point de terminaison de battement de cœur",
-    exampleCurl: "Exemple : cURL",
-    exampleCronJob: "Exemple : Tâche Cron",
     sendsHeartbeatEvery5Minutes: "Envoie un battement de cœur toutes les 5 minutes",
-    examplePython: "Exemple : Python",
     timezoneForDisplayingDates: "Fuseau horaire pour l'affichage des dates et heures dans l'interface utilisateur",
     timezoneForServer: "Fuseau horaire pour le serveur. Nécessite un redémarrage de l'API pour prendre effet.",
     visitCloudflareZeroTrustDashboard: "Visiter",
@@ -4080,7 +3944,6 @@ export const translations = {
     expect: "期望",
     wait: "等待",
     screenshot: "截图",
-    timeout: "超时",
 
 
 
@@ -4103,27 +3966,19 @@ export const translations = {
 
 
 
-    tags: "标签",
-
-
-    notificationChannels: "通知渠道",
-    headers: "请求头",
-
-
-    body: "主体",
-
-
-    none: "无",
 
 
 
-    token: "令牌",
 
 
 
-    acceptedStatusCodes: "接受的状态码",
 
-    maxRedirects: "最大重定向次数",
+
+
+
+
+
+
 
 
 
@@ -4138,14 +3993,7 @@ export const translations = {
 
 
 
-    seconds: "秒",
-    minutes: "分钟",
-    hours: "小时",
-    days: "天",
-    pending: "待处理",
-    maintenance: "维护中",
     unknown: "未知",
-    degraded: "降级",
 
     totalChecks: "总检查次数",
 
@@ -4201,8 +4049,6 @@ export const translations = {
     recentUptime24h: "最近正常运行时间（24小时）",
     expiresInDays: "🔒 在{days}天后过期（{date}）",
     certificateMonitorAwaiting: "证书监控器 - 等待检查",
-    totalChecks: "总检查次数",
-    failedChecks: "失败检查次数",
     responseTimeHistory: "响应时间历史",
     responseTimeMs: "响应时间（毫秒）",
     noLatencyData: "目前没有可用的延迟数据。",
@@ -4219,7 +4065,6 @@ export const translations = {
     downCount: "离线：{count}（{percent}%）",
     totalChecksLabel: "总检查次数：{count}",
     timeLabel: "时间",
-    stepsPassed: "{count}个通过",
     na: "不适用",
     noHostsConfigured: "未配置主机",
     selectDockerHost: "选择Docker主机",
@@ -4291,7 +4136,6 @@ export const translations = {
     fromEmailPlaceholder: "noreply@example.com",
     testFailed: "测试失败",
     testing: "测试中...",
-    testNotification: "测试通知",
     nameRequired: "名称是必需的",
     fieldRequiredError: "{field}是必需的",
     emailRequired: "至少需要一个电子邮件收件人",
@@ -4328,7 +4172,7 @@ export const translations = {
     recordingTip2: "在终端中运行命令",
     recordingTip3: "在打开的浏览器中与您的网站交互",
     recordingTip4: "复制生成的代码并将其粘贴到上面",
-    recordingTip5: "点击"解析步骤"以转换为监控器步骤",
+    recordingTip5: "点击'解析步骤'以转换为监控器步骤",
     parsedSteps: "已解析的步骤",
     noSteps: "还没有步骤。解析Playwright代码以添加步骤。",
     step: "步骤",
@@ -4358,26 +4202,13 @@ export const translations = {
     loadingStatusPage: "加载状态页面...",
     statusPageNotFound: "找不到状态页面",
     statusPageNotFoundMessage: "您要查找的状态页面不存在。",
-    services: "服务",
     certExpiry: "证书过期",
-    noServicesConfigured: "尚未配置服务。",
     verifyingInvitation: "验证邀请...",
     invalidInvitation: "无效的邀请",
-    acceptInvitation: "接受邀请",
     repeatPassword: "重复密码",
-    sslCertificateExpiry: "SSL证书过期",
     certificateMonitorAwaitingCheck: "证书监控器 - 等待检查",
     testSuccessful: "测试成功！",
-    testFailed: "测试失败",
-    baseUrlOptional: "基础URL（可选）",
-    browserType: "浏览器类型",
-    browserMode: "浏览器模式",
-    heartbeatUrl: "心跳URL",
-    heartbeatEndpoint: "心跳端点",
-    exampleCurl: "示例：cURL",
-    exampleCronJob: "示例：Cron作业",
     sendsHeartbeatEvery5Minutes: "每5分钟发送一次心跳",
-    examplePython: "示例：Python",
     timezoneForDisplayingDates: "用于在UI中显示日期和时间的时区",
     timezoneForServer: "服务器时区。需要重启API才能生效。",
     visitCloudflareZeroTrustDashboard: "访问",
@@ -4979,7 +4810,6 @@ export const translations = {
     expect: "期待",
     wait: "待機",
     screenshot: "スクリーンショット",
-    timeout: "タイムアウト",
 
 
 
@@ -5002,27 +4832,19 @@ export const translations = {
 
 
 
-    tags: "タグ",
-
-
-    notificationChannels: "通知チャンネル",
-    headers: "ヘッダー",
-
-
-    body: "ボディ",
-
-
-    none: "なし",
 
 
 
-    token: "トークン",
 
 
 
-    acceptedStatusCodes: "許可されたステータスコード",
 
-    maxRedirects: "最大リダイレクト数",
+
+
+
+
+
+
 
 
 
@@ -5037,14 +4859,7 @@ export const translations = {
 
 
 
-    seconds: "秒",
-    minutes: "分",
-    hours: "時間",
-    days: "日",
-    pending: "保留中",
-    maintenance: "メンテナンス",
     unknown: "不明",
-    degraded: "低下",
 
     totalChecks: "総チェック数",
 
@@ -5100,8 +4915,6 @@ export const translations = {
     recentUptime24h: "最近の稼働時間（24時間）",
     expiresInDays: "🔒 {days}日後に期限切れ（{date}）",
     certificateMonitorAwaiting: "証明書モニター - チェック待機中",
-    totalChecks: "総チェック数",
-    failedChecks: "失敗したチェック",
     responseTimeHistory: "応答時間履歴",
     responseTimeMs: "応答時間（ms）",
     noLatencyData: "レイテンシーデータはまだありません。",
@@ -5118,7 +4931,6 @@ export const translations = {
     downCount: "停止中：{count}（{percent}%）",
     totalChecksLabel: "総チェック数：{count}",
     timeLabel: "時間",
-    stepsPassed: "{count}件成功",
     na: "該当なし",
     noHostsConfigured: "ホストが設定されていません",
     selectDockerHost: "Dockerホストを選択",
@@ -5190,7 +5002,6 @@ export const translations = {
     fromEmailPlaceholder: "noreply@example.com",
     testFailed: "テスト失敗",
     testing: "テスト中...",
-    testNotification: "テスト通知",
     nameRequired: "名前は必須です",
     fieldRequiredError: "{field}は必須です",
     emailRequired: "少なくとも1つのメール受信者が必要です",
@@ -5257,26 +5068,13 @@ export const translations = {
     loadingStatusPage: "ステータスページを読み込み中...",
     statusPageNotFound: "ステータスページが見つかりません",
     statusPageNotFoundMessage: "お探しのステータスページは存在しません。",
-    services: "サービス",
     certExpiry: "証明書の有効期限",
-    noServicesConfigured: "まだサービスが設定されていません。",
     verifyingInvitation: "招待を確認中...",
     invalidInvitation: "無効な招待",
-    acceptInvitation: "招待を受け入れる",
     repeatPassword: "パスワードを再入力",
-    sslCertificateExpiry: "SSL証明書の有効期限",
     certificateMonitorAwaitingCheck: "証明書モニター - チェック待機中",
     testSuccessful: "テスト成功！",
-    testFailed: "テスト失敗",
-    baseUrlOptional: "ベースURL（オプション）",
-    browserType: "ブラウザタイプ",
-    browserMode: "ブラウザモード",
-    heartbeatUrl: "ハートビートURL",
-    heartbeatEndpoint: "ハートビートエンドポイント",
-    exampleCurl: "例：cURL",
-    exampleCronJob: "例：Cronジョブ",
     sendsHeartbeatEvery5Minutes: "5分ごとにハートビートを送信",
-    examplePython: "例：Python",
     timezoneForDisplayingDates: "UI で日付と時刻を表示するためのタイムゾーン",
     timezoneForServer: "サーバーのタイムゾーン。有効にするにはAPIの再起動が必要です。",
     visitCloudflareZeroTrustDashboard: "訪問",
