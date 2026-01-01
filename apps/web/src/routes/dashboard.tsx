@@ -134,26 +134,26 @@ const CertificateExpiryWidget = () => {
 
   return (
     <Card>
-      <div className="mb-4 flex items-center gap-3">
-        <AlertTriangle className="h-5 w-5 text-yellow-400" />
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{t("sslCertificateExpiry")}</h3>
+      <div className="mb-3 sm:mb-4 flex items-center gap-2 sm:gap-3">
+        <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-400 shrink-0" />
+        <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white truncate">{t("sslCertificateExpiry")}</h3>
       </div>
-      <div className="space-y-3">
+      <div className="space-y-2 sm:space-y-3">
         {certificateMonitors.slice(0, 5).map((cert) => (
           <Link
             key={cert.id}
             to={`/monitors/${cert.id}`}
-            className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-3 transition hover:bg-slate-200 dark:hover:bg-white/10"
+            className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 p-2 sm:p-3 transition hover:bg-slate-200 dark:hover:bg-white/10"
           >
-            <div>
-              <p className="font-medium text-slate-900 dark:text-white">{cert.name}</p>
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-sm sm:text-base text-slate-900 dark:text-white truncate">{cert.name}</p>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 Expires {cert.expiryDate.toLocaleDateString()}
               </p>
             </div>
-            <div className={`text-right ${cert.color}`}>
-              <p className="text-2xl font-bold">{cert.daysRemaining}</p>
-              <p className="text-xs">{t("days")}</p>
+            <div className={`text-right shrink-0 ${cert.color}`}>
+              <p className="text-xl sm:text-2xl font-bold">{cert.daysRemaining}</p>
+              <p className="text-[10px] sm:text-xs">{t("days")}</p>
             </div>
           </Link>
         ))}
@@ -206,15 +206,15 @@ export const DashboardRoute = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-3">
+    <div className="space-y-4 lg:space-y-6">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         {(Object.keys(counts) as StatusState[]).map((status) => (
-          <Card key={status} className="space-y-3">
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">{getSummaryLabel(t, status)}</p>
-            <div className="flex items-end justify-between">
-              <div>
-                <div className="text-4xl font-semibold text-slate-900 dark:text-white">{counts[status]}</div>
-                <p className="text-sm text-slate-600 dark:text-slate-400">{t("monitorsStatus").replace("{status}", status)}</p>
+          <Card key={status} className="space-y-2 sm:space-y-3">
+            <p className="text-[10px] sm:text-xs uppercase tracking-[0.25em] sm:tracking-[0.3em] text-slate-500 dark:text-slate-400">{getSummaryLabel(t, status)}</p>
+            <div className="flex items-end justify-between gap-2">
+              <div className="min-w-0">
+                <div className="text-3xl sm:text-4xl font-semibold text-slate-900 dark:text-white">{counts[status]}</div>
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 truncate">{t("monitorsStatus").replace("{status}", status)}</p>
               </div>
               <StatusBadge status={status} />
             </div>
@@ -225,38 +225,40 @@ export const DashboardRoute = () => {
       <CertificateExpiryWidget />
 
       <Card>
-        <div className="mb-6 flex items-center gap-3">
-          <Sparkles className="h-5 w-5 text-primary" />
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{t("monitorsTitle")}</h3>
+        <div className="mb-4 sm:mb-6 flex items-center gap-2 sm:gap-3">
+          <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
+          <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white truncate">{t("monitorsTitle")}</h3>
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-2">
           {snapshots.map((monitor) => (
             <Link
               key={monitor.id}
               to={`/monitors/${monitor.id}`}
-              className="rounded-2xl border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/5 p-4 transition hover:bg-slate-200 dark:hover:bg-white/10"
+              className="rounded-xl sm:rounded-2xl border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/5 p-3 sm:p-4 transition hover:bg-slate-200 dark:hover:bg-white/10"
             >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <p className="text-sm text-slate-500 dark:text-slate-400">{monitor.id}</p>
-                  <p className="text-xl font-semibold text-slate-900 dark:text-white">{monitor.name}</p>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 truncate">{monitor.id}</p>
+                  <p className="text-base sm:text-xl font-semibold text-slate-900 dark:text-white truncate">{monitor.name}</p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <MiniGraph monitorId={monitor.id} status={monitor.status} />
-                  <div className="flex flex-col items-end gap-2">
+                <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                  <div className="hidden sm:block">
+                    <MiniGraph monitorId={monitor.id} status={monitor.status} />
+                  </div>
+                  <div className="flex flex-col items-end gap-1 sm:gap-2">
                     <StatusBadge status={monitor.status} />
                     {monitor.inMaintenance && (
-                      <span className="rounded-full bg-yellow-500 px-2 py-0.5 text-xs font-semibold text-black">
+                      <span className="rounded-full bg-yellow-500 px-2 py-0.5 text-[10px] sm:text-xs font-semibold text-black">
                         Maintenance
                       </span>
                     )}
                   </div>
                 </div>
               </div>
-              <div className="mt-3 space-y-1">
+              <div className="mt-2 sm:mt-3 space-y-1">
                 <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
-                  <Clock className="h-3 w-3" />
-                  {monitor.lastCheck ? new Date(monitor.lastCheck).toLocaleTimeString() : "Pending"}
+                  <Clock className="h-3 w-3 shrink-0" />
+                  <span className="truncate">{monitor.lastCheck ? new Date(monitor.lastCheck).toLocaleTimeString() : "Pending"}</span>
                 </div>
                 {monitor.kind === "certificate" && (
                   <div className="text-xs">
@@ -268,9 +270,9 @@ export const DashboardRoute = () => {
                             ? 'text-yellow-600 dark:text-yellow-400'
                             : 'text-green-600 dark:text-green-400'
                       }`}>
-                        🔒 Expires in {monitor.meta.certificateDaysLeft} days
+                        <span className="truncate">🔒 Expires in {monitor.meta.certificateDaysLeft} days</span>
                         {monitor.meta.certificateExpiresAt && (
-                          <span className="text-slate-500 dark:text-slate-400">
+                          <span className="hidden sm:inline text-slate-500 dark:text-slate-400">
                             ({new Date(monitor.meta.certificateExpiresAt).toLocaleDateString()})
                           </span>
                         )}

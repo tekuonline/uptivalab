@@ -87,14 +87,14 @@ export const PublicStatusRoute = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background py-12 px-4">
-      <div className="max-w-4xl mx-auto space-y-8">
+    <div className="min-h-screen bg-background py-8 sm:py-12 px-4">
+      <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8">
         {/* Header */}
-        <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold text-slate-900 dark:text-white">{data.name}</h1>
-          <div className="flex items-center justify-center gap-3">
+        <div className="text-center space-y-3 sm:space-y-4">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 dark:text-white">{data.name}</h1>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3">
             {getStatusIcon(data.overallStatus)}
-            <span className={`text-2xl font-semibold ${getStatusColor(data.overallStatus)}`}>
+            <span className={`text-lg sm:text-xl lg:text-2xl font-semibold ${getStatusColor(data.overallStatus)}`}>
               {data.overallStatus === "operational" && t("allSystemsOperational")}
               {data.overallStatus === "degraded" && t("partialSystemOutage")}
               {data.overallStatus === "down" && t("majorOutage")}
@@ -106,21 +106,21 @@ export const PublicStatusRoute = () => {
         </div>
 
         {/* Monitors */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">{t("services")}</h2>
+        <div className="space-y-3 sm:space-y-4">
+          <h2 className="text-lg sm:text-xl font-semibold text-slate-900 dark:text-white">{t("services")}</h2>
           {data.monitors.map((monitor) => (
-            <Card key={monitor.id} className="flex items-center justify-between">
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{monitor.name}</h3>
+            <Card key={monitor.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white truncate">{monitor.name}</h3>
                 {monitor.lastCheck && (
-                  <p className="text-xs text-slate-600 dark:text-slate-500">
+                  <p className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-500">
                     Last checked: {format(new Date(monitor.lastCheck), "MMM dd, HH:mm:ss")}
                   </p>
                 )}
               </div>
-              <div className="flex items-center gap-4">
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-slate-900 dark:text-white">
+              <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
+                <div className="text-right flex-1 sm:flex-initial">
+                  <p className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white">
                     {monitor.uptimePercentage.toFixed(2)}%
                   </p>
                   <p className="text-xs text-slate-600 dark:text-slate-400">{t("uptime")}</p>

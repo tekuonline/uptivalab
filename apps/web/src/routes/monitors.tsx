@@ -397,38 +397,38 @@ export const MonitorsRoute = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <Card className="space-y-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <h3 className="text-xl font-semibold text-slate-900 dark:text-white">
+    <div className="space-y-4 sm:space-y-6">
+      <Card className="space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-0">
+          <div className="min-w-0">
+            <h3 className="text-lg sm:text-xl font-semibold text-slate-900 dark:text-white truncate">
               {editingId ? t("editMonitor") : t("createNewMonitor")}
             </h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400">{t("createMonitorDescription")}</p>
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">{t("createMonitorDescription")}</p>
           </div>
           {editingId && (
-            <Button variant="ghost" onClick={handleCancelEdit} className="flex items-center gap-2">
+            <Button variant="ghost" onClick={handleCancelEdit} className="flex items-center gap-2 shrink-0">
               <X className="h-4 w-4" />
               {t("cancel")}
             </Button>
           )}
         </div>
         <form
-          className="space-y-6"
+          className="space-y-4 sm:space-y-6"
           onSubmit={(event) => {
             event.preventDefault();
             mutation.mutate();
           }}
         >
           {/* General Section */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-900 dark:text-white uppercase tracking-wider">{t("general")}</h4>
+          <div className="space-y-3 sm:space-y-4">
+            <h4 className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-slate-900 dark:text-white uppercase tracking-wider">{t("general")}</h4>
             
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
               <div>
-                <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("monitorType")}</label>
+                <label className="mb-1 sm:mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("monitorType")}</label>
                 <select
-                  className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-slate-900 dark:text-white h-[46px]"
+                  className="w-full rounded-xl sm:rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 sm:px-4 py-2 sm:py-3 text-sm text-slate-900 dark:text-slate-900 dark:text-white"
                   value={form.kind}
                   onChange={(e) => setForm((prev) => ({ ...prev, kind: e.target.value }))}
                 >
@@ -446,7 +446,7 @@ export const MonitorsRoute = () => {
               </div>
               
               <div>
-                <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("friendlyName")}</label>
+                <label className="mb-1 sm:mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("friendlyName")}</label>
                 <input
                   className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                   placeholder={t("monitorNamePlaceholder")}
@@ -1102,8 +1102,61 @@ export const MonitorsRoute = () => {
       </Card>
 
       <Card>
-        <h3 className="mb-4 text-xl font-semibold text-slate-900 dark:text-white">{t("existingMonitors")}</h3>
-        <div className="overflow-x-auto">
+        <h3 className="mb-3 sm:mb-4 text-lg sm:text-xl font-semibold text-slate-900 dark:text-white">{t("existingMonitors")}</h3>
+        
+        {/* Mobile Card View */}
+        <div className="block lg:hidden space-y-3">
+          {data?.map((monitor: Monitor & { recentChecks?: Array<{ status: string; checkedAt: string }>; inMaintenance?: boolean }) => (
+            <div key={monitor.id} className="rounded-xl border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/5 p-4 space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-slate-900 dark:text-white truncate">{monitor.name}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 capitalize">{monitor.kind} • {Math.round(monitor.interval / 1000)}s</p>
+                </div>
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  <StatusBadge status={monitor.status ?? "pending"} />
+                  {monitor.inMaintenance && (
+                    <span className="rounded-full bg-yellow-500/20 px-2 py-0.5 text-[10px] font-semibold text-yellow-600 dark:text-yellow-400">
+                      {t("maintenance")}
+                    </span>
+                  )}
+                </div>
+              </div>
+              {monitor.recentChecks && monitor.recentChecks.length > 0 ? (
+                <UptimeBar checks={monitor.recentChecks} hours={24} />
+              ) : (
+                <span className="text-slate-500 text-xs">{t("noData")}</span>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <Link to={`/monitors/${monitor.id}`} className="flex-1 min-w-[100px]">
+                  <Button variant="ghost" className="w-full px-2 py-1 text-xs">
+                    <Eye className="h-3 w-3 mr-1" />
+                    {t("view")}
+                  </Button>
+                </Link>
+                <Button
+                  variant="ghost"
+                  className="flex-1 min-w-[100px] px-2 py-1 text-xs"
+                  onClick={() => handleEdit(monitor)}
+                >
+                  <Edit className="h-3 w-3 mr-1" />
+                  {t("edit")}
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="px-2 py-1 text-xs"
+                  onClick={() => handleDelete(monitor)}
+                  disabled={deleteMutation.isPending}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        {/* Desktop Table View */}
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full text-left text-sm text-slate-300">
             <thead>
               <tr className="text-xs uppercase tracking-widest text-slate-500">

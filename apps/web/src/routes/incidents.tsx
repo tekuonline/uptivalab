@@ -74,17 +74,17 @@ export const IncidentsRoute = () => {
   if (isLoading) return <p className="text-slate-400">{t("loading")}</p>;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Filters and Actions Bar */}
       <Card>
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
           <div className="flex items-center gap-2 text-slate-900 dark:text-white">
             <Filter className="h-4 w-4" />
-            <span className="text-sm font-medium">{t("filters")}:</span>
+            <span className="text-xs sm:text-sm font-medium">{t("filters")}:</span>
           </div>
           
           <select
-            className="rounded-lg border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-2 text-sm text-slate-900 dark:text-slate-900 dark:text-white h-[42px]"
+            className="rounded-lg border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-slate-900 dark:text-white h-[38px] sm:h-[42px] flex-1 sm:flex-initial min-w-[120px]"
             value={filters.status}
             onChange={(e) => setFilters({ ...filters, status: e.target.value })}
           >
@@ -96,7 +96,7 @@ export const IncidentsRoute = () => {
           </select>
           
           <select
-            className="rounded-lg border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-2 text-sm text-slate-900 dark:text-slate-900 dark:text-white h-[42px]"
+            className="rounded-lg border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-slate-900 dark:text-white h-[38px] sm:h-[42px] flex-1 sm:flex-initial min-w-[120px]"
             value={filters.monitorId}
             onChange={(e) => setFilters({ ...filters, monitorId: e.target.value })}
           >
@@ -107,7 +107,7 @@ export const IncidentsRoute = () => {
           </select>
           
           <select
-            className="rounded-lg border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 py-2 text-sm text-slate-900 dark:text-slate-900 dark:text-white h-[42px]"
+            className="rounded-lg border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-slate-900 dark:text-white h-[38px] sm:h-[42px] flex-1 sm:flex-initial min-w-[120px]"
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as "date" | "duration")}
           >
@@ -118,7 +118,7 @@ export const IncidentsRoute = () => {
       </Card>
 
       {/* Incidents List */}
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         {filteredIncidents.map((incident) => {
           const duration = incident.resolvedAt
             ? Math.round((new Date(incident.resolvedAt).getTime() - new Date(incident.startedAt).getTime()) / 1000 / 60)
@@ -126,10 +126,10 @@ export const IncidentsRoute = () => {
 
           return (
             <Card key={incident.id} className="hover:border-white/20 transition cursor-pointer">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h4 className="text-lg font-semibold text-slate-900 dark:text-white">
+              <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4">
+                <div className="flex-1 min-w-0 w-full sm:w-auto">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+                    <h4 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white truncate">
                       {incident.monitor?.name ?? incident.monitorId}
                     </h4>
                     <span className={`px-3 py-1 rounded-full text-xs font-medium border ${statusColors[incident.status as keyof typeof statusColors]}`}>
@@ -137,9 +137,9 @@ export const IncidentsRoute = () => {
                     </span>
                   </div>
                   
-                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">{latestMessage(incident)}</p>
+                  <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mb-2 sm:mb-3 break-words">{latestMessage(incident)}</p>
                   
-                  <div className="flex items-center gap-6 text-xs text-slate-500">
+                  <div className="flex flex-wrap items-center gap-3 sm:gap-6 text-[10px] sm:text-xs text-slate-500">
                     <div className="flex items-center gap-2">
                       <Clock className="h-3 w-3" />
                       {t("date")} {incident.startedAt ? format(new Date(incident.startedAt), "PPp") : "Unknown"}

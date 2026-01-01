@@ -265,7 +265,7 @@ export const StatusPagesRoute = () => {
         </Card>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-2">
         {data?.map((page: StatusPage) => (
           <Card key={page.id} className="space-y-2">
             <div className="flex items-start justify-between">
