@@ -68,6 +68,16 @@ interface Settings {
   trustProxy?: boolean;
   checkUpdates?: boolean;
   checkBetaReleases?: boolean;
+  // Global Notification Settings
+  notifyOnMonitorUp?: boolean;
+  notifyOnMonitorDown?: boolean;
+  notifyOnCertExpiry?: boolean;
+  certExpiryThresholdDays?: number;
+  notificationMinInterval?: number;
+  groupNotifications?: boolean;
+  enableQuietHours?: boolean;
+  quietHoursStart?: string;
+  quietHoursEnd?: string;
 }
 
 interface ApiKey {
@@ -1026,24 +1036,6 @@ export const SettingsRoute = () => {
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-slate-300 dark:border-slate-500/20 bg-slate-100 dark:bg-slate-500/10 p-4">
-                    <h3 className="mb-2 font-semibold text-slate-900 dark:text-white">{t("otherSoftware")}</h3>
-                    <p className="mb-3 text-sm text-slate-600 dark:text-slate-300">
-                      {t("otherSoftwareExample")}
-                    </p>
-                    <p className="text-sm text-slate-600 dark:text-slate-400">
-                      {t("pleaseRead")}{" "}
-                      <a
-                        href="https://github.com/louislam/uptime-kuma/wiki/Reverse-Proxy"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline"
-                      >
-                        https://github.com/louislam/uptime-kuma/wiki/Reverse-Proxy
-                      </a>
-                    </p>
-                  </div>
-
                   <div>
                     <Label>{t("httpHeaders")}</Label>
                     <textarea
@@ -1927,17 +1919,168 @@ export const SettingsRoute = () => {
             {activeTab === "notifications" && (
               <div className="space-y-6">
                 <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">{t("notifications")}</h2>
-                <div className="rounded-xl border border-blue-500/30 dark:border-blue-500/20 bg-blue-500/10 p-6">
-                  <p className="text-slate-600 dark:text-slate-300">
-                    Notification channels are configured in the{" "}
-                    <a href="/notifications" className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline">
-                      Notifications
-                    </a>{" "}
-                    page.
-                  </p>
-                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-                    Global notification settings coming soon...
-                  </p>
+                
+                {/* Global Notifications Settings */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{t("globalNotifications")}</h3>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Default Notification Channels Info */}
+                    <div className="rounded-xl border border-blue-500/30 dark:border-blue-500/20 bg-blue-500/10 p-4">
+                      <div className="flex items-start gap-3">
+                        <Bell className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+                        <div>
+                          <h4 className="font-semibold text-blue-900 dark:text-blue-200 mb-1">{t("defaultChannels")}</h4>
+                          <p className="text-sm text-blue-800 dark:text-blue-300">
+                            {t("defaultChannelsInfo")}{" "}
+                            <a href="/notifications" className="underline hover:text-blue-600 dark:hover:text-blue-100">
+                              {t("notifications")}
+                            </a>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Notification Preferences */}
+                    <div className="rounded-xl border border-slate-300 dark:border-white/10 bg-slate-50 dark:bg-white/5 p-4">
+                      <h4 className="font-semibold text-slate-900 dark:text-white mb-3">{t("notificationPreferences")}</h4>
+                      <div className="space-y-3">
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={localSettings.notifyOnMonitorUp !== false}
+                            onChange={(e) => setLocalSettings(prev => ({ ...prev, notifyOnMonitorUp: e.target.checked }))}
+                            className="rounded border-slate-300 dark:border-white/20"
+                          />
+                          <div className="flex-1">
+                            <span className="text-sm font-medium text-slate-900 dark:text-white">{t("notifyWhenUp")}</span>
+                            <p className="text-xs text-slate-600 dark:text-slate-400">{t("notifyWhenUpDesc")}</p>
+                          </div>
+                        </label>
+                        
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={localSettings.notifyOnMonitorDown !== false}
+                            onChange={(e) => setLocalSettings(prev => ({ ...prev, notifyOnMonitorDown: e.target.checked }))}
+                            className="rounded border-slate-300 dark:border-white/20"
+                          />
+                          <div className="flex-1">
+                            <span className="text-sm font-medium text-slate-900 dark:text-white">{t("notifyWhenDown")}</span>
+                            <p className="text-xs text-slate-600 dark:text-slate-400">{t("notifyWhenDownDesc")}</p>
+                          </div>
+                        </label>
+
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={localSettings.notifyOnCertExpiry !== false}
+                            onChange={(e) => setLocalSettings(prev => ({ ...prev, notifyOnCertExpiry: e.target.checked }))}
+                            className="rounded border-slate-300 dark:border-white/20"
+                          />
+                          <div className="flex-1">
+                            <span className="text-sm font-medium text-slate-900 dark:text-white">{t("notifyCertExpiry")}</span>
+                            <p className="text-xs text-slate-600 dark:text-slate-400">{t("notifyCertExpiryDesc")}</p>
+                          </div>
+                        </label>
+                        
+                        {localSettings.notifyOnCertExpiry !== false && (
+                          <div className="pl-7">
+                            <Label className="text-xs">{t("certExpiryThreshold")}</Label>
+                            <Input
+                              type="number"
+                              min="1"
+                              max="365"
+                              value={localSettings.certExpiryThresholdDays || 30}
+                              onChange={(e) => setLocalSettings(prev => ({ ...prev, certExpiryThresholdDays: parseInt(e.target.value) || 30 }))}
+                              placeholder="30"
+                              className="mt-1"
+                            />
+                            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                              {t("certExpiryThresholdDesc")}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Notification Rate Limiting */}
+                    <div className="rounded-xl border border-slate-300 dark:border-white/10 bg-slate-50 dark:bg-white/5 p-4">
+                      <h4 className="font-semibold text-slate-900 dark:text-white mb-3">{t("rateLimiting")}</h4>
+                      <div className="space-y-3">
+                        <div>
+                          <Label className="text-xs">{t("minimumInterval")}</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            max="1440"
+                            value={localSettings.notificationMinInterval || 5}
+                            onChange={(e) => setLocalSettings(prev => ({ ...prev, notificationMinInterval: parseInt(e.target.value) || 5 }))}
+                            placeholder="5"
+                            className="mt-1"
+                          />
+                          <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                            {t("minimumIntervalDesc")}
+                          </p>
+                        </div>
+                        
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={localSettings.groupNotifications !== false}
+                            onChange={(e) => setLocalSettings(prev => ({ ...prev, groupNotifications: e.target.checked }))}
+                            className="rounded border-slate-300 dark:border-white/20"
+                          />
+                          <div className="flex-1">
+                            <span className="text-sm font-medium text-slate-900 dark:text-white">{t("groupNotifications")}</span>
+                            <p className="text-xs text-slate-600 dark:text-slate-400">{t("groupNotificationsDesc")}</p>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Quiet Hours */}
+                    <div className="rounded-xl border border-slate-300 dark:border-white/10 bg-slate-50 dark:bg-white/5 p-4">
+                      <h4 className="font-semibold text-slate-900 dark:text-white mb-3">{t("quietHours")}</h4>
+                      <div className="space-y-3">
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={localSettings.enableQuietHours || false}
+                            onChange={(e) => setLocalSettings(prev => ({ ...prev, enableQuietHours: e.target.checked }))}
+                            className="rounded border-slate-300 dark:border-white/20"
+                          />
+                          <span className="text-sm font-medium text-slate-900 dark:text-white">{t("enableQuietHours")}</span>
+                        </label>
+                        
+                        {localSettings.enableQuietHours && (
+                          <div className="grid grid-cols-2 gap-2 pl-7">
+                            <div>
+                              <Label className="text-xs">{t("startTime")}</Label>
+                              <Input
+                                type="time"
+                                value={localSettings.quietHoursStart || "22:00"}
+                                onChange={(e) => setLocalSettings(prev => ({ ...prev, quietHoursStart: e.target.value }))}
+                                className="mt-1"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs">{t("endTime")}</Label>
+                              <Input
+                                type="time"
+                                value={localSettings.quietHoursEnd || "08:00"}
+                                onChange={(e) => setLocalSettings(prev => ({ ...prev, quietHoursEnd: e.target.value }))}
+                                className="mt-1"
+                              />
+                            </div>
+                          </div>
+                        )}
+                        <p className="text-xs text-slate-600 dark:text-slate-400">
+                          {t("quietHoursDesc")}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

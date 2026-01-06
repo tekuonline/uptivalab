@@ -19,15 +19,19 @@ services:
     volumes:
       - redisdata:/data
 
-  playwright:
-    image: mcr.microsoft.com/playwright:v1.57.0-jammy
-    restart: unless-stopped
-    command: ["npx", "playwright", "run-server", "--port", "9222"]
-    ports:
-      - "9222:9222"
-    environment:
-      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-    shm_size: 2gb
+  # Optional: Remote Playwright browser service
+  # By default, API uses embedded browsers. Uncomment this service and set USE_REMOTE_BROWSER=true to use remote mode.
+  # playwright:
+  #   image: mcr.microsoft.com/playwright:v1.57.0-jammy
+  #   restart: unless-stopped
+  #   command: ["npx", "playwright", "run-server", "--port", "9222"]
+  #   ports:
+  #     - "9222:9222"
+  #   environment:
+  #     - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+  #   shm_size: 2gb
+  #   profiles:
+  #     - remote-browser  # Only start with: docker compose --profile remote-browser up
 
   api:
     build:
@@ -41,15 +45,16 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change-me-to-something-longer-than-16-chars}
       PORT: ${PORT:-8080}
       NODE_ENV: production
-      PLAYWRIGHT_WS_ENDPOINT: ${PLAYWRIGHT_WS_ENDPOINT:-ws://playwright:9222}
+      USE_REMOTE_BROWSER: ${USE_REMOTE_BROWSER:-false}
+      PLAYWRIGHT_WS_ENDPOINT: ${PLAYWRIGHT_WS_ENDPOINT:-}
     depends_on:
       - postgres
       - redis
-      - playwright
     ports:
       - "8080:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    shm_size: 2gb  # Required for embedded Playwright browsers
     restart: unless-stopped
 
   web:

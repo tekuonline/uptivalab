@@ -4,16 +4,79 @@ import { broadcastBus } from "../../realtime/events.js";
 import { emailNotifier } from "../notifications/smtp.js";
 import { webhookNotifier } from "../notifications/webhook.js";
 import { ntfyNotifier } from "../notifications/ntfy.js";
+import { settingsService } from "../settings/service.js";
 
 type IncidentStatus = "OPEN" | "INVESTIGATING" | "MITIGATED" | "RESOLVED";
 type MonitorShape = { id: string; name: string };
 
 const activeStatuses: IncidentStatus[] = ["OPEN", "INVESTIGATING"];
 
+// Track last notification time per monitor for rate limiting
+const lastNotificationTime = new Map<string, number>();
+
 const createEvent = async (incidentId: string, message: string) =>
   prisma.incidentEvent.create({
     data: { incidentId, message },
   });
+
+const isInQuietHours = (startTime: string, endTime: string): boolean => {
+  const now = new Date();
+  const currentTime = now.getHours() * 60 + now.getMinutes();
+  
+  const [startHour, startMin] = startTime.split(":").map(Number);
+  const [endHour, endMin] = endTime.split(":").map(Number);
+  const start = startHour * 60 + startMin;
+  const end = endHour * 60 + endMin;
+  
+  // Handle quiet hours spanning midnight
+  if (start > end) {
+    return currentTime >= start || currentTime < end;
+  }
+  return currentTime >= start && currentTime < end;
+};
+
+const shouldSendNotification = async (
+  monitorId: string,
+  status: IncidentStatus
+): Promise<boolean> => {
+  // Check global notification preferences
+  const notifyOnUp = await settingsService.get<boolean>("notifyOnMonitorUp", true);
+  const notifyOnDown = await settingsService.get<boolean>("notifyOnMonitorDown", true);
+  
+  if (status === "RESOLVED" && !notifyOnUp) {
+    return false;
+  }
+  
+  if ((status === "OPEN" || status === "INVESTIGATING") && !notifyOnDown) {
+    return false;
+  }
+  
+  // Check rate limiting
+  const minInterval = await settingsService.get<number>("notificationMinInterval", 5);
+  const lastTime = lastNotificationTime.get(monitorId);
+  const now = Date.now();
+  
+  if (lastTime && (now - lastTime) < minInterval * 60 * 1000) {
+    console.log(`[Notification] Rate limited for monitor ${monitorId}`);
+    return false;
+  }
+  
+  // Check quiet hours
+  const enableQuietHours = await settingsService.get<boolean>("enableQuietHours", false);
+  if (enableQuietHours) {
+    const quietHoursStart = await settingsService.get<string>("quietHoursStart", "22:00");
+    const quietHoursEnd = await settingsService.get<string>("quietHoursEnd", "08:00");
+    
+    if (isInQuietHours(quietHoursStart, quietHoursEnd)) {
+      console.log(`[Notification] Suppressed due to quiet hours`);
+      return false;
+    }
+  }
+  
+  // Update last notification time
+  lastNotificationTime.set(monitorId, now);
+  return true;
+};
 
 const sendNotification = async (
   monitorId: string,
@@ -22,6 +85,12 @@ const sendNotification = async (
   monitor?: MonitorShape
 ) => {
   try {
+    // Check if notification should be sent based on global settings
+    const shouldSend = await shouldSendNotification(monitorId, status);
+    if (!shouldSend) {
+      return;
+    }
+    
     // Fetch monitor with notification channels
     const fullMonitor = await prisma.monitor.findUnique({
       where: { id: monitorId },
@@ -90,7 +159,12 @@ const emitUpdate = (incident: {
   });
 };
 
-const ensureIncident = async (monitorId: string, message: string, monitor?: MonitorShape) => {
+const ensureIncident = async (monitorId: string, message: string, monitor?: MonitorShape & { createIncidents?: boolean }) => {
+  // Skip incident creation if monitor has createIncidents disabled
+  if (monitor?.createIncidents === false) {
+    return null;
+  }
+  
   const existing = await prisma.incident.findFirst({
     where: { monitorId, status: { in: activeStatuses } },
   });
@@ -115,7 +189,7 @@ const ensureIncident = async (monitorId: string, message: string, monitor?: Moni
   return incident;
 };
 
-const resolveIncident = async (monitorId: string, message: string, monitor?: MonitorShape) => {
+const resolveIncident = async (monitorId: string, message: string, monitor?: MonitorShape & { createIncidents?: boolean }) => {
   const incident = await prisma.incident.findFirst({
     where: { monitorId, status: { in: activeStatuses } },
   });
@@ -138,7 +212,7 @@ const resolveIncident = async (monitorId: string, message: string, monitor?: Mon
 };
 
 export const incidentManager = {
-  async process(result: MonitorResult, monitor?: MonitorShape, options?: { suppressed?: boolean }) {
+  async process(result: MonitorResult, monitor?: MonitorShape & { createIncidents?: boolean }, options?: { suppressed?: boolean }) {
     if (options?.suppressed) return;
 
     if (result.status === "down") {

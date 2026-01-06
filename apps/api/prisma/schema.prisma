@@ -57,6 +57,7 @@ model Monitor {
   interval    Int
   timeout     Int?
   paused      Boolean         @default(false)
+  createIncidents Boolean      @default(true)
   group       MonitorGroup?   @relation(fields: [groupId], references: [id])
   groupId     String?
   tags        MonitorTag[]

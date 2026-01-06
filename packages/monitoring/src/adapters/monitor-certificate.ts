@@ -22,7 +22,7 @@ const toConfig = (config: Record<string, unknown>): CertificateConfig => {
 export const certificateAdapter: MonitorAdapter = {
   kind: "certificate",
   supports: () => true,
-  execute(monitor: BaseMonitor): Promise<MonitorResult> {
+  async execute(monitor: BaseMonitor): Promise<MonitorResult> {
     const config = toConfig(monitor.config);
     const timeout = monitor.timeout ?? 15000;
 
@@ -39,10 +39,18 @@ export const certificateAdapter: MonitorAdapter = {
           socket.end();
           const expiresAt = cert.valid_to ? new Date(cert.valid_to) : undefined;
           const daysLeft = expiresAt ? Math.round((expiresAt.getTime() - Date.now()) / 86_400_000) : undefined;
-          const status = !expiresAt || daysLeft === undefined || daysLeft > 0 ? "up" : "down";
-          const warning = config.warningDays ?? 7;
+          
+          // Use threshold from monitor config or default to 30 days
+          const threshold = config.warningDays ?? 30;
+          const isExpiringSoon = daysLeft !== undefined && daysLeft <= threshold;
+          
+          const status = !expiresAt || daysLeft === undefined || (daysLeft > 0 && !isExpiringSoon) ? "up" : "down";
           const message = expiresAt
-            ? `Certificate expires in ${daysLeft} day(s) (${expiresAt.toLocaleDateString()})`
+            ? daysLeft !== undefined && daysLeft <= 0
+              ? `Certificate has EXPIRED (expired ${Math.abs(daysLeft)} day(s) ago)`
+              : isExpiringSoon
+              ? `Certificate expires in ${daysLeft} day(s) (${expiresAt.toLocaleDateString()}) - threshold: ${threshold} days`
+              : `Certificate expires in ${daysLeft} day(s) (${expiresAt.toLocaleDateString()})`
             : "Certificate info unavailable";
 
           resolve({

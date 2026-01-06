@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "../components/ui/button.js";
@@ -32,7 +32,7 @@ export default function SyntheticRecorder() {
   const [notificationIds, setNotificationIds] = useState<string[]>([]);
   const [description, setDescription] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
-  const [useLocalBrowser, setUseLocalBrowser] = useState(false);
+  const [useLocalBrowser, setUseLocalBrowser] = useState(true);
   
   const { data: notifications } = useQuery({
     queryKey: ["notifications"],
@@ -343,8 +343,8 @@ export default function SyntheticRecorder() {
                       onChange={(e) => setUseLocalBrowser(e.target.value === "local")}
                       className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm"
                     >
-                      <option value="remote">{t("remote")} ({t("recommended")})</option>
-                      <option value="local">{t("local")}</option>
+                      <option value="local">{t("localBrowser")}</option>
+                      <option value="remote">{t("remoteBrowserRecommended")}</option>
                     </select>
                   </div>
                 </div>
