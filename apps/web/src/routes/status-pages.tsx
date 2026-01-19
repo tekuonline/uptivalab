@@ -14,6 +14,7 @@ export const StatusPagesRoute = () => {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({ 
     name: "", 
     slug: "", 
@@ -23,6 +24,19 @@ export const StatusPagesRoute = () => {
     showMaintenance: true,
     theme: "system" as "light" | "dark" | "system",
   });
+  
+  // Parse and translate API validation errors
+  const parseError = (errorMessage: string): string => {
+    // Check for slug validation errors
+    if (errorMessage.includes("slug") && errorMessage.includes("at least 3 character")) {
+      return t("slugTooShort");
+    }
+    if (errorMessage.includes("slug") && errorMessage.includes("invalid")) {
+      return t("slugInvalid");
+    }
+    // Return original message if no translation found
+    return errorMessage;
+  };
   
   const { data, isLoading } = useQuery({ 
     queryKey: ["status-pages"], 
@@ -44,6 +58,12 @@ export const StatusPagesRoute = () => {
       setForm({ name: "", slug: "", heroMessage: "", monitorIds: [], showIncidents: true, showMaintenance: true, theme: "system" });
       setShowForm(false);
       setEditingId(null);
+      setError(null);
+    },
+    onError: (err: any) => {
+      // The API client throws an Error with message from response body
+      const errorMessage = err?.message || "Failed to create status page";
+      setError(parseError(errorMessage));
     },
   });
 
@@ -55,6 +75,12 @@ export const StatusPagesRoute = () => {
       setForm({ name: "", slug: "", heroMessage: "", monitorIds: [], showIncidents: true, showMaintenance: true, theme: "system" });
       setShowForm(false);
       setEditingId(null);
+      setError(null);
+    },
+    onError: (err: any) => {
+      // The API client throws an Error with message from response body
+      const errorMessage = err?.message || "Failed to update status page";
+      setError(parseError(errorMessage));
     },
   });
 
@@ -115,6 +141,7 @@ export const StatusPagesRoute = () => {
   const handleCancel = () => {
     setShowForm(false);
     setEditingId(null);
+    setError(null);
     setForm({ name: "", slug: "", heroMessage: "", monitorIds: [], showIncidents: true, showMaintenance: true, theme: "system" });
   };
 
@@ -180,8 +207,12 @@ export const StatusPagesRoute = () => {
                 className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                 placeholder={t("slugPlaceholder")}
                 value={form.slug}
-                onChange={(e) => setForm((prev) => ({ ...prev, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }))}
+                onChange={(e) => {
+                  setError(null);
+                  setForm((prev) => ({ ...prev, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }));
+                }}
                 pattern="^[a-z0-9-]+$"
+                minLength={3}
                 required
               />
               <p className="text-xs text-slate-500 mt-1">{t("slugDescription")}: /status/{form.slug || 'your-slug'}</p>
@@ -256,6 +287,11 @@ export const StatusPagesRoute = () => {
               </select>
               <p className="text-xs text-slate-600 dark:text-slate-500 mt-1">{t("chooseTheme")}</p>
             </div>
+            {error && (
+              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3">
+                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+              </div>
+            )}
             <Button onClick={handleCreate} disabled={createMutation.isPending || updateMutation.isPending || !form.name || !form.slug}>
               {(createMutation.isPending || updateMutation.isPending) 
                 ? (editingId ? t("updating") : t("loading")) 

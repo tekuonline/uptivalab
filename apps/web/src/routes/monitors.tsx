@@ -43,6 +43,7 @@ export const MonitorsRoute = () => {
     notificationIds: [] as string[],
     
     // Advanced options
+    createIncidents: true,
     ignoreTls: false,
     upsideDown: false,
     maxRedirects: 10,
@@ -158,6 +159,7 @@ export const MonitorsRoute = () => {
       groupId: "",
       tagIds: [],
       notificationIds: [],
+      createIncidents: true,
       ignoreTls: false,
       upsideDown: false,
       maxRedirects: 10,
@@ -182,7 +184,7 @@ export const MonitorsRoute = () => {
       dockerHostId: "",
       
       browser: "chromium",
-      useLocalBrowser: false,
+      useLocalBrowser: true, // Default to embedded browser
       steps: "",
     });
   };
@@ -203,6 +205,7 @@ export const MonitorsRoute = () => {
         timeout: form.timeout * 1000,
         kind: form.kind,
         config,
+        createIncidents: form.createIncidents,
         notificationIds: form.notificationIds,
       };
       
@@ -300,6 +303,7 @@ export const MonitorsRoute = () => {
       notificationIds: [],
       
       // Advanced options
+      createIncidents: monitor.createIncidents ?? true,
       ignoreTls: config?.ignoreTls ?? false,
       upsideDown: config?.upsideDown ?? false,
       maxRedirects: config?.maxRedirects ?? 10,
@@ -354,6 +358,7 @@ export const MonitorsRoute = () => {
       notificationIds: Array.isArray(monitor.notificationIds) ? monitor.notificationIds : [],
       
       // Advanced options
+      createIncidents: monitor.createIncidents ?? true,
       ignoreTls: config?.ignoreTls ?? false,
       upsideDown: config?.upsideDown ?? false,
       maxRedirects: config?.maxRedirects ?? 10,
@@ -779,8 +784,8 @@ export const MonitorsRoute = () => {
                       value={form.useLocalBrowser ? 'local' : 'remote'}
                       onChange={(e) => setForm((prev) => ({ ...prev, useLocalBrowser: e.target.value === 'local' }))}
                     >
-                      <option value="remote">{t("remoteBrowserRecommended")}</option>
                       <option value="local">{t("localBrowser")}</option>
+                      <option value="remote">{t("remoteBrowserRecommended")}</option>
                     </select>
                     <p className="mt-1 text-xs text-slate-500">{t("remoteUsesPlaywright")}</p>
                   </div>
@@ -865,6 +870,22 @@ export const MonitorsRoute = () => {
                 />
               </div>
             </div>
+          </div>
+
+          {/* Incident Creation Toggle */}
+          <div className="rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 p-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.createIncidents}
+                onChange={(e) => setForm((prev) => ({ ...prev, createIncidents: e.target.checked }))}
+                className="h-4 w-4 rounded border-white/20 bg-white/10 text-blue-500"
+              />
+              <span className="text-sm font-medium text-slate-900 dark:text-white">{t("createIncidents")}</span>
+            </label>
+            <p className="mt-2 text-xs text-slate-500 ml-6">
+              {t("createIncidentsHelp")}
+            </p>
           </div>
           
           {/* Advanced Options - HTTP specific */}

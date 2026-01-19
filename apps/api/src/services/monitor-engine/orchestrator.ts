@@ -7,6 +7,7 @@ import { broadcastBus } from "../../realtime/events.js";
 import { notificationRouter } from "../notifications/router.js";
 import { maintenanceService } from "../maintenance/suppressor.js";
 import { incidentManager } from "../incidents/manager.js";
+import { settingsService } from "../settings/service.js";
 
 const toConfigObject = (value: unknown): Record<string, unknown> => {
   if (value && typeof value === "object" && !Array.isArray(value)) {
@@ -35,6 +36,17 @@ const worker = new Worker(
     });
     if (!monitor) return;
     const config = toConfigObject(monitor.config);
+    
+    // Inject global certificate expiry threshold for certificate monitors
+    if (monitor.kind === "certificate") {
+      const certExpiryThreshold = await settingsService.get<number>("certExpiryThresholdDays", 30);
+      const certConfig = config as Record<string, unknown> & { warningDays?: number };
+      // Use global setting if not set in monitor config
+      if (certConfig.warningDays === undefined) {
+        certConfig.warningDays = certExpiryThreshold;
+      }
+    }
+    
     if (monitor.kind === "push" && monitor.heartbeats) {
       const pushConfig = config as Record<string, unknown> & {
         heartbeatSeconds?: number;
@@ -99,6 +111,17 @@ const runMonitorCheck = async (monitorId: string): Promise<MonitorResult> => {
   }
 
   const config = toConfigObject(monitor.config);
+  
+  // Inject global certificate expiry threshold for certificate monitors
+  if (monitor.kind === "certificate") {
+    const certExpiryThreshold = await settingsService.get<number>("certExpiryThresholdDays", 30);
+    const certConfig = config as Record<string, unknown> & { warningDays?: number };
+    // Use global setting if not set in monitor config
+    if (certConfig.warningDays === undefined) {
+      certConfig.warningDays = certExpiryThreshold;
+    }
+  }
+  
   if (monitor.kind === "push" && monitor.heartbeats) {
     const pushConfig = config as Record<string, unknown> & {
       heartbeatSeconds?: number;

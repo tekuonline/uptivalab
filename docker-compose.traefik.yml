@@ -33,23 +33,27 @@ services:
       timeout: 5s
       retries: 5
 
-  playwright:
-    image: mcr.microsoft.com/playwright:v1.45.0-jammy
-    container_name: uptivalab-playwright
-    command: ["npx", "playwright", "run-server", "--port", "9222"]
-    environment:
-      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-    shm_size: 2gb
-    restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
-    networks:
-      - proxy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9222/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+  # Optional: Remote Playwright browser service
+  # By default, API uses embedded browsers. Uncomment this service and set USE_REMOTE_BROWSER=true to use remote mode.
+  # playwright:
+  #   image: mcr.microsoft.com/playwright:v1.57.0-jammy
+  #   container_name: uptivalab-playwright
+  #   command: ["npx", "playwright", "run-server", "--port", "9222"]
+  #   environment:
+  #     - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+  #   shm_size: 2gb
+  #   restart: unless-stopped
+  #   security_opt:
+  #     - no-new-privileges:true
+  #   networks:
+  #     - proxy
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:9222/"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #   profiles:
+  #     - remote-browser  # Only start with: docker compose --profile remote-browser up
 
   api:
     image: curiohokiest2e/uptivalab-api:${VERSION:-latest}
@@ -62,7 +66,8 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       PORT: ${API_PORT:-8081}
       NODE_ENV: production
-      PLAYWRIGHT_WS_ENDPOINT: ws://playwright:9222/
+      USE_REMOTE_BROWSER: ${USE_REMOTE_BROWSER:-false}
+      PLAYWRIGHT_WS_ENDPOINT: ${PLAYWRIGHT_WS_ENDPOINT:-}
       # Optional SMTP configuration
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
@@ -70,6 +75,7 @@ services:
       SMTP_PASS: ${SMTP_PASS:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    shm_size: 2gb  # Required for embedded Playwright browsers
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -79,8 +85,6 @@ services:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      playwright:
         condition: service_healthy
     labels:
       - "traefik.enable=true"

@@ -392,15 +392,15 @@ The API container automatically runs both your application and cloudflared.
 
 ## 🎭 Synthetic Monitoring
 
-UptivaLab includes powerful browser-based synthetic monitoring using Playwright. Create multi-step user journeys to test complex workflows.
+UptivaLab includes powerful browser-based synthetic monitoring using Playwright with **embedded browsers running directly in the API container**.
 
 ### Features
 - ✅ **Multi-step browser automation** - Navigate, click, fill forms, wait for elements
 - ✅ **Three browser engines** - Chromium, Firefox, WebKit
-- ✅ **Local & remote browsers** - Flexible deployment options
+- ✅ **Embedded browsers (default)** - No separate browser service needed
+- ✅ **Remote browser option** - For advanced isolation scenarios
 - ✅ **Detailed step results** - See exactly which step failed
 - ✅ **Screenshot capture** - Visual debugging
-- ✅ **Automatic fallback** - Remote → Local if connection fails
 
 ### Quick Example
 
@@ -410,6 +410,7 @@ UptivaLab includes powerful browser-based synthetic monitoring using Playwright.
   "type": "SYNTHETIC",
   "config": {
     "browser": "chromium",
+    "useLocalBrowser": true,
     "steps": [
       {"action": "goto", "url": "https://example.com/login"},
       {"action": "fill", "selector": "#email", "value": "test@example.com"},
@@ -421,7 +422,8 @@ UptivaLab includes powerful browser-based synthetic monitoring using Playwright.
 }
 ```
 
-📖 **[Complete Synthetic Monitoring Guide](./SYNTHETIC_MONITORING.md)**
+📖 **[Complete Synthetic Monitoring Guide](./SYNTHETIC_MONITORING.md)**  
+🚀 **[Embedded Browser Enhancement Details](./SYNTHETIC_BROWSER_ENHANCEMENT.md)**
 
 ---
 
@@ -445,8 +447,11 @@ cd uptivalab
 # Install dependencies
 pnpm install
 
-# Start database services
-docker compose up -d postgres redis playwright
+# Start database services (playwright service is now optional)
+docker compose up -d postgres redis
+
+# Optional: Start remote Playwright service (only if needed)
+# docker compose --profile remote-browser up -d playwright
 
 # Set up environment
 cp .env.example .env

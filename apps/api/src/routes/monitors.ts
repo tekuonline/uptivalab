@@ -72,6 +72,7 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
         interval: z.number().int().min(1000), // minimum 1 second
         timeout: z.number().int().min(1000).optional(), // minimum 1 second
         paused: z.boolean().optional().default(false),
+        createIncidents: z.boolean().optional().default(true),
         groupId: z.string().optional(),
         tagIds: z.array(z.string()).optional(),
       }).parse(request.body);
@@ -104,6 +105,7 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
           interval: body.interval,
           timeout: body.timeout,
           paused: body.paused,
+          createIncidents: body.createIncidents,
           groupId: body.groupId,
           tags: body.tagIds ? {
             create: body.tagIds.map(tagId => ({ tagId }))
