@@ -59,21 +59,31 @@ const send = async (channel: NotificationChannel, result: MonitorResult) => {
   const transport = createTransporter(config);
   
   if (!transport) {
-    console.warn("No SMTP configuration available for email notification");
-    return;
+    console.error(`[Email Notifier] No SMTP configuration available for channel ${channel.name}`);
+    throw new Error("SMTP configuration not available");
   }
 
   const fromEmail = config.smtpFrom || config.smtpUser || appConfig.SMTP_USER || "uptivalab@localhost";
   
   // Support multiple email recipients
   const toEmails = config.emails || config.email || channel.name;
+  
+  console.log(`[Email Notifier] Sending email notification to ${toEmails}`);
 
-  await transport.sendMail({
-    to: toEmails,
-    from: fromEmail,
-    subject: `[UptivaLab] ${result.status.toUpperCase()} - ${result.monitorId}`,
-    text: result.message,
-  });
+  try {
+    const monitorName = (result as any).monitorName || "Unknown Monitor";
+    await transport.sendMail({
+      to: toEmails,
+      from: fromEmail,
+      subject: `[UptivaLab] ${monitorName} - ${result.status.toUpperCase()}`,
+      text: result.message,
+    });
+    
+    console.log(`[Email Notifier] Successfully sent email notification to ${toEmails}`);
+  } catch (error) {
+    console.error(`[Email Notifier] Failed to send email notification to ${toEmails}:`, error);
+    throw error;
+  }
 };
 
 export const emailNotifier: NotificationAdapter = {

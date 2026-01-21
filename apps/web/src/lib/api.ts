@@ -217,6 +217,14 @@ export const api = {
       headers: jsonHeaders,
       body: JSON.stringify(payload),
     }),
+  getLanguage: () => request<string>("/api/settings/language"),
+  setLanguage: (token: string | null, language: string) =>
+    request<{ language: string }>("/api/settings/language", {
+      method: "PUT",
+      token,
+      headers: jsonHeaders,
+      body: JSON.stringify({ language }),
+    }),
   // Cloudflare Tunnel
   getCloudflareTunnelStatus: (token: string | null) =>
     request<{ running: boolean; installed: boolean }>("/api/cloudflare-tunnel/status", { token }),

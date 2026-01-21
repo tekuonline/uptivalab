@@ -30,7 +30,7 @@ export const AppLayout = () => {
             <h2 className="text-xl sm:text-2xl lg:text-3xl font-semibold text-slate-900 dark:text-white truncate">{t("monitoringDashboard")}</h2>
           </div>
           <Button variant="ghost" onClick={logout} className="shrink-0">
-            Log out
+            {t("logout")}
           </Button>
         </header>
         <Outlet />

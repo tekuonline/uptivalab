@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api.js";
-import { useTranslation } from "../lib/i18n.js";
+import { useTranslation } from "../hooks/use-translation.js";
 import { Card } from "../components/ui/card.js";
 import { StatusBadge } from "../components/status-badge.js";
 import { format } from "date-fns";
@@ -9,7 +9,7 @@ import { CheckCircle, XCircle, Clock, AlertTriangle, Wrench } from "lucide-react
 import { useEffect } from "react";
 
 export const PublicStatusRoute = () => {
-  const { t } = useTranslation();
+  const { t, languageLoading } = useTranslation();
   const { slug } = useParams<{ slug: string }>();
   
   const { data, isLoading, error } = useQuery({
@@ -48,7 +48,7 @@ export const PublicStatusRoute = () => {
     };
   }, [data]);
 
-  if (isLoading) {
+  if (languageLoading || isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <p className="text-slate-600 dark:text-slate-400">{t("loadingStatusPage")}</p>
@@ -86,6 +86,16 @@ export const PublicStatusRoute = () => {
     }
   };
 
+  const getIncidentStatusText = (status: string) => {
+    switch (status) {
+      case "OPEN": return t("incidentStatusOpen");
+      case "INVESTIGATING": return t("incidentStatusInvestigating");
+      case "MITIGATED": return t("incidentStatusMitigated");
+      case "RESOLVED": return t("incidentStatusResolved");
+      default: return status;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background py-8 sm:py-12 px-4">
       <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8">
@@ -101,7 +111,7 @@ export const PublicStatusRoute = () => {
             </span>
           </div>
           <p className="text-sm text-slate-600 dark:text-slate-400">
-            Last updated: {format(new Date(), "MMM dd, yyyy HH:mm:ss")}
+            {t("lastUpdated")}{format(new Date(), "MMM dd, yyyy HH:mm:ss")}
           </p>
         </div>
 
@@ -114,7 +124,7 @@ export const PublicStatusRoute = () => {
                 <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white truncate">{monitor.name}</h3>
                 {monitor.lastCheck && (
                   <p className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-500">
-                    Last checked: {format(new Date(monitor.lastCheck), "MMM dd, HH:mm:ss")}
+                    {t("lastChecked")}{format(new Date(monitor.lastCheck), "MMM dd, HH:mm:ss")}
                   </p>
                 )}
               </div>
@@ -153,7 +163,7 @@ export const PublicStatusRoute = () => {
           <div className="space-y-4">
             <h2 className="text-xl font-semibold text-slate-900 dark:text-white flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-yellow-500" />
-              Active Incidents
+              {t("activeIncidents")}
             </h2>
             {data.monitors.map((monitor: any) =>
               monitor.incidents?.map((incident: any) => (
@@ -163,7 +173,7 @@ export const PublicStatusRoute = () => {
                       <div>
                         <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{monitor.name}</h3>
                         <p className="text-sm text-slate-600 dark:text-slate-400">
-                          Started {format(new Date(incident.startedAt), "MMM dd, yyyy HH:mm")}
+                          {t("started")}{format(new Date(incident.startedAt), "MMM dd, yyyy HH:mm")}
                         </p>
                       </div>
                       <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
@@ -172,7 +182,7 @@ export const PublicStatusRoute = () => {
                         incident.status === 'MITIGATED' ? 'bg-blue-500/20 text-blue-400' :
                         'bg-green-500/20 text-green-400'
                       }`}>
-                        {incident.status}
+                        {getIncidentStatusText(incident.status)}
                       </span>
                     </div>
                     {incident.events && incident.events.length > 0 && (
@@ -199,7 +209,7 @@ export const PublicStatusRoute = () => {
           <div className="space-y-4">
             <h2 className="text-xl font-semibold text-slate-900 dark:text-white flex items-center gap-2">
               <Wrench className="h-5 w-5 text-blue-500" />
-              Scheduled Maintenance
+              {t("scheduledMaintenance")}
             </h2>
             {(data as any).upcomingMaintenance.map((maintenance: any) => {
               const isActive = new Date(maintenance.startsAt) <= new Date() && new Date() <= new Date(maintenance.endsAt);
@@ -216,18 +226,18 @@ export const PublicStatusRoute = () => {
                         </p>
                         {maintenance.monitors && maintenance.monitors.length > 0 && (
                           <p className="text-xs text-slate-600 dark:text-slate-500 mt-1">
-                            Affects: {maintenance.monitors.map((m: any) => m.name).join(", ")}
+                            {t("affects")}{maintenance.monitors.map((m: any) => m.name).join(", ")}
                           </p>
                         )}
                       </div>
                       {isActive && (
                         <span className="px-3 py-1 rounded-full text-xs font-semibold bg-yellow-500/20 text-yellow-400">
-                          IN PROGRESS
+                          {t("inProgress")}
                         </span>
                       )}
                       {!isActive && !isPast && (
                         <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-400">
-                          SCHEDULED
+                          {t("scheduled")}
                         </span>
                       )}
                     </div>
@@ -241,7 +251,7 @@ export const PublicStatusRoute = () => {
         {/* Footer */}
         <div className="text-center pt-8 border-t border-slate-200 dark:border-white/10">
           <p className="text-xs text-slate-600 dark:text-slate-500">
-            Powered by UptivaLab
+            {t("poweredBy")}
           </p>
         </div>
       </div>

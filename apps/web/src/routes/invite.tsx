@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { useParams, Navigate } from "react-router-dom";
 import { Button } from "../components/ui/button.js";
-import { useTranslation } from "../lib/i18n.js";
+import { useTranslation } from "../hooks/use-translation.js";
 import { useAuth } from "../providers/auth-context.js";
 import { api } from "../lib/api.js";
 
 export const InviteAcceptRoute = () => {
-  const { t } = useTranslation();
+  const { t, languageLoading } = useTranslation();
   const { token } = useParams<{ token: string }>();
   const { isAuthenticated } = useAuth();
   const [password, setPassword] = useState("");
@@ -42,6 +42,17 @@ export const InviteAcceptRoute = () => {
 
   if (accepted) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (languageLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background text-foreground px-4 py-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 dark:border-white mx-auto"></div>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{t("loading")}</p>
+        </div>
+      </div>
+    );
   }
 
   const handleAccept = async (event: React.FormEvent<HTMLFormElement>) => {

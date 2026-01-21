@@ -216,6 +216,9 @@ export const MonitorsRoute = () => {
       }
     },
     onSuccess: () => {
+      if (editingId) {
+        alert(t("monitorUpdatedSuccessfully"));
+      }
       queryClient.invalidateQueries({ queryKey: ["monitors"] });
       resetForm();
       setEditingId(null);
@@ -345,6 +348,10 @@ export const MonitorsRoute = () => {
     setEditingId(monitor.id);
     const config = monitor.config as any;
     
+    const notificationIds = Array.isArray(monitor.notificationChannels) 
+      ? monitor.notificationChannels.map((channel: any) => channel.id) 
+      : [];
+    
     setForm({
       name: monitor.name,
       kind: monitor.kind,
@@ -355,7 +362,7 @@ export const MonitorsRoute = () => {
       description: monitor.description || "",
       groupId: "",
       tagIds: [],
-      notificationIds: Array.isArray(monitor.notificationIds) ? monitor.notificationIds : [],
+      notificationIds,
       
       // Advanced options
       createIncidents: monitor.createIncidents ?? true,
@@ -431,27 +438,30 @@ export const MonitorsRoute = () => {
             
             <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
               <div>
-                <label className="mb-1 sm:mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("monitorType")}</label>
+                <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("monitorType")}</label>
                 <select
-                  className="w-full rounded-xl sm:rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3 sm:px-4 py-2 sm:py-3 text-sm text-slate-900 dark:text-slate-900 dark:text-white"
+                  className="w-full h-[46px] rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 pr-10 text-sm text-slate-900 dark:text-white appearance-none bg-[length:20px_20px] bg-[position:right_0.75rem_center] bg-no-repeat"
+                  style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`
+                  }}
                   value={form.kind}
                   onChange={(e) => setForm((prev) => ({ ...prev, kind: e.target.value }))}
                 >
-                  <option value="http">HTTP(s) - HTTP/HTTPS</option>
-                  <option value="tcp">TCP Port</option>
-                  <option value="ping">Ping</option>
-                  <option value="dns">DNS</option>
-                  <option value="docker">Docker Container</option>
-                  <option value="certificate">SSL Certificate</option>
-                  <option value="database">Database</option>
-                  <option value="synthetic">Synthetic Journey</option>
-                  <option value="grpc">gRPC</option>
-                  <option value="push">Push</option>
+                  <option value="http">{t("monitorTypeHttp")}</option>
+                  <option value="tcp">{t("monitorTypeTcp")}</option>
+                  <option value="ping">{t("monitorTypePing")}</option>
+                  <option value="dns">{t("monitorTypeDns")}</option>
+                  <option value="docker">{t("monitorTypeDocker")}</option>
+                  <option value="certificate">{t("monitorTypeCertificate")}</option>
+                  <option value="database">{t("monitorTypeDatabase")}</option>
+                  <option value="synthetic">{t("monitorTypeSynthetic")}</option>
+                  <option value="grpc">{t("monitorTypeGrpc")}</option>
+                  <option value="push">{t("monitorTypePush")}</option>
                 </select>
               </div>
               
               <div>
-                <label className="mb-1 sm:mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("friendlyName")}</label>
+                <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">{t("friendlyName")}</label>
                 <input
                   className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
                   placeholder={t("monitorNamePlaceholder")}

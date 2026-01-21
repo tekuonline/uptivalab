@@ -6,7 +6,6 @@ import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import fastifyJwt from "@fastify/jwt";
 import { appConfig } from "./config.js";
-import { registerRoutes } from "./routes/index.js";
 import { settingsService } from "./services/settings/service.js";
 import { prisma } from "./db/prisma.js";
 import { verifyPassword } from "./auth/password.js";
@@ -55,7 +54,7 @@ export const createServer = async () => {
           select: { id: true, email: true, role: true }
         });
         if (user) {
-          (request as any).user = { ...request.user, ...user };
+          (request as any).user = { ...(request as any).user, ...user };
         }
       }
     } catch (err) {
@@ -87,7 +86,7 @@ export const createServer = async () => {
 
       let validKeyRecord = null;
       for (const key of allApiKeys) {
-        const isValid = await verifyPassword(key.tokenHash, apiKey);
+        const isValid = await verifyPassword(key.tokenHash as string, apiKey as string);
         if (isValid) {
           validKeyRecord = key;
           break;

@@ -5,15 +5,15 @@ import { useTranslation } from "../hooks/use-translation.js";
 import { useAuth } from "../providers/auth-context.js";
 
 const SetupForm = () => {
-  const { t } = useTranslation();
+  const { t, languageLoading } = useTranslation();
   const { setup, isAuthenticated, setupNeeded } = useAuth();
   const [form, setForm] = useState({ email: "", password: "", confirmPassword: "" });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  // Show loading while setup status is being determined
-  if (setupNeeded === null) {
+  // Show loading while setup status or language is being determined
+  if (setupNeeded === null || languageLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">

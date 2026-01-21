@@ -5,14 +5,14 @@ import { Button } from "../components/ui/button.js";
 import { useTranslation } from "../hooks/use-translation.js";
 
 const AuthForm = ({ mode }: { mode: "login" | "register" }) => {
-  const { t } = useTranslation();
+  const { t, languageLoading } = useTranslation();
   const { login, register, isAuthenticated, setupNeeded } = useAuth();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Show loading while setup status is being determined
-  if (setupNeeded === null) {
+  // Show loading while setup status or language is being determined
+  if (setupNeeded === null || languageLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -87,7 +87,7 @@ const AuthForm = ({ mode }: { mode: "login" | "register" }) => {
         </form>
         {mode === "login" && (
           <p className="text-center text-xs sm:text-sm text-slate-600 dark:text-slate-400">
-            Need an account? Contact your administrator.
+            {t("needAccountContact")}
           </p>
         )}
       </div>

@@ -9,8 +9,24 @@ import { Button } from "../components/ui/button.js";
 import { StatusBadge } from "../components/status-badge.js";
 import { useAuth } from "../providers/auth-context.js";
 import { useTranslation } from "../hooks/use-translation.js";
+import type { TranslationKey } from "../lib/i18n.js";
 
 const badgeStatus = (incident: IncidentWithRelations) => (incident.status === "RESOLVED" ? "up" : "down");
+
+const getIncidentStatusText = (status: string, t: (key: TranslationKey) => string) => {
+  switch (status) {
+    case "OPEN":
+      return t("incidentStatusOpen");
+    case "INVESTIGATING":
+      return t("incidentStatusInvestigating");
+    case "MITIGATED":
+      return t("incidentStatusMitigated");
+    case "RESOLVED":
+      return t("incidentStatusResolved");
+    default:
+      return status;
+  }
+};
 
 const statusColors = {
   OPEN: "bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30",
@@ -133,7 +149,7 @@ export const IncidentsRoute = () => {
                       {incident.monitor?.name ?? incident.monitorId}
                     </h4>
                     <span className={`px-3 py-1 rounded-full text-xs font-medium border ${statusColors[incident.status as keyof typeof statusColors]}`}>
-                      {incident.status}
+                      {getIncidentStatusText(incident.status, t)}
                     </span>
                   </div>
                   
