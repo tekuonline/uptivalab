@@ -1,5 +1,6 @@
 import type { MonitorResult } from "@uptivalab/monitoring";
 import { prisma } from "../../db/prisma.js";
+import { appConfig } from "../../config.js";
 import { broadcastBus } from "../../realtime/events.js";
 import { emailNotifier } from "../notifications/smtp.js";
 import { webhookNotifier } from "../notifications/webhook.js";
@@ -52,7 +53,7 @@ const shouldSendNotification = async (
   }
   
   // Check rate limiting
-  const minInterval = await settingsService.get<number>("notificationMinInterval", 5);
+  const minInterval = await settingsService.get<number>("notificationMinInterval", 5) ?? 5;
   const lastTime = lastNotificationTime.get(monitorId);
   const now = Date.now();
   
@@ -64,8 +65,8 @@ const shouldSendNotification = async (
   // Check quiet hours
   const enableQuietHours = await settingsService.get<boolean>("enableQuietHours", false);
   if (enableQuietHours) {
-    const quietHoursStart = await settingsService.get<string>("quietHoursStart", "22:00");
-    const quietHoursEnd = await settingsService.get<string>("quietHoursEnd", "08:00");
+    const quietHoursStart = await settingsService.get<string>("quietHoursStart", "22:00") ?? "22:00";
+    const quietHoursEnd = await settingsService.get<string>("quietHoursEnd", "08:00") ?? "08:00";
     
     if (isInQuietHours(quietHoursStart, quietHoursEnd)) {
       console.log(`[Notification] Suppressed due to quiet hours`);
@@ -88,8 +89,11 @@ const sendNotification = async (
     // Check if notification should be sent based on global settings
     const shouldSend = await shouldSendNotification(monitorId, status);
     if (!shouldSend) {
+      console.log(`[Incident Manager] Notification suppressed for monitor ${monitorId} (status: ${status})`);
       return;
     }
+    
+    console.log(`[Incident Manager] Processing notification for monitor ${monitorId} (status: ${status})`);
     
     // Fetch monitor with notification channels
     const fullMonitor = await prisma.monitor.findUnique({
@@ -100,12 +104,16 @@ const sendNotification = async (
     });
 
     if (!fullMonitor) {
+      console.warn(`[Incident Manager] Monitor ${monitorId} not found`);
       return;
     }
 
     if (fullMonitor.notificationChannels.length === 0) {
+      console.warn(`[Incident Manager] No notification channels configured for monitor ${monitorId}`);
       return;
     }
+
+    console.log(`[Incident Manager] Sending incident notifications to ${fullMonitor.notificationChannels.length} channel(s) for monitor ${monitorId}`);
 
     // Map incident status to emoji
     const statusEmoji = {
@@ -116,10 +124,12 @@ const sendNotification = async (
     }[status] || "⚪";
 
     // Create a notification result object
-    const notificationResult: MonitorResult = {
+    const monitorLink = `${appConfig.BASE_URL}/monitors/${monitorId}`;
+    const notificationResult: MonitorResult & { monitorName: string } = {
       monitorId,
+      monitorName: fullMonitor.name,
       status: status === "RESOLVED" ? "up" : "down",
-      message: `${statusEmoji} Incident ${status}: ${message}`,
+      message: `${statusEmoji} Incident ${status}: ${message}\n\nView details: ${monitorLink}`,
       checkedAt: new Date().toISOString(),
     };
 
@@ -134,8 +144,16 @@ const sendNotification = async (
     await Promise.all(
       fullMonitor.notificationChannels.map(async (channel: any) => {
         const adapter = adapters[channel.type as keyof typeof adapters];
-        if (!adapter) return;
-        await adapter.send(channel, notificationResult);
+        if (!adapter) {
+          console.warn(`[Incident Manager] No adapter found for channel type: ${channel.type}`);
+          return;
+        }
+        try {
+          await adapter.send(channel, notificationResult);
+          console.log(`[Incident Manager] Successfully sent incident notification via ${channel.type} (${channel.name})`);
+        } catch (error) {
+          console.error(`[Incident Manager] Failed to send incident notification via ${channel.type} (${channel.name}):`, error);
+        }
       })
     );
   } catch (error) {

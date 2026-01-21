@@ -180,9 +180,11 @@ const handleResult = async (
   });
 
   broadcastBus.emitResult(result);
+  
   if (!options?.suppressed) {
     await notificationRouter.route(result);
   }
+  
   await incidentManager.process(result, monitor, options);
 };
 

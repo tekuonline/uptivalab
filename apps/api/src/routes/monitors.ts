@@ -17,6 +17,7 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
         incidents: { orderBy: { startedAt: "desc" }, take: 1 },
         group: true,
         tags: true,
+        notificationChannels: true,
       },
     });
 
@@ -40,9 +41,11 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
           interval: monitor.interval,
           timeout: monitor.timeout,
           paused: monitor.paused,
+          createIncidents: (monitor as any).createIncidents,
           status: monitor.paused ? "paused" : (latestCheck?.status ?? "pending"),
           group: monitor.group,
           tags: monitor.tags,
+          notificationChannels: monitor.notificationChannels,
           latestCheck: latestCheck ? {
             id: latestCheck.id,
             status: latestCheck.status,
@@ -75,6 +78,7 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
         createIncidents: z.boolean().optional().default(true),
         groupId: z.string().optional(),
         tagIds: z.array(z.string()).optional(),
+        notificationIds: z.array(z.string()).optional(),
       }).parse(request.body);
 
       // Validate group exists if provided
@@ -97,6 +101,16 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
         }
       }
 
+      // Validate notification channels exist if provided
+      if (body.notificationIds && body.notificationIds.length > 0) {
+        const channels = await prisma.notificationChannel.findMany({
+          where: { id: { in: body.notificationIds } }
+        });
+        if (channels.length !== body.notificationIds.length) {
+          return reply.code(400).send({ error: "One or more invalid notification channel IDs" });
+        }
+      }
+
       const monitor = await prisma.monitor.create({
         data: {
           name: body.name,
@@ -110,10 +124,14 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
           tags: body.tagIds ? {
             create: body.tagIds.map(tagId => ({ tagId }))
           } : undefined,
+          notificationChannels: body.notificationIds ? {
+            connect: body.notificationIds.map(id => ({ id }))
+          } : undefined,
         },
         include: {
           group: true,
           tags: true,
+          notificationChannels: true,
         },
       });
 
@@ -172,6 +190,7 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
         incidents: { orderBy: { startedAt: "desc" }, take: 1 },
         group: true,
         tags: true,
+        notificationChannels: true,
       },
     });
 
@@ -212,9 +231,11 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
       interval: monitor.interval,
       timeout: monitor.timeout,
       paused: monitor.paused,
+      createIncidents: (monitor as any).createIncidents,
       status: monitor.paused ? "paused" : (latestCheck?.status ?? "pending"),
       group: monitor.group,
       tags: monitor.tags,
+      notificationChannels: monitor.notificationChannels,
       latestCheck: latestCheck ? {
         id: latestCheck.id,
         status: latestCheck.status,
@@ -241,8 +262,10 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
         interval: z.number().int().min(1000).optional(), // minimum 1 second
         timeout: z.number().int().min(1000).optional(), // minimum 1 second
         paused: z.boolean().optional(),
+        createIncidents: z.boolean().optional(),
         groupId: z.string().nullable().optional(),
         tagIds: z.array(z.string()).optional(),
+        notificationIds: z.array(z.string()).optional(),
       }).parse(request.body);
 
       // Check if monitor exists
@@ -275,12 +298,23 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
         }
       }
 
+      // Validate notification channels exist if provided
+      if (body.notificationIds) {
+        const channels = await prisma.notificationChannel.findMany({
+          where: { id: { in: body.notificationIds } }
+        });
+        if (channels.length !== body.notificationIds.length) {
+          return reply.code(400).send({ error: "One or more invalid notification channel IDs" });
+        }
+      }
+
       const updateData: any = {};
       if (body.name !== undefined) updateData.name = body.name;
       if (body.config !== undefined) updateData.config = body.config;
       if (body.interval !== undefined) updateData.interval = body.interval;
       if (body.timeout !== undefined) updateData.timeout = body.timeout;
       if (body.paused !== undefined) updateData.paused = body.paused;
+      if (body.createIncidents !== undefined) updateData.createIncidents = body.createIncidents;
       if (body.groupId !== undefined) updateData.groupId = body.groupId;
 
       const monitor = await prisma.monitor.update({
@@ -290,6 +324,9 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
           tags: body.tagIds ? {
             deleteMany: {},
             create: body.tagIds.map(tagId => ({ tagId }))
+          } : undefined,
+          notificationChannels: body.notificationIds ? {
+            set: body.notificationIds.map(id => ({ id }))
           } : undefined,
         },
         include: {
@@ -336,7 +373,7 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
   // GET /monitors/:id/history - Get monitor check history
   fastify.get("/monitors/:id/history", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const { limit = 50 } = request.query as { limit?: string };
+    const { limit = '50' } = request.query as { limit?: string };
 
     const monitor = await prisma.monitor.findUnique({
       where: { id },
@@ -385,7 +422,7 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
   // GET /monitors/:id/uptime - Get monitor uptime statistics
   fastify.get("/monitors/:id/uptime", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const { days = 30 } = request.query as { days?: string };
+    const { days = '30' } = request.query as { days?: string };
 
     const monitor = await prisma.monitor.findUnique({
       where: { id },

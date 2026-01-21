@@ -37,8 +37,8 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
 
     const setting = await prisma.setting.upsert({
       where: { key: request.params.key },
-      update: { value: request.body },
-      create: { key: request.params.key, value: request.body },
+      update: { value: request.body as any },
+      create: { key: request.params.key, value: request.body as any },
     });
 
     // Clear cache
@@ -244,7 +244,7 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
   });
 
   // Docker API - Test connection
-  fastify.post<{ Body: { dockerHostId: string } }>("/settings/docker-hosts/:id/test", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request, reply) => {
+  fastify.post<{ Params: { id: string }; Body: { dockerHostId: string } }>("/settings/docker-hosts/:id/test", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request, reply) => {
 
     try {
       const setting = await prisma.setting.findUnique({
@@ -603,7 +603,6 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
           expiresAt: inv.expiresAt,
           createdByEmail: inv.createdBy.email,
           createdAt: inv.createdAt,
-          updatedAt: inv.updatedAt,
         })),
       };
 
@@ -615,8 +614,8 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
         const algorithm = "aes-256-gcm";
         const key = crypto.scryptSync(password, "salt", 32);
         const iv = crypto.randomBytes(16);
-        const cipher = crypto.createCipherGCM(algorithm, key, iv);
-        cipher.setAAD(Buffer.from("uptivalab-export"));
+        const cipher = crypto.createCipher(algorithm, key as any);
+        (cipher as any).setAAD(Buffer.from("uptivalab-export"));
         
         let encrypted = cipher.update(jsonData, "utf8", "hex");
         encrypted += cipher.final("hex");
@@ -662,9 +661,9 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
         const algorithm = "aes-256-gcm";
         const key = crypto.scryptSync(password, "salt", 32);
         const iv = Buffer.from(importData.iv, "hex");
-        const decipher = crypto.createDecipherGCM(algorithm, key, iv);
-        decipher.setAAD(Buffer.from("uptivalab-export"));
-        decipher.setAuthTag(Buffer.from(importData.authTag, "hex"));
+        const decipher = crypto.createDecipher(algorithm, key as any);
+        (decipher as any).setAAD(Buffer.from("uptivalab-export"));
+        (decipher as any).setAuthTag(Buffer.from(importData.authTag, "hex"));
         
         let decrypted = decipher.update(importData.data, "hex", "utf8");
         decrypted += decipher.final("utf8");
@@ -696,8 +695,8 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
         for (const [key, value] of Object.entries(importData.settings)) {
           await tx.setting.upsert({
             where: { key },
-            update: { value },
-            create: { key, value },
+            update: { value: value as any },
+            create: { key, value: value as any },
           });
         }
 
@@ -782,7 +781,7 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
 
           // Connect group
           if (groupName) {
-            const group = await tx.monitorGroup.findUnique({ where: { name: groupName } });
+            const group = await tx.monitorGroup.findFirst({ where: { name: groupName } });
             if (group) {
               await tx.monitor.update({
                 where: { id: createdMonitor.id },
@@ -890,10 +889,36 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
 
       return { success: true, message: "Settings imported successfully" };
     } catch (error) {
-      console.error("Import error details:", error);
-      console.error("Error stack:", error.stack);
-      return reply.code(500).send({ message: "Failed to import settings", details: error.message });
+      const err = error as any;
+      console.error("Import error details:", err);
+      console.error("Error stack:", err.stack);
+      return reply.code(500).send({ message: "Failed to import settings", details: err.message });
     }
+  });
+
+  // Language preference management (GET is public for status pages)
+  fastify.get("/settings/language", async (request) => {
+    const setting = await prisma.setting.findUnique({
+      where: { key: "language" },
+    });
+    return setting?.value || "en";
+  });
+
+  fastify.put<{ Body: { language: string } }>("/settings/language", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request) => {
+    const body = z.object({
+      language: z.enum(["en", "es", "de", "fr", "zh", "ja"])
+    }).parse(request.body);
+
+    const setting = await prisma.setting.upsert({
+      where: { key: "language" },
+      update: { value: body.language },
+      create: { key: "language", value: body.language },
+    });
+
+    // Clear cache
+    settingsService.clearCache("language");
+
+    return { language: setting.value };
   });
 };
 

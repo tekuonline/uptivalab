@@ -20,10 +20,10 @@ import { useTranslation } from "../hooks/use-translation.js";
 
 const ProtectedApp = () => {
   const { isAuthenticated, setupNeeded } = useAuth();
-  const { t } = useTranslation();
+  const { t, languageLoading } = useTranslation();
 
-  // Wait for setup check to complete
-  if (setupNeeded === null) {
+  // Wait for setup check and language loading to complete
+  if (setupNeeded === null || languageLoading) {
     return <div className="flex items-center justify-center min-h-screen">
       <div className="text-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 dark:border-white mx-auto"></div>

@@ -103,8 +103,6 @@ export async function bootstrapMaintenanceScheduler() {
       removeOnComplete: true,
     }
   );
-
-  console.log("[Maintenance Scheduler] Initialized");
 }
 
 export const maintenanceScheduler = {

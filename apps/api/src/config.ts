@@ -9,6 +9,7 @@ const schema = z.object({
   DATABASE_URL: z.string(),
   REDIS_URL: z.string().default("redis://localhost:6379"),
   JWT_SECRET: z.string().min(16),
+  BASE_URL: z.string().default("http://localhost:4173"),
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().optional(),
   SMTP_USER: z.string().optional(),

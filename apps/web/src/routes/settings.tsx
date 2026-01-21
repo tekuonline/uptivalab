@@ -4,6 +4,7 @@ import { Input } from "../components/ui/input.js";
 import { Label } from "../components/ui/label.js";
 import { useSettings } from "../providers/settings-context.js";
 import { useTranslation } from "../hooks/use-translation.js";
+import { setLanguage } from "../lib/i18n.js";
 import { api } from "../lib/api.js";
 import { useAuth } from "../providers/auth-context.js";
 import { 
@@ -232,7 +233,7 @@ export const SettingsRoute = () => {
       await fetchTunnelStatus();
     } catch (error) {
       console.error(`Failed to ${action} tunnel:`, error);
-      alert(`Failed to ${action} tunnel`);
+      alert(action === "start" ? t("failedToStartTunnel") : action === "stop" ? t("failedToStopTunnel") : t("failedToRestartTunnel"));
     } finally {
       setTunnelLoading(false);
     }
@@ -315,11 +316,11 @@ export const SettingsRoute = () => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       
-      alert("Settings exported successfully!");
+      alert(t("settingsExportedSuccessfully"));
       setExportPassword("");
     } catch (error) {
       console.error("Failed to export settings:", error);
-      alert("Failed to export settings");
+      alert(t("failedToExportSettings"));
     } finally {
       setBackupRestoreLoading(false);
     }
@@ -327,11 +328,11 @@ export const SettingsRoute = () => {
 
   const importSettings = async () => {
     if (!importFile) {
-      alert("Please select a file to import");
+      alert(t("pleaseSelectFileToImport"));
       return;
     }
 
-    if (!confirm("This will replace all your current settings and data. Are you sure you want to continue?")) {
+    if (!confirm(t("confirmImportWarning"))) {
       return;
     }
 
@@ -341,7 +342,7 @@ export const SettingsRoute = () => {
       const result = await api.importSettings(token, fileContent, importPassword || undefined);
       
       if (result.success) {
-        alert("Settings imported successfully! Please refresh the page.");
+        alert(t("settingsImportedSuccessfully"));
         // Reset form
         setImportFile(null);
         setImportPassword("");
@@ -352,7 +353,7 @@ export const SettingsRoute = () => {
       }
     } catch (error) {
       console.error("Failed to import settings:", error);
-      alert("Failed to import settings");
+      alert(t("failedToImportSettings"));
     } finally {
       setBackupRestoreLoading(false);
     }
@@ -441,7 +442,7 @@ export const SettingsRoute = () => {
       const data = await api.testDockerHost(token, id);
       setDockerHostStatus((prev) => ({
         ...prev,
-        [id]: { success: true, version: data.containers ? "Connected" : "No data", testing: false }
+        [id]: { success: true, version: data.containers ? t("dockerConnected") : t("dockerNoData"), testing: false }
       }));
     } catch (error) {
       setDockerHostStatus((prev) => ({
@@ -476,7 +477,7 @@ export const SettingsRoute = () => {
 
   const testRemoteBrowser = async () => {
     if (!newRemoteBrowser.url) {
-      setBrowserTestResult({ success: false, message: "Please enter a WebSocket URL" });
+      setBrowserTestResult({ success: false, message: t("pleaseEnterWebsocketUrl") });
       return;
     }
 
@@ -486,7 +487,7 @@ export const SettingsRoute = () => {
     try {
       const result = await api.testRemoteBrowser(token, { url: newRemoteBrowser.url });
       if (result.success) {
-        setBrowserTestResult({ success: true, message: result.message || "Connection successful!" });
+        setBrowserTestResult({ success: true, message: result.message || t("connectionSuccessful") });
       } else {
         setBrowserTestResult({ success: false, message: result.message || t("connectionFailed") });
       }
@@ -561,19 +562,19 @@ export const SettingsRoute = () => {
       setNewUser({ email: "", password: "", role: "VIEWER" });
     } catch (error) {
       console.error("Failed to create user:", error);
-      alert(error instanceof Error ? error.message : "Failed to create user");
+      alert(error instanceof Error ? error.message : t("failedToCreateUser"));
     }
   };
 
   const deleteUser = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this user?")) return;
+    if (!confirm(t("areYouSure"))) return;
 
     try {
       await api.deleteUser(token, id);
       setUsers(users.filter((user) => user.id !== id));
     } catch (error) {
       console.error("Failed to delete user:", error);
-      alert(error instanceof Error ? error.message : "Failed to delete user");
+      alert(error instanceof Error ? error.message : t("failedToDeleteUser"));
     }
   };
 
@@ -583,7 +584,7 @@ export const SettingsRoute = () => {
       setUsers(users.map((user) => (user.id === id ? { ...user, role } : user)));
     } catch (error) {
       console.error("Failed to update user role:", error);
-      alert(error instanceof Error ? error.message : "Failed to update user role");
+      alert(error instanceof Error ? error.message : t("failedToUpdateUserRole"));
     }
   };
 
@@ -610,10 +611,10 @@ export const SettingsRoute = () => {
       navigator.clipboard.writeText(inviteLink);
       setCopiedInviteLink(invitation.id);
       setTimeout(() => setCopiedInviteLink(""), 3000);
-      alert(`Invitation created! Link copied to clipboard:\n${inviteLink}`);
+      alert(t("invitationCreated") + `\n${inviteLink}`);
     } catch (error) {
       console.error("Failed to create invitation:", error);
-      alert(error instanceof Error ? error.message : "Failed to create invitation");
+      alert(error instanceof Error ? error.message : t("failedToCreateInvitation"));
     }
   };
 
@@ -656,7 +657,7 @@ export const SettingsRoute = () => {
     { id: "api-keys", label: t("apiKeys"), icon: Key },
     { id: "users", label: t("userManagement"), icon: Users },
     { id: "proxies", label: t("proxies"), icon: Network },
-    { id: "backup-restore", label: "Backup & Restore", icon: Download },
+    { id: "backup-restore", label: t("backupRestore"), icon: Download },
     { id: "about", label: t("about"), icon: Info },
   ];
 
@@ -707,41 +708,41 @@ export const SettingsRoute = () => {
                       onChange={(e) => setLocalSettings({ ...localSettings, displayTimezone: e.target.value })}
                       className="h-[46px] w-full rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 text-slate-900 dark:text-white"
                     >
-                      <option value="UTC">UTC (Coordinated Universal Time)</option>
-                      <option value="America/New_York">America/New York (EST/EDT)</option>
-                      <option value="America/Chicago">America/Chicago (CST/CDT)</option>
-                      <option value="America/Denver">America/Denver (MST/MDT)</option>
-                      <option value="America/Los_Angeles">America/Los Angeles (PST/PDT)</option>
-                      <option value="America/Phoenix">America/Phoenix (MST)</option>
-                      <option value="America/Toronto">America/Toronto (EST/EDT)</option>
-                      <option value="America/Vancouver">America/Vancouver (PST/PDT)</option>
-                      <option value="Europe/London">Europe/London (GMT/BST)</option>
-                      <option value="Europe/Paris">Europe/Paris (CET/CEST)</option>
-                      <option value="Europe/Berlin">Europe/Berlin (CET/CEST)</option>
-                      <option value="Europe/Rome">Europe/Rome (CET/CEST)</option>
-                      <option value="Europe/Madrid">Europe/Madrid (CET/CEST)</option>
-                      <option value="Europe/Amsterdam">Europe/Amsterdam (CET/CEST)</option>
-                      <option value="Europe/Brussels">Europe/Brussels (CET/CEST)</option>
-                      <option value="Europe/Vienna">Europe/Vienna (CET/CEST)</option>
-                      <option value="Europe/Stockholm">Europe/Stockholm (CET/CEST)</option>
-                      <option value="Europe/Warsaw">Europe/Warsaw (CET/CEST)</option>
-                      <option value="Europe/Athens">Europe/Athens (EET/EEST)</option>
-                      <option value="Europe/Moscow">Europe/Moscow (MSK)</option>
-                      <option value="Asia/Dubai">Asia/Dubai (GST)</option>
-                      <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
-                      <option value="Asia/Bangkok">Asia/Bangkok (ICT)</option>
-                      <option value="Asia/Singapore">Asia/Singapore (SGT)</option>
-                      <option value="Asia/Hong_Kong">Asia/Hong Kong (HKT)</option>
-                      <option value="Asia/Shanghai">Asia/Shanghai (CST)</option>
-                      <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
-                      <option value="Asia/Seoul">Asia/Seoul (KST)</option>
-                      <option value="Australia/Sydney">Australia/Sydney (AEDT/AEST)</option>
-                      <option value="Australia/Melbourne">Australia/Melbourne (AEDT/AEST)</option>
-                      <option value="Australia/Brisbane">Australia/Brisbane (AEST)</option>
-                      <option value="Australia/Perth">Australia/Perth (AWST)</option>
-                      <option value="Pacific/Auckland">Pacific/Auckland (NZDT/NZST)</option>
-                      <option value="Pacific/Fiji">Pacific/Fiji (FJT)</option>
-                      <option value="Pacific/Honolulu">Pacific/Honolulu (HST)</option>
+                      <option value="UTC">{t("timezoneUTC")}</option>
+                      <option value="America/New_York">{t("timezoneAmericaNewYork")}</option>
+                      <option value="America/Chicago">{t("timezoneAmericaChicago")}</option>
+                      <option value="America/Denver">{t("timezoneAmericaDenver")}</option>
+                      <option value="America/Los_Angeles">{t("timezoneAmericaLosAngeles")}</option>
+                      <option value="America/Phoenix">{t("timezoneAmericaPhoenix")}</option>
+                      <option value="America/Toronto">{t("timezoneAmericaToronto")}</option>
+                      <option value="America/Vancouver">{t("timezoneAmericaVancouver")}</option>
+                      <option value="Europe/London">{t("timezoneEuropeLondon")}</option>
+                      <option value="Europe/Paris">{t("timezoneEuropeParis")}</option>
+                      <option value="Europe/Berlin">{t("timezoneEuropeBerlin")}</option>
+                      <option value="Europe/Rome">{t("timezoneEuropeRome")}</option>
+                      <option value="Europe/Madrid">{t("timezoneEuropeMadrid")}</option>
+                      <option value="Europe/Amsterdam">{t("timezoneEuropeAmsterdam")}</option>
+                      <option value="Europe/Brussels">{t("timezoneEuropeBrussels")}</option>
+                      <option value="Europe/Vienna">{t("timezoneEuropeVienna")}</option>
+                      <option value="Europe/Stockholm">{t("timezoneEuropeStockholm")}</option>
+                      <option value="Europe/Warsaw">{t("timezoneEuropeWarsaw")}</option>
+                      <option value="Europe/Athens">{t("timezoneEuropeAthens")}</option>
+                      <option value="Europe/Moscow">{t("timezoneEuropeMoscow")}</option>
+                      <option value="Asia/Dubai">{t("timezoneAsiaDubai")}</option>
+                      <option value="Asia/Kolkata">{t("timezoneAsiaKolkata")}</option>
+                      <option value="Asia/Bangkok">{t("timezoneAsiaBangkok")}</option>
+                      <option value="Asia/Singapore">{t("timezoneAsiaSingapore")}</option>
+                      <option value="Asia/Hong_Kong">{t("timezoneAsiaHongKong")}</option>
+                      <option value="Asia/Shanghai">{t("timezoneAsiaShanghai")}</option>
+                      <option value="Asia/Tokyo">{t("timezoneAsiaTokyo")}</option>
+                      <option value="Asia/Seoul">{t("timezoneAsiaSeoul")}</option>
+                      <option value="Australia/Sydney">{t("timezoneAustraliaSydney")}</option>
+                      <option value="Australia/Melbourne">{t("timezoneAustraliaMelbourne")}</option>
+                      <option value="Australia/Brisbane">{t("timezoneAustraliaBrisbane")}</option>
+                      <option value="Australia/Perth">{t("timezoneAustraliaPerth")}</option>
+                      <option value="Pacific/Auckland">{t("timezonePacificAuckland")}</option>
+                      <option value="Pacific/Fiji">{t("timezonePacificFiji")}</option>
+                      <option value="Pacific/Honolulu">{t("timezonePacificHonolulu")}</option>
                     </select>
                     <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{t("timezoneForDisplayingDates")}</p>
                   </div>
@@ -753,43 +754,43 @@ export const SettingsRoute = () => {
                       onChange={(e) => setLocalSettings({ ...localSettings, serverTimezone: e.target.value })}
                       className="h-[46px] w-full rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 text-slate-900 dark:text-white"
                     >
-                      <option value="UTC">UTC (Coordinated Universal Time)</option>
-                      <option value="America/New_York">America/New York (EST/EDT)</option>
-                      <option value="America/Chicago">America/Chicago (CST/CDT)</option>
-                      <option value="America/Denver">America/Denver (MST/MDT)</option>
-                      <option value="America/Los_Angeles">America/Los Angeles (PST/PDT)</option>
-                      <option value="America/Phoenix">America/Phoenix (MST)</option>
-                      <option value="America/Toronto">America/Toronto (EST/EDT)</option>
-                      <option value="America/Vancouver">America/Vancouver (PST/PDT)</option>
-                      <option value="Europe/London">Europe/London (GMT/BST)</option>
-                      <option value="Europe/Paris">Europe/Paris (CET/CEST)</option>
-                      <option value="Europe/Berlin">Europe/Berlin (CET/CEST)</option>
-                      <option value="Europe/Rome">Europe/Rome (CET/CEST)</option>
-                      <option value="Europe/Madrid">Europe/Madrid (CET/CEST)</option>
-                      <option value="Europe/Amsterdam">Europe/Amsterdam (CET/CEST)</option>
-                      <option value="Europe/Brussels">Europe/Brussels (CET/CEST)</option>
-                      <option value="Europe/Vienna">Europe/Vienna (CET/CEST)</option>
-                      <option value="Europe/Stockholm">Europe/Stockholm (CET/CEST)</option>
-                      <option value="Europe/Warsaw">Europe/Warsaw (CET/CEST)</option>
-                      <option value="Europe/Athens">Europe/Athens (EET/EEST)</option>
-                      <option value="Europe/Moscow">Europe/Moscow (MSK)</option>
-                      <option value="Asia/Dubai">Asia/Dubai (GST)</option>
-                      <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
-                      <option value="Asia/Bangkok">Asia/Bangkok (ICT)</option>
-                      <option value="Asia/Singapore">Asia/Singapore (SGT)</option>
-                      <option value="Asia/Hong_Kong">Asia/Hong Kong (HKT)</option>
-                      <option value="Asia/Shanghai">Asia/Shanghai (CST)</option>
-                      <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
-                      <option value="Asia/Seoul">Asia/Seoul (KST)</option>
-                      <option value="Australia/Sydney">Australia/Sydney (AEDT/AEST)</option>
-                      <option value="Australia/Melbourne">Australia/Melbourne (AEDT/AEST)</option>
-                      <option value="Australia/Brisbane">Australia/Brisbane (AEST)</option>
-                      <option value="Australia/Perth">Australia/Perth (AWST)</option>
-                      <option value="Pacific/Auckland">Pacific/Auckland (NZDT/NZST)</option>
-                      <option value="Pacific/Fiji">Pacific/Fiji (FJT)</option>
-                      <option value="Pacific/Honolulu">Pacific/Honolulu (HST)</option>
+                      <option value="UTC">{t("timezoneUTC")}</option>
+                      <option value="America/New_York">{t("timezoneAmericaNewYork")}</option>
+                      <option value="America/Chicago">{t("timezoneAmericaChicago")}</option>
+                      <option value="America/Denver">{t("timezoneAmericaDenver")}</option>
+                      <option value="America/Los_Angeles">{t("timezoneAmericaLosAngeles")}</option>
+                      <option value="America/Phoenix">{t("timezoneAmericaPhoenix")}</option>
+                      <option value="America/Toronto">{t("timezoneAmericaToronto")}</option>
+                      <option value="America/Vancouver">{t("timezoneAmericaVancouver")}</option>
+                      <option value="Europe/London">{t("timezoneEuropeLondon")}</option>
+                      <option value="Europe/Paris">{t("timezoneEuropeParis")}</option>
+                      <option value="Europe/Berlin">{t("timezoneEuropeBerlin")}</option>
+                      <option value="Europe/Rome">{t("timezoneEuropeRome")}</option>
+                      <option value="Europe/Madrid">{t("timezoneEuropeMadrid")}</option>
+                      <option value="Europe/Amsterdam">{t("timezoneEuropeAmsterdam")}</option>
+                      <option value="Europe/Brussels">{t("timezoneEuropeBrussels")}</option>
+                      <option value="Europe/Vienna">{t("timezoneEuropeVienna")}</option>
+                      <option value="Europe/Stockholm">{t("timezoneEuropeStockholm")}</option>
+                      <option value="Europe/Warsaw">{t("timezoneEuropeWarsaw")}</option>
+                      <option value="Europe/Athens">{t("timezoneEuropeAthens")}</option>
+                      <option value="Europe/Moscow">{t("timezoneEuropeMoscow")}</option>
+                      <option value="Asia/Dubai">{t("timezoneAsiaDubai")}</option>
+                      <option value="Asia/Kolkata">{t("timezoneAsiaKolkata")}</option>
+                      <option value="Asia/Bangkok">{t("timezoneAsiaBangkok")}</option>
+                      <option value="Asia/Singapore">{t("timezoneAsiaSingapore")}</option>
+                      <option value="Asia/Hong_Kong">{t("timezoneAsiaHongKong")}</option>
+                      <option value="Asia/Shanghai">{t("timezoneAsiaShanghai")}</option>
+                      <option value="Asia/Tokyo">{t("timezoneAsiaTokyo")}</option>
+                      <option value="Asia/Seoul">{t("timezoneAsiaSeoul")}</option>
+                      <option value="Australia/Sydney">{t("timezoneAustraliaSydney")}</option>
+                      <option value="Australia/Melbourne">{t("timezoneAustraliaMelbourne")}</option>
+                      <option value="Australia/Brisbane">{t("timezoneAustraliaBrisbane")}</option>
+                      <option value="Australia/Perth">{t("timezoneAustraliaPerth")}</option>
+                      <option value="Pacific/Auckland">{t("timezonePacificAuckland")}</option>
+                      <option value="Pacific/Fiji">{t("timezonePacificFiji")}</option>
+                      <option value="Pacific/Honolulu">{t("timezonePacificHonolulu")}</option>
                     </select>
-                    <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">Timezone for the server. Requires API restart to take effect.</p>
+                    <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{t("serverTimezoneDescription")}</p>
                   </div>
 
                   <div>
@@ -881,7 +882,19 @@ export const SettingsRoute = () => {
                     <Label>{t("language")}</Label>
                     <select
                       value={localSettings.language || "en"}
-                      onChange={(e) => setLocalSettings({ ...localSettings, language: e.target.value })}
+                      onChange={async (e) => {
+                        const newLanguage = e.target.value;
+                        const newSettings = { ...localSettings, language: newLanguage };
+                        setLocalSettings(newSettings);
+                        // Save language setting to server immediately
+                        try {
+                          await api.setLanguage(token, newLanguage);
+                          // Update i18n language
+                          setLanguage(newLanguage as "en" | "fr" | "es" | "de" | "zh" | "ja");
+                        } catch (error) {
+                          console.error("Failed to save language setting:", error);
+                        }
+                      }}
                       className="h-[46px] w-full rounded-xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 text-slate-900 dark:text-white"
                     >
                       <option value="en">English</option>
@@ -972,7 +985,7 @@ export const SettingsRoute = () => {
                               : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400"
                           }`}>
                             <span className={`h-2 w-2 rounded-full ${tunnelStatus.running ? "bg-green-500" : "bg-slate-400"}`} />
-                            {tunnelStatus.running ? "Running" : "Stopped"}
+                            {tunnelStatus.running ? t("tunnelRunning") : t("tunnelStopped")}
                           </span>
                         </div>
                         
@@ -984,7 +997,7 @@ export const SettingsRoute = () => {
                               disabled={tunnelLoading || !localSettings.cloudflareTunnelToken}
                               className="rounded-lg bg-green-600 px-3 py-1 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                              {tunnelLoading ? "Starting..." : "Start"}
+                              {tunnelLoading ? t("tunnelStarting") : t("tunnelStart")}
                             </button>
                           ) : (
                             <>
@@ -994,7 +1007,7 @@ export const SettingsRoute = () => {
                                 disabled={tunnelLoading}
                                 className="rounded-lg bg-red-600 px-3 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                               >
-                                {tunnelLoading ? "Stopping..." : "Stop"}
+                                {tunnelLoading ? t("tunnelStopping") : t("tunnelStop")}
                               </button>
                               <button
                                 type="button"
@@ -1002,7 +1015,7 @@ export const SettingsRoute = () => {
                                 disabled={tunnelLoading}
                                 className="rounded-lg bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                               >
-                                {tunnelLoading ? "Restarting..." : "Restart"}
+                                {tunnelLoading ? t("tunnelRestarting") : t("tunnelRestart")}
                               </button>
                             </>
                           )}
@@ -1011,27 +1024,27 @@ export const SettingsRoute = () => {
                     )}
                     
                     <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
-                      💡 To get a tunnel token:
+                      {t("cloudflareTunnelInstructions")}
                     </p>
                     <ol className="mt-1 ml-4 list-decimal text-xs text-slate-600 dark:text-slate-400 space-y-1">
                       <li>{t("visitCloudflareZeroTrustDashboard")} <a href="https://one.dash.cloudflare.com/" target="_blank" rel="noopener" className="text-blue-600 dark:text-blue-400 hover:underline">{t("cloudflareTunnelUrl")}</a></li>
-                      <li>Go to Networks → Tunnels</li>
-                      <li>Create a new tunnel or use existing one</li>
-                      <li>Copy the tunnel token and paste it above</li>
+                      <li>{t("cloudflareTunnelStep1")}</li>
+                      <li>{t("cloudflareTunnelStep2")}</li>
+                      <li>{t("cloudflareTunnelStep3")}</li>
                     </ol>
                     <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
-                      📚 <a
+                      <a
                         href="https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline"
                       >
-                        Official Cloudflare Tunnel Documentation
+                        {t("cloudflareTunnelDocs")}
                       </a>
                     </p>
                     <div className="mt-3 rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3">
                       <p className="text-xs text-yellow-700 dark:text-yellow-300">
-                        ⚠️ <strong>Note:</strong> Enter your Cloudflare Tunnel token above and save settings. The tunnel will start automatically. Use the controls above to start/stop/restart the tunnel as needed.
+                        {t("cloudflareTunnelNote")}
                       </p>
                     </div>
                   </div>
@@ -1086,13 +1099,13 @@ export const SettingsRoute = () => {
                             {dockerHostStatus[host.id]?.success && (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
                                 <CheckCircle className="w-3 h-3" />
-                                Connected
+                                {t("dockerConnected")}
                               </span>
                             )}
                             {dockerHostStatus[host.id]?.success === false && (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">
                                 <XCircle className="w-3 h-3" />
-                                Failed
+                                {t("dockerFailed")}
                               </span>
                             )}
                           </div>
@@ -1104,7 +1117,7 @@ export const SettingsRoute = () => {
                           )}
                           {dockerHostStatus[host.id]?.error && (
                             <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                              Error: {dockerHostStatus[host.id].error}
+                              {t("dockerError")} {dockerHostStatus[host.id].error}
                             </p>
                           )}
                         </div>
@@ -1118,12 +1131,12 @@ export const SettingsRoute = () => {
                             {testingDockerHost === host.id ? (
                               <>
                                 <RefreshCw className="h-4 w-4 animate-spin" />
-                                Testing...
+                                {t("dockerTesting")}
                               </>
                             ) : (
                               <>
                                 <Network className="h-4 w-4" />
-                                Test
+                                {t("dockerTest")}
                               </>
                             )}
                           </Button>
@@ -1155,10 +1168,10 @@ export const SettingsRoute = () => {
                         onChange={(e) => setNewDockerHost({ ...newDockerHost, url: e.target.value })}
                       />
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
-                        Examples: http://localhost:2375, tcp://192.168.1.10:2375, unix:///var/run/docker.sock
+                        {t("dockerSocketUrlExamples")}
                       </p>
                       <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
-                        Note: Docker daemon must expose TCP port (edit /etc/docker/daemon.json)
+                        {t("dockerDaemonNote")}
                       </p>
                     </div>
                     <Button onClick={addDockerHost} className="gap-2">
@@ -1225,7 +1238,7 @@ export const SettingsRoute = () => {
                           ? 'bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-400'
                           : 'bg-red-500/10 border border-red-500/30 text-red-700 dark:text-red-400'
                       }`}>
-                        {browserTestResult.success ? '✓' : '✗'} {browserTestResult.message}
+                        {browserTestResult.success ? t("testSuccess") : t("testFailure")} {browserTestResult.message}
                       </div>
                     )}
                     
@@ -1236,7 +1249,7 @@ export const SettingsRoute = () => {
                         variant="outline"
                         className="flex-1"
                       >
-                        {testingBrowser ? 'Testing...' : 'Test Connection'}
+                        {testingBrowser ? t("testing") : t("testConnection")}
                       </Button>
                       <Button 
                         onClick={addRemoteBrowser} 
@@ -1351,7 +1364,7 @@ export const SettingsRoute = () => {
                               {key.lastUsedAt && (
                                 <span>• {t("lastUsed")}: {new Date(key.lastUsedAt).toLocaleDateString()}</span>
                               )}
-                              <span>• Permissions: {key.permissions || 'READ'}</span>
+                              <span>• {t("apiKeyPermissions")} {key.permissions || 'READ'}</span>
                             </>
                           )}
                         </div>
@@ -1384,7 +1397,7 @@ export const SettingsRoute = () => {
                       </div>
                       <div className="w-32">
                         <Label htmlFor="api-key-permissions" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                          Permissions
+                          {t("apiKeyPermissions")}
                         </Label>
                         <select
                           id="api-key-permissions"
@@ -1706,18 +1719,18 @@ export const SettingsRoute = () => {
                     <div className="space-y-3">
                       <div>
                         <Label htmlFor="export-password" className="text-sm font-medium">
-                          Encryption Password (Optional)
+                          {t("encryptionPasswordOptional")}
                         </Label>
                         <Input
                           id="export-password"
                           type="password"
                           value={exportPassword}
                           onChange={(e) => setExportPassword(e.target.value)}
-                          placeholder="Leave empty for unencrypted export"
+                          placeholder={t("leaveEmptyUnencrypted")}
                           className="mt-1"
                         />
                         <p className="text-xs text-slate-500 mt-1">
-                          Password protects your exported data with AES-256 encryption
+                          {t("passwordProtectsData")}
                         </p>
                       </div>
                       
@@ -1740,7 +1753,7 @@ export const SettingsRoute = () => {
                     </div>
                     
                     <p className="text-sm text-slate-600 dark:text-slate-400">
-                      Import settings from a previously exported JSON file. This will replace all current data.
+                      {t("importDescription")}
                     </p>
                     
                     <div className="space-y-3">
@@ -1781,7 +1794,7 @@ export const SettingsRoute = () => {
                       </Button>
                       
                       <p className="text-xs text-red-600 dark:text-red-400">
-                        ⚠️ This action cannot be undone. Make sure to backup your current settings first.
+                        {t("importWarning")}
                       </p>
                     </div>
                   </div>
@@ -1791,22 +1804,21 @@ export const SettingsRoute = () => {
                 <div className="rounded-xl border border-blue-300 dark:border-blue-500/20 bg-blue-50 dark:bg-blue-500/10 p-6">
                   <h4 className="text-lg font-medium text-blue-900 dark:text-blue-100 mb-2">{t("whatGetsExported")}</h4>
                   <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
-                    <li>• Application settings and preferences</li>
-                    <li>• All monitors and their configurations</li>
-                    <li>• Monitor groups and tags</li>
-                    <li>• Notification channels</li>
-                    <li>• Maintenance windows</li>
-                    <li>• Status pages</li>
-                    <li>• API keys (without actual tokens)</li>
-                    <li>• Docker hosts and remote browsers</li>
-                    <li>• Proxy configurations</li>
-                    <li>• User accounts and invitations</li>
+                    <li>• {t("exportItemSettings")}</li>
+                    <li>• {t("exportItemMonitors")}</li>
+                    <li>• {t("exportItemGroupsTags")}</li>
+                    <li>• {t("exportItemNotifications")}</li>
+                    <li>• {t("exportItemMaintenance")}</li>
+                    <li>• {t("exportItemStatusPages")}</li>
+                    <li>• {t("exportItemApiKeys")}</li>
+                    <li>• {t("exportItemDockerHosts")}</li>
+                    <li>• {t("exportItemProxies")}</li>
+                    <li>• {t("exportItemUsers")}</li>
                   </ul>
                   
                   <h4 className="text-lg font-medium text-blue-900 dark:text-blue-100 mt-4 mb-2">{t("securityNote")}</h4>
                   <p className="text-sm text-blue-800 dark:text-blue-200">
-                    Exported files can be encrypted with AES-256 encryption. Always use a strong password and keep it safe.
-                    The export does not include sensitive data like actual API tokens or passwords.
+                    {t("exportSecurityNote")}
                   </p>
                 </div>
               </div>
