@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "../components/ui/button.js";
 import { Input } from "../components/ui/input.js";
 import { Card } from "../components/ui/card.js";
-import { ArrowLeft, Trash2, AlertCircle, Play } from "lucide-react";
+import { ArrowLeft, Trash2, AlertCircle, Play, GripVertical, Edit3 } from "lucide-react";
 import { useAuth } from "../providers/auth-context.js";
 import { api } from "../lib/api.js";
 import { useTranslation } from "../hooks/use-translation.js";
@@ -33,6 +33,9 @@ export default function SyntheticRecorder() {
   const [description, setDescription] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [useLocalBrowser, setUseLocalBrowser] = useState(true);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [showWaitInput, setShowWaitInput] = useState(false);
+  const [customWaitTime, setCustomWaitTime] = useState("1000");
   
   const { data: notifications } = useQuery({
     queryKey: ["notifications"],
@@ -42,7 +45,7 @@ export default function SyntheticRecorder() {
 
   const getCodegenCommand = async () => {
     if (!recordingUrl) {
-      alert("Please enter a URL first");
+      alert(t("enterUrlFirst"));
       return;
     }
 
@@ -57,13 +60,13 @@ export default function SyntheticRecorder() {
       }
     } catch (error) {
       console.error("Failed to get codegen command:", error);
-      alert("Failed to generate command. See console for details.");
+      alert(t("failedGenerateCommand"));
     }
   };
 
   const parsePlaywrightCode = async () => {
     if (!playwrightCode.trim()) {
-      alert("Please paste Playwright code first");
+      alert(t("pasteCodeFirst"));
       return;
     }
 
@@ -77,11 +80,11 @@ export default function SyntheticRecorder() {
         }));
         setSteps(newSteps);
         setPlaywrightCode("");
-        alert(`✓ Parsed ${data.steps.length} steps!`);
+        alert(t("parsedStepsSuccess").replace("{count}", data.steps.length.toString()));
       }
     } catch (error) {
       console.error("Failed to parse code:", error);
-      alert("Failed to parse Playwright code. Make sure you copied the correct code.");
+      alert(t("failedParseCode"));
     }
   };
 
@@ -89,9 +92,47 @@ export default function SyntheticRecorder() {
     setSteps(steps.filter((s) => s.id !== id));
   };
 
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === index) return;
+
+    const newSteps = [...steps];
+    const draggedStep = newSteps[draggedIndex];
+    newSteps.splice(draggedIndex, 1);
+    newSteps.splice(index, 0, draggedStep);
+    
+    setSteps(newSteps);
+    setDraggedIndex(index);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+  };
+
+  const addWaitStep = () => {
+    const newStep: RecordedStep = {
+      id: `manual-${Date.now()}`,
+      action: "wait",
+      value: customWaitTime
+    };
+    setSteps(prev => [...prev, newStep]);
+    setShowWaitInput(false);
+    setCustomWaitTime("1000");
+  };
+
+  const editWaitStep = (stepId: string, newValue: string) => {
+    setSteps(prev => prev.map(step => 
+      step.id === stepId ? { ...step, value: newValue } : step
+    ));
+  };
+
   const createMonitor = async () => {
     if (!monitorName || steps.length === 0) {
-      alert("Please add a monitor name and at least one step");
+      alert(t("addMonitorNameAndStep"));
       return;
     }
 
@@ -115,11 +156,11 @@ export default function SyntheticRecorder() {
         notificationIds: notificationIds.length > 0 ? notificationIds : undefined,
       });
 
-      alert("✓ Monitor created successfully!\n\nNote: Make sure you have configured a remote Playwright browser in Settings, or the monitor will fail. See Settings → Remote Browsers.");
+      alert(t("monitorCreatedSuccess"));
       navigate("/");
     } catch (error) {
       console.error("Failed to create monitor:", error);
-      alert("Failed to create monitor: " + (error instanceof Error ? error.message : "Unknown error"));
+      alert(t("failedCreateMonitor") + (error instanceof Error ? error.message : "Unknown error"));
     }
   };
 
@@ -163,9 +204,9 @@ export default function SyntheticRecorder() {
                     onChange={(e) => setBrowser(e.target.value)}
                     className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 sm:px-3 py-2 text-xs sm:text-sm"
                   >
-                    <option value="chromium">Chromium</option>
-                    <option value="firefox">Firefox</option>
-                    <option value="webkit">WebKit (Safari)</option>
+                    <option value="chromium">{t("chromium")}</option>
+                    <option value="firefox">{t("firefox")}</option>
+                    <option value="webkit">{t("webkit")}</option>
                   </select>
                 </div>
 
@@ -181,13 +222,13 @@ export default function SyntheticRecorder() {
                       {showCommand}
                     </code>
                     <div className="text-xs text-slate-600 dark:text-slate-400 space-y-1">
-                      <p>Then:</p>
+                      <p>{t("then")}</p>
                       <ol className="list-decimal list-inside space-y-0.5 ml-2">
-                        <li>Browser opens with Playwright Inspector</li>
-                        <li>Click the record button (red dot)</li>
-                        <li>Interact with the website</li>
-                        <li>Copy the code from Inspector</li>
-                        <li>Paste it below and click Parse</li>
+                        <li>{t("browserOpensInspector")}</li>
+                        <li>{t("clickRecordButton")}</li>
+                        <li>{t("interactWithWebsite")}</li>
+                        <li>{t("copyCodeFromInspector")}</li>
+                        <li>{t("pasteBelowAndParse")}</li>
                       </ol>
                     </div>
                   </div>
@@ -214,21 +255,42 @@ export default function SyntheticRecorder() {
             {steps.length > 0 && (
               <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
                 <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-2">
-                  Recorded Steps ({steps.length})
+                  {t("recordedSteps")} ({steps.length})
                 </h3>
                 <div className="space-y-1 max-h-64 overflow-y-auto">
                   {steps.map((step, index) => (
                     <div
                       key={step.id}
-                      className="flex items-center gap-2 text-xs bg-slate-100 dark:bg-slate-900 p-2 rounded"
+                      draggable
+                      onDragStart={() => handleDragStart(index)}
+                      onDragOver={(e) => handleDragOver(e, index)}
+                      onDragEnd={handleDragEnd}
+                      className={`flex items-center gap-2 text-xs bg-slate-100 dark:bg-slate-900 p-2 rounded cursor-move ${
+                        draggedIndex === index ? 'opacity-50' : ''
+                      }`}
                     >
+                      <GripVertical className="h-3 w-3 text-slate-400 cursor-grab" />
                       <span className="text-slate-500 w-5">{index + 1}.</span>
                       <code className="flex-1 font-mono text-slate-700 dark:text-slate-300">
-                        {step.action === "goto" && `goto → ${step.url}`}
-                        {step.action === "click" && `click → ${step.selector}`}
-                        {step.action === "fill" && `fill → ${step.selector} = "${step.value}"`}
-                        {step.action === "waitForSelector" && `wait → ${step.selector}`}
-                        {step.action === "screenshot" && "screenshot"}
+                        {step.action === "goto" && `${t("gotoAction")} ${step.url}`}
+                        {step.action === "click" && `${t("clickAction")} ${step.selector}`}
+                        {step.action === "fill" && `${t("fillAction")} ${step.selector} = "${step.value}"`}
+                        {step.action === "expect" && `${t("expectAction")} ${step.selector}`}
+                        {step.action === "wait" && (
+                          <span className="flex items-center gap-1">
+                            {t("waitStepPrefix")}
+                            <input
+                              type="number"
+                              value={step.value}
+                              onChange={(e) => editWaitStep(step.id, e.target.value)}
+                              className="w-16 px-1 py-0 text-xs bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded"
+                              min="100"
+                              max="30000"
+                            />
+                            ms
+                          </span>
+                        )}
+                        {step.action === "screenshot" && t("screenshotAction")}
                       </code>
                       <Button
                         variant="ghost"
@@ -242,6 +304,41 @@ export default function SyntheticRecorder() {
                 </div>
               </div>
             )}
+
+            {/* Manual wait button - always visible */}
+            <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
+              {showWaitInput ? (
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    value={customWaitTime}
+                    onChange={(e) => setCustomWaitTime(e.target.value)}
+                    placeholder={t("waitTimeMs")}
+                    className="flex-1 text-sm"
+                    min="100"
+                    max="30000"
+                  />
+                  <Button onClick={addWaitStep} className="px-3">
+                    {t("addButton")}
+                  </Button>
+                  <Button 
+                    onClick={() => setShowWaitInput(false)} 
+                    variant="outline" 
+                    className="px-3"
+                  >
+                    {t("cancelButton")}
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  onClick={() => setShowWaitInput(true)}
+                  variant="outline"
+                  className="w-full text-sm py-2"
+                >
+                  {t("addWaitStep")}
+                </Button>
+              )}
+            </div>
           </Card>
 
           {/* Right: Monitor Config */}
@@ -275,7 +372,7 @@ export default function SyntheticRecorder() {
                     {interval < 15 && (
                       <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-1">
                         <AlertCircle className="h-3 w-3" />
-                        Min: 15s
+                        {t("minInterval")}
                       </p>
                     )}
                   </div>
@@ -328,9 +425,9 @@ export default function SyntheticRecorder() {
                       onChange={(e) => setBrowser(e.target.value)}
                       className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm"
                     >
-                      <option value="chromium">Chromium</option>
-                      <option value="firefox">Firefox</option>
-                      <option value="webkit">WebKit (Safari)</option>
+                      <option value="chromium">{t("chromium")}</option>
+                      <option value="firefox">{t("firefox")}</option>
+                      <option value="webkit">{t("webkit")}</option>
                     </select>
                   </div>
                   
@@ -392,7 +489,7 @@ export default function SyntheticRecorder() {
                   {(!monitorName || steps.length === 0) && (
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 text-center">
                       {!monitorName && `${t("monitorName")} required. `}
-                      {steps.length === 0 && "Record at least one step."}
+                      {steps.length === 0 && t("recordAtLeastOneStep")}
                     </p>
                   )}
                 </div>
@@ -411,9 +508,9 @@ export default function SyntheticRecorder() {
             </div>
             
             <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-md p-3">
-              <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-300 mb-1">⚠️ Important</h3>
+              <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-300 mb-1">{t("important")}</h3>
               <p className="text-xs text-amber-800 dark:text-amber-400">
-                Synthetic monitors require a remote Playwright browser to be configured. Go to Settings → Remote Browsers to add one, or the monitor will show as DOWN.
+                {t("syntheticMonitorRequiresRemote")}
               </p>
             </div>
           </Card>

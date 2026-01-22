@@ -40,7 +40,7 @@ export interface MonitorResultMeta {
   dockerAvailableUpdates?: string[];
   dnsAnswers?: string[];
   dbVariant?: string;
-  journeySteps?: Array<{ label: string; status: StatusState; detail?: string }>;
+  journeySteps?: Array<{ label: string; status: StatusState; detail?: string; screenshot?: string }>;
   grpcStatus?: string;
   pushWindowSeconds?: number;
   heartbeatReceivedAt?: string | null;
@@ -113,6 +113,7 @@ export interface SyntheticStep {
   selector?: string;
   value?: string;
   text?: string;
+  property?: string;
   url?: string;
   timeout?: number;
 }
@@ -123,6 +124,7 @@ export interface SyntheticConfig {
   baseUrl?: string;
   remoteBrowserId?: string; // ID of remote browser from settings
   useLocalBrowser?: boolean; // Force local browser usage
+  ignoreHTTPSErrors?: boolean; // Ignore HTTPS/SSL certificate errors
 }
 
 export interface GrpcConfig {

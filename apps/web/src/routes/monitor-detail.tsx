@@ -22,7 +22,7 @@ import { Button } from "../components/ui/button.js";
 import { StatusBadge } from "../components/status-badge.js";
 import { UptimeBar } from "../components/uptime-bar.js";
 import { format } from "date-fns";
-import { ArrowLeft, Edit2, Trash2, Pause, Play } from "lucide-react";
+import { ArrowLeft, Edit2, Trash2, Pause, Play, GripVertical } from "lucide-react";
 
 // Register Chart.js components
 ChartJS.register(
@@ -58,7 +58,24 @@ export const MonitorDetailRoute = () => {
     variant: "postgres",
     target: "",
     heartbeatSeconds: "300",
+    // Synthetic monitor fields
+    browser: "chromium" as "chromium" | "firefox" | "webkit",
+    useLocalBrowser: true,
+    baseUrl: "",
+    steps: [] as Array<{
+      id: string;
+      action: "goto" | "click" | "fill" | "expect" | "wait";
+      selector?: string;
+      value?: string;
+      text?: string;
+      property?: string;
+      url?: string;
+      timeout?: number;
+    }>,
   });
+  const [draggedStepIndex, setDraggedStepIndex] = useState<number | null>(null);
+  const [showAddWaitStep, setShowAddWaitStep] = useState(false);
+  const [waitStepValue, setWaitStepValue] = useState("1000");
 
   const { data: monitor } = useQuery({
     queryKey: ["monitor", id],
@@ -115,8 +132,39 @@ export const MonitorDetailRoute = () => {
   });
 
   const handleEdit = () => {
-    // Navigate to monitors page with edit state
-    navigate('/monitors', { state: { editMonitor: monitor } });
+    if (!monitor) return;
+    
+    const config = (monitor as any).config as any;
+    
+    // For synthetic monitors, show inline editing
+    if (monitor.kind === "synthetic") {
+      const steps = Array.isArray(config?.steps) ? config.steps : [];
+      setEditForm({
+        name: monitor.name,
+        interval: monitor.interval,
+        url: "",
+        host: "",
+        port: "",
+        record: "",
+        recordType: "A",
+        containerName: "",
+        connectionString: "",
+        variant: "postgres",
+        target: "",
+        heartbeatSeconds: "300",
+        browser: config?.browser ?? "chromium",
+        useLocalBrowser: config?.useLocalBrowser ?? true,
+        baseUrl: config?.baseUrl ?? "",
+        steps: steps.map((step: any, index: number) => ({
+          id: `step-${Date.now()}-${index}`,
+          ...step,
+        })),
+      });
+      setIsEditing(true);
+    } else {
+      // For other monitor types, navigate to monitors page with edit state
+      navigate('/monitors', { state: { editMonitor: monitor } });
+    }
   };
 
   const buildConfig = (formData: typeof editForm, monitorKind: string) => {
@@ -137,6 +185,13 @@ export const MonitorDetailRoute = () => {
         return { target: formData.target };
       case "push":
         return { heartbeatSeconds: parseInt(formData.heartbeatSeconds, 10) };
+      case "synthetic":
+        return {
+          browser: formData.browser,
+          useLocalBrowser: formData.useLocalBrowser,
+          baseUrl: formData.baseUrl || undefined,
+          steps: formData.steps.map(({ id, ...step }) => step),
+        };
       case "http":
       default:
         return { url: formData.url };
@@ -331,7 +386,7 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
         <Card>
           <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">{t("latestJourneySteps")}</h3>
           {(() => {
-            const latestCheck = history.checks[history.checks.length - 1]; // Get the most recent check (last in chronological array)
+            const latestCheck = history.checks[0]; // Get the most recent check (first in desc-ordered array)
             const journeySteps = (latestCheck as any)?.payload?.journeySteps || [];
             
             if (journeySteps.length === 0) {
@@ -424,6 +479,31 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
                               <pre className="text-xs text-red-700 dark:text-red-300 whitespace-pre-wrap break-words font-mono">
                                 {step.detail}
                               </pre>
+                            </div>
+                          )}
+
+                          {/* Screenshot */}
+                          {step.screenshot && (
+                            <div className="mt-2">
+                              <details className="group">
+                                <summary className="cursor-pointer text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 flex items-center gap-1">
+                                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                                  </svg>
+                                  {t("screenshot")}
+                                  <svg className="w-3 h-3 transition-transform group-open:rotate-180" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                  </svg>
+                                </summary>
+                                <div className="mt-2 p-2 bg-slate-100 dark:bg-slate-800 rounded border">
+                                  <img
+                                    src={`data:image/png;base64,${step.screenshot}`}
+                                    alt={`Screenshot for step ${step.label}`}
+                                    className="max-w-full h-auto rounded border border-slate-300 dark:border-slate-600"
+                                    style={{ maxHeight: '400px' }}
+                                  />
+                                </div>
+                              </details>
                             </div>
                           )}
                         </div>
@@ -572,6 +652,194 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
                   value={editForm.containerName}
                   onChange={(e) => setEditForm((prev) => ({ ...prev, containerName: e.target.value }))}
                 />
+              </div>
+            )}
+            
+            {/* Synthetic Monitor Steps */}
+            {monitor.kind === "synthetic" && (
+              <div className="space-y-4">
+                <div className="rounded-lg bg-purple-500/10 border border-purple-500/30 p-4">
+                  <div className="flex items-start gap-2">
+                    <div className="text-purple-600 dark:text-purple-400 mt-0.5">🎭</div>
+                    <div className="flex-1 text-sm text-slate-600 dark:text-slate-300">
+                      <p className="font-semibold text-slate-900 dark:text-white mb-1">Synthetic Monitor</p>
+                      <p>Add wait steps and drag to reorder steps below.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Browser Config */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm text-slate-600 dark:text-slate-400 block mb-2">{t("browser")}</label>
+                    <select
+                      className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
+                      value={editForm.browser}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, browser: e.target.value as typeof prev.browser }))}
+                    >
+                      <option value="chromium">Chromium</option>
+                      <option value="firefox">Firefox</option>
+                      <option value="webkit">WebKit</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm text-slate-600 dark:text-slate-400 block mb-2">{t("baseUrlOptional")}</label>
+                    <input
+                      className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white"
+                      value={editForm.baseUrl}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, baseUrl: e.target.value }))}
+                      placeholder="https://example.com"
+                    />
+                  </div>
+                </div>
+
+                {/* Use Local Browser Checkbox */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="useLocalBrowser"
+                    checked={editForm.useLocalBrowser}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, useLocalBrowser: e.target.checked }))}
+                    className="rounded"
+                  />
+                  <label htmlFor="useLocalBrowser" className="text-sm text-slate-600 dark:text-slate-400">
+                    Use local embedded browser
+                  </label>
+                </div>
+
+                {/* Steps List */}
+                <div>
+                  <label className="text-sm text-slate-600 dark:text-slate-400 block mb-2">{t("journeySteps")}</label>
+                  <div className="space-y-2">
+                    {editForm.steps.map((step, index) => (
+                      <div
+                        key={step.id}
+                        draggable
+                        onDragStart={() => setDraggedStepIndex(index)}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          if (draggedStepIndex === null || draggedStepIndex === index) return;
+                          const newSteps = [...editForm.steps];
+                          const draggedStep = newSteps[draggedStepIndex];
+                          newSteps.splice(draggedStepIndex, 1);
+                          newSteps.splice(index, 0, draggedStep);
+                          setEditForm((prev) => ({ ...prev, steps: newSteps }));
+                          setDraggedStepIndex(index);
+                        }}
+                        onDragEnd={() => setDraggedStepIndex(null)}
+                        className={`flex items-start gap-2 p-3 rounded-lg border transition-all cursor-move ${
+                          draggedStepIndex === index
+                            ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-300 dark:border-purple-600'
+                            : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 hover:border-purple-300 dark:hover:border-purple-600'
+                        }`}
+                      >
+                        {/* Drag Handle */}
+                        <div className="flex-shrink-0 mt-1 text-slate-400 dark:text-slate-500">
+                          <GripVertical className="h-4 w-4" />
+                        </div>
+
+                        {/* Step Number */}
+                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-purple-500 text-white flex items-center justify-center text-xs font-semibold mt-0.5">
+                          {index + 1}
+                        </div>
+
+                        {/* Step Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-medium text-slate-900 dark:text-white uppercase">
+                              {step.action}
+                            </span>
+                          </div>
+                          <div className="text-xs text-slate-600 dark:text-slate-400 space-y-0.5">
+                            {step.url && <div>URL: {step.url}</div>}
+                            {step.selector && <div>Selector: {step.selector}</div>}
+                            {step.value && step.action === "wait" && <div>Wait: {step.value}ms</div>}
+                            {step.value && step.action !== "wait" && <div>Value: {step.value}</div>}
+                            {step.text && <div>Text: {step.text}</div>}
+                            {step.property && <div>Property: {step.property}</div>}
+                          </div>
+                          
+                          {/* Edit wait value */}
+                          {step.action === "wait" && (
+                            <div className="mt-2">
+                              <input
+                                type="number"
+                                className="w-full rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1 text-xs"
+                                value={step.value || "1000"}
+                                onChange={(e) => {
+                                  const newSteps = [...editForm.steps];
+                                  newSteps[index] = { ...step, value: e.target.value };
+                                  setEditForm((prev) => ({ ...prev, steps: newSteps }));
+                                }}
+                                min="100"
+                                max="30000"
+                                placeholder="Wait time (ms)"
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Remove Button */}
+                        <button
+                          onClick={() => {
+                            const newSteps = editForm.steps.filter((_, i) => i !== index);
+                            setEditForm((prev) => ({ ...prev, steps: newSteps }));
+                          }}
+                          className="flex-shrink-0 p-1 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+
+                    {/* Add Wait Step */}
+                    {showAddWaitStep ? (
+                      <div className="flex gap-2 p-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                        <input
+                          type="number"
+                          className="flex-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2 text-sm"
+                          value={waitStepValue}
+                          onChange={(e) => setWaitStepValue(e.target.value)}
+                          placeholder="Wait time (ms)"
+                          min="100"
+                          max="30000"
+                        />
+                        <Button
+                          onClick={() => {
+                            const newStep = {
+                              id: `wait-${Date.now()}`,
+                              action: "wait" as const,
+                              value: waitStepValue,
+                            };
+                            setEditForm((prev) => ({ ...prev, steps: [...prev.steps, newStep] }));
+                            setShowAddWaitStep(false);
+                            setWaitStepValue("1000");
+                          }}
+                          className="px-4"
+                        >
+                          Add
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            setShowAddWaitStep(false);
+                            setWaitStepValue("1000");
+                          }}
+                          variant="outline"
+                          className="px-4"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setShowAddWaitStep(true)}
+                        className="w-full p-3 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-700 text-sm text-slate-600 dark:text-slate-400 hover:border-purple-400 dark:hover:border-purple-500 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+                      >
+                        + Add Wait Step
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
             

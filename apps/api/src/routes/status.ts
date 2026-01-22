@@ -9,41 +9,60 @@ const statusPlugin = async (fastify: FastifyInstance) => {
   // GET /status - List monitor statuses (frontend expects this endpoint)
   fastify.get("/status", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async () => {
     const { prisma } = await import("../db/prisma.js");
-    const { maintenanceService } = await import("../services/maintenance/suppressor.js");
 
+    // Get all monitors with their latest check and incident in a single optimized query
     const monitors = await prisma.monitor.findMany({
       include: {
         checks: { orderBy: { checkedAt: "desc" }, take: 1 },
         incidents: { orderBy: { startedAt: "desc" }, take: 1 },
-        group: true,
-        tags: true,
+        // Removed group and tags as they're not used in the status response
       },
     });
 
-    const results = await Promise.all(
-      monitors.map(async (monitor: typeof monitors[number]) => {
-        const inMaintenance = await maintenanceService.isSuppressed(monitor.id);
-        const latestCheck = monitor.checks[0];
-        const payload = latestCheck?.payload as any;
+    // Batch query for all active maintenance windows in a single query
+    const now = new Date();
+    const activeMaintenanceWindows = await prisma.maintenanceWindow.findMany({
+      where: {
+        startsAt: { lte: now },
+        endsAt: { gte: now },
+      },
+      include: {
+        monitors: {
+          select: { id: true }
+        }
+      }
+    });
 
-        // Extract certificate metadata - it's directly in payload, not payload.meta
-        const meta = monitor.kind === 'certificate' && payload ? {
-          certificateExpiresAt: payload.certificateExpiresAt,
-          certificateDaysLeft: payload.certificateDaysLeft,
-        } : null;
+    // Create a Set of monitor IDs that are currently in maintenance for O(1) lookup
+    const maintenanceMonitorIds = new Set<string>();
+    activeMaintenanceWindows.forEach(window => {
+      window.monitors.forEach(monitor => {
+        maintenanceMonitorIds.add(monitor.id);
+      });
+    });
 
-        return {
-          id: monitor.id,
-          name: monitor.name,
-          kind: monitor.kind,
-          status: latestCheck?.status ?? "pending",
-          lastCheck: latestCheck?.checkedAt ?? null,
-          incident: monitor.incidents[0] ?? null,
-          inMaintenance,
-          meta,
-        };
-      })
-    );
+    // Process all monitors without additional database queries
+    const results = monitors.map((monitor) => {
+      const latestCheck = monitor.checks[0];
+      const payload = latestCheck?.payload as any;
+
+      // Extract certificate metadata - it's directly in payload, not payload.meta
+      const meta = monitor.kind === 'certificate' && payload ? {
+        certificateExpiresAt: payload.certificateExpiresAt,
+        certificateDaysLeft: payload.certificateDaysLeft,
+      } : null;
+
+      return {
+        id: monitor.id,
+        name: monitor.name,
+        kind: monitor.kind,
+        status: latestCheck?.status ?? "pending",
+        lastCheck: latestCheck?.checkedAt ?? null,
+        incident: monitor.incidents[0] ?? null,
+        inMaintenance: maintenanceMonitorIds.has(monitor.id),
+        meta,
+      };
+    });
 
     return results;
   });
@@ -56,30 +75,49 @@ const statusPlugin = async (fastify: FastifyInstance) => {
         incidents: { orderBy: { startedAt: "desc" }, take: 1 },
       },
     });
-    
-    const results = await Promise.all(
-      monitors.map(async (monitor: typeof monitors[number]) => {
-        const inMaintenance = await maintenanceService.isSuppressed(monitor.id);
-        const latestCheck = monitor.checks[0];
-        const payload = latestCheck?.payload as any;
-        // Extract certificate metadata - it's directly in payload, not payload.meta
-        const meta = monitor.kind === 'certificate' && payload ? {
-          certificateExpiresAt: payload.certificateExpiresAt,
-          certificateDaysLeft: payload.certificateDaysLeft,
-        } : null;
-        return {
-          id: monitor.id,
-          name: monitor.name,
-          kind: monitor.kind,
-          status: latestCheck?.status ?? "pending",
-          lastCheck: latestCheck?.checkedAt ?? null,
-          incident: monitor.incidents[0] ?? null,
-          inMaintenance,
-          meta,
-        };
-      })
-    );
-    
+
+    // Batch query for all active maintenance windows
+    const now = new Date();
+    const activeMaintenanceWindows = await prisma.maintenanceWindow.findMany({
+      where: {
+        startsAt: { lte: now },
+        endsAt: { gte: now },
+      },
+      include: {
+        monitors: {
+          select: { id: true }
+        }
+      }
+    });
+
+    // Create a Set of monitor IDs that are currently in maintenance
+    const maintenanceMonitorIds = new Set<string>();
+    activeMaintenanceWindows.forEach(window => {
+      window.monitors.forEach(monitor => {
+        maintenanceMonitorIds.add(monitor.id);
+      });
+    });
+
+    const results = monitors.map((monitor) => {
+      const latestCheck = monitor.checks[0];
+      const payload = latestCheck?.payload as any;
+      // Extract certificate metadata - it's directly in payload, not payload.meta
+      const meta = monitor.kind === 'certificate' && payload ? {
+        certificateExpiresAt: payload.certificateExpiresAt,
+        certificateDaysLeft: payload.certificateDaysLeft,
+      } : null;
+      return {
+        id: monitor.id,
+        name: monitor.name,
+        kind: monitor.kind,
+        status: latestCheck?.status ?? "pending",
+        lastCheck: latestCheck?.checkedAt ?? null,
+        incident: monitor.incidents[0] ?? null,
+        inMaintenance: maintenanceMonitorIds.has(monitor.id),
+        meta,
+      };
+    });
+
     return results;
   });
 
