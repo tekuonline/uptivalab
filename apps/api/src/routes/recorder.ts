@@ -60,12 +60,12 @@ const recorderPlugin = async (fastify: FastifyInstance) => {
             steps.push({ action: "click", selector: match[1] });
           } else {
             // Handle page.locator('selector').click()
-            match = trimmed.match(/page\.locator\(['"](.+?)['"]\)/);
+            match = trimmed.match(/page\.locator\(['"](.+?)['"]\)\.click\(\)/);
             if (match) {
               steps.push({ action: "click", selector: match[1] });
             } else {
               // Handle page.getByRole('role', { name: 'Name' }).click()
-              match = trimmed.match(/page\.getByRole\(['"](.+?)['"](?:,\s*\{\s*name:\s*['"](.+?)['"]\s*\})?\)/);
+              match = trimmed.match(/page\.getByRole\(['"](.+?)['"](?:,\s*\{\s*name:\s*['"](.+?)['"]\s*\})?\)\.click\(\)/);
               if (match) {
                 const selector = match[2] ? `role=${match[1]}[name="${match[2]}"]` : `role=${match[1]}`;
                 steps.push({ action: "click", selector });
@@ -74,7 +74,7 @@ const recorderPlugin = async (fastify: FastifyInstance) => {
           }
         }
 
-        // fill (supports page.fill, page.locator().fill)
+        // fill (supports page.fill, page.locator().fill, page.getByRole().fill)
         else if (trimmed.includes(".fill(")) {
           // Handle page.fill('selector', 'value')
           let match = trimmed.match(/page\.fill\(['"](.+?)['"],[\s]*['"](.+?)['"]\)/);
@@ -82,9 +82,16 @@ const recorderPlugin = async (fastify: FastifyInstance) => {
             steps.push({ action: "fill", selector: match[1], value: match[2] });
           } else {
             // Handle page.locator('selector').fill('value')
-            const locatorMatch = trimmed.match(/page\.locator\(['"](.+?)['"]\)\.fill\(['"](.+?)['"]\)/);
-            if (locatorMatch) {
-              steps.push({ action: "fill", selector: locatorMatch[1], value: locatorMatch[2] });
+            match = trimmed.match(/page\.locator\(['"](.+?)['"]\)\.fill\(['"](.+?)['"]\)/);
+            if (match) {
+              steps.push({ action: "fill", selector: match[1], value: match[2] });
+            } else {
+              // Handle page.getByRole('role', { name: 'Name' }).fill('value')
+              match = trimmed.match(/page\.getByRole\(['"](.+?)['"](?:,\s*\{\s*name:\s*['"](.+?)['"]\s*\})?\)\.fill\(['"](.+?)['"]\)/);
+              if (match) {
+                const selector = match[2] ? `role=${match[1]}[name="${match[2]}"]` : `role=${match[1]}`;
+                steps.push({ action: "fill", selector, value: match[3] });
+              }
             }
           }
         }
@@ -94,6 +101,14 @@ const recorderPlugin = async (fastify: FastifyInstance) => {
           const match = trimmed.match(/waitForSelector\(['"](.+?)['"]\)/);
           if (match) {
             steps.push({ action: "expect", selector: match[1] });
+          }
+        }
+
+        // Handle wait actions (page.waitForTimeout, page.waitForLoadState, etc.)
+        else if (trimmed.includes("page.waitForTimeout(")) {
+          const match = trimmed.match(/waitForTimeout\((\d+)\)/);
+          if (match) {
+            steps.push({ action: "wait", value: parseInt(match[1]) });
           }
         }
 

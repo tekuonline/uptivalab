@@ -156,7 +156,6 @@ export const translations = {
     fill: "Fill",
     expect: "Expect visible",
     wait: "Wait",
-    screenshot: "Screenshot",
     
     // Missing translations - Synthetic Monitor & Journey Steps
     latestJourneySteps: "Latest Journey Steps",
@@ -166,6 +165,7 @@ export const translations = {
     passed: "Passed",
     failed: "Failed",
     errorDetails: "Error Details:",
+    screenshot: "Screenshot",
     recordedSteps: "Recorded Steps",
     recordAtLeastOneStep: "Record at least one step.",
     invalidJsonSteps: "Invalid JSON in steps field. Please check your syntax.",
@@ -198,6 +198,34 @@ export const translations = {
     openVisualStepBuilder: "🎬 Open Visual Step Builder",
     baseUrlOptional: "Base URL (Optional)",
     baseUrlForRelativePaths: "Base URL for relative paths in journey steps",
+    addWaitStep: "+ Add Wait Step",
+    waitStepPrefix: "wait →",
+    journeySteps: "Journey Steps",
+    enterUrlFirst: "Please enter a URL first",
+    failedGenerateCommand: "Failed to generate command. See console for details.",
+    pasteCodeFirst: "Please paste Playwright code first",
+    parsedStepsSuccess: "✓ Parsed {count} steps!",
+    failedParseCode: "Failed to parse Playwright code. Make sure you copied the correct code.",
+    addMonitorNameAndStep: "Please add a monitor name and at least one step",
+    monitorCreatedSuccess: "✓ Monitor created successfully!\n\nNote: Make sure you have configured a remote Playwright browser in Settings, or the monitor will fail. See Settings → Remote Browsers.",
+    failedCreateMonitor: "Failed to create monitor: ",
+    browserOpensInspector: "Browser opens with Playwright Inspector",
+    clickRecordButton: "Click the record button (red dot)",
+    interactWithWebsite: "Interact with the website",
+    copyCodeFromInspector: "Copy the code from Inspector",
+    pasteBelowAndParse: "Paste it below and click Parse",
+    gotoAction: "goto →",
+    clickAction: "click →",
+    fillAction: "fill →",
+    expectAction: "wait →",
+    screenshotAction: "screenshot",
+    waitTimeMs: "Wait time (ms)",
+    addButton: "Add",
+    cancelButton: "Cancel",
+    minInterval: "Min: 15s",
+    important: "⚠️ Important",
+    syntheticMonitorRequiresRemote: "Synthetic monitors require a remote Playwright browser to be configured. Go to Settings → Remote Browsers to add one, or the monitor will show as DOWN.",
+    then: "Then:",
     
     // Monitor Detail Page
     areYouSureDelete: "Are you sure you want to delete",
@@ -2679,7 +2707,6 @@ export const translations = {
     fill: "Ausfüllen",
     expect: "Erwarten",
     wait: "Warten",
-    screenshot: "Screenshot",
 
 
 
@@ -2920,6 +2947,7 @@ export const translations = {
     passed: "Bestanden",
     failed: "Fehlgeschlagen",
     errorDetails: "Fehlerdetails:",
+    screenshot: "Screenshot",
     recordedSteps: "Aufgezeichnete Schritte",
     recordAtLeastOneStep: "Zeichnen Sie mindestens einen Schritt auf.",
     invalidJsonSteps: "Ungültiges JSON im Schritte-Feld. Bitte überprüfen Sie Ihre Syntax.",
@@ -3712,7 +3740,7 @@ export const translations = {
     fill: "Remplir",
     expect: "Attendre",
     wait: "Patienter",
-    screenshot: "Capture d'écran",
+
 
 
 
@@ -3953,6 +3981,7 @@ export const translations = {
     passed: "Réussi",
     failed: "Échoué",
     errorDetails: "Détails de l'erreur :",
+    screenshot: "Capture d'écran",
     recordedSteps: "Étapes enregistrées",
     recordAtLeastOneStep: "Enregistrez au moins une étape.",
     invalidJsonSteps: "JSON invalide dans le champ des étapes. Veuillez vérifier votre syntaxe.",
@@ -4763,7 +4792,6 @@ export const translations = {
     fill: "填写",
     expect: "期望",
     wait: "等待",
-    screenshot: "截图",
 
 
 
@@ -5004,6 +5032,7 @@ export const translations = {
     passed: "通过",
     failed: "失败",
     errorDetails: "错误详情：",
+    screenshot: "截图",
     recordedSteps: "已记录的步骤",
     recordAtLeastOneStep: "至少记录一个步骤。",
     invalidJsonSteps: "步骤字段中的JSON无效。请检查您的语法。",
@@ -5814,7 +5843,6 @@ export const translations = {
     fill: "入力",
     expect: "期待",
     wait: "待機",
-    screenshot: "スクリーンショット",
 
 
 
@@ -6055,6 +6083,7 @@ export const translations = {
     passed: "成功",
     failed: "失敗",
     errorDetails: "エラー詳細：",
+    screenshot: "スクリーンショット",
     recordedSteps: "記録されたステップ",
     recordAtLeastOneStep: "少なくとも1つのステップを記録してください。",
     invalidJsonSteps: "ステップフィールドのJSONが無効です。構文を確認してください。",

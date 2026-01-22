@@ -80,20 +80,50 @@ const worker = new Worker(
   { connection }
 );
 
-worker.on("failed", (job, err) => {
+worker.on("failed", async (job, err) => {
   console.error("Monitor job failed", job?.id, err);
+
+  // Create a failed check result when monitor execution fails
+  if (job?.data?.monitorId) {
+    try {
+      const monitor = await prisma.monitor.findUnique({
+        where: { id: job.data.monitorId },
+        select: { id: true, name: true }
+      });
+
+      if (monitor) {
+        const failureResult = {
+          monitorId: monitor.id,
+          status: "down" as const,
+          message: `Monitor execution failed: ${err instanceof Error ? err.message : String(err)}`,
+          checkedAt: new Date().toISOString(),
+        };
+
+        await handleResult(failureResult, monitor, { suppressed: false });
+      }
+    } catch (handleError) {
+      console.error("Failed to handle monitor job failure:", handleError);
+    }
+  }
 });
 
 const scheduleMonitor = async (monitorId: string, interval: number) => {
-  await monitorQueue.add(
-    "monitor",
-    { monitorId },
-    {
-      repeat: { every: interval },
-      jobId: `monitor:${monitorId}`,
-      removeOnComplete: true,
-    }
-  );
+  try {
+    console.log(`[Monitor Orchestrator] Scheduling monitor ${monitorId} with interval ${interval}ms`);
+    await monitorQueue.add(
+      "monitor",
+      { monitorId },
+      {
+        repeat: { every: interval },
+        jobId: `monitor:${monitorId}`,
+        removeOnComplete: true,
+      }
+    );
+    console.log(`[Monitor Orchestrator] Successfully scheduled monitor ${monitorId}`);
+  } catch (error) {
+    console.error(`[Monitor Orchestrator] Failed to schedule monitor ${monitorId}:`, error);
+    throw error;
+  }
 };
 
 const cancelMonitor = async (monitorId: string) => {
@@ -158,11 +188,33 @@ const runMonitorCheck = async (monitorId: string): Promise<MonitorResult> => {
 };
 
 const bootstrapMonitors = async () => {
+  console.log('[Monitor Orchestrator] Starting bootstrap process...');
   const monitors = await prisma.monitor.findMany({ 
     where: { paused: false },
-    select: { id: true, interval: true } 
+    select: { id: true, name: true, interval: true } 
   });
-  await Promise.all(monitors.map(({ id, interval }: { id: string; interval: number }) => scheduleMonitor(id, interval)));
+  console.log(`[Monitor Orchestrator] Found ${monitors.length} active monitors to schedule`);
+  
+  const results = await Promise.allSettled(
+    monitors.map(({ id, name, interval }: { id: string; name: string; interval: number }) => {
+      console.log(`[Monitor Orchestrator] Scheduling monitor: ${name} (${id})`);
+      return scheduleMonitor(id, interval);
+    })
+  );
+  
+  const successful = results.filter(r => r.status === 'fulfilled').length;
+  const failed = results.filter(r => r.status === 'rejected').length;
+  
+  if (failed > 0) {
+    console.error(`[Monitor Orchestrator] Bootstrap completed with errors: ${successful} succeeded, ${failed} failed`);
+    results.forEach((result, idx) => {
+      if (result.status === 'rejected') {
+        console.error(`[Monitor Orchestrator] Failed to schedule ${monitors[idx].name}:`, result.reason);
+      }
+    });
+  } else {
+    console.log(`[Monitor Orchestrator] Bootstrap completed successfully: ${successful} monitors scheduled`);
+  }
 };
 
 const handleResult = async (

@@ -65,6 +65,26 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
     return results;
   });
 
+  // Validation schema for synthetic monitor steps
+  const syntheticStepSchema = z.object({
+    action: z.enum(['goto', 'click', 'fill', 'expect', 'wait']),
+    selector: z.string().optional(),
+    value: z.string().optional(),
+    text: z.string().optional(),
+    property: z.string().optional(),
+    url: z.string().optional(),
+    timeout: z.number().int().positive().optional(),
+  });
+
+  const syntheticConfigSchema = z.object({
+    steps: z.array(syntheticStepSchema).min(1),
+    browser: z.enum(['chromium', 'firefox', 'webkit']).optional(),
+    baseUrl: z.string().optional(),
+    remoteBrowserId: z.string().optional(),
+    useLocalBrowser: z.boolean().optional(),
+    ignoreHTTPSErrors: z.boolean().optional(),
+  });
+
   // POST /monitors - Create a new monitor
   fastify.post("/monitors", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request, reply) => {
     try {
@@ -80,6 +100,21 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
         tagIds: z.array(z.string()).optional(),
         notificationIds: z.array(z.string()).optional(),
       }).parse(request.body);
+
+      // Validate synthetic monitor config if kind is synthetic
+      if (body.kind === 'synthetic') {
+        try {
+          syntheticConfigSchema.parse(body.config);
+        } catch (error) {
+          if (error instanceof z.ZodError) {
+            return reply.code(400).send({
+              error: "Invalid synthetic monitor configuration",
+              message: error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')
+            });
+          }
+          throw error;
+        }
+      }
 
       // Validate group exists if provided
       if (body.groupId) {
@@ -278,6 +313,21 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
         return reply.code(404).send({ error: "Monitor not found" });
       }
 
+      // Validate synthetic monitor config if kind is synthetic and config is being updated
+      if (existingMonitor.kind === 'synthetic' && body.config) {
+        try {
+          syntheticConfigSchema.parse(body.config);
+        } catch (error) {
+          if (error instanceof z.ZodError) {
+            return reply.code(400).send({
+              error: "Invalid synthetic monitor configuration",
+              message: error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')
+            });
+          }
+          throw error;
+        }
+      }
+
       // Validate group exists if provided
       if (body.groupId !== undefined && body.groupId !== null) {
         const group = await prisma.monitorGroup.findUnique({
@@ -445,6 +495,13 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
         },
       },
       orderBy: { checkedAt: "asc" },
+      select: {
+        id: true,
+        status: true,
+        latencyMs: true,
+        checkedAt: true,
+        // Exclude payload field to avoid serialization issues
+      },
     });
 
     // Calculate uptime statistics
