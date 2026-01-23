@@ -22,7 +22,7 @@ import { Button } from "../components/ui/button.js";
 import { StatusBadge } from "../components/status-badge.js";
 import { UptimeBar } from "../components/uptime-bar.js";
 import { format } from "date-fns";
-import { ArrowLeft, Edit2, Trash2, Pause, Play, GripVertical } from "lucide-react";
+import { ArrowLeft, Edit2, Trash2, Pause, Play, GripVertical, PlayCircle } from "lucide-react";
 
 // Register Chart.js components
 ChartJS.register(
@@ -117,6 +117,15 @@ export const MonitorDetailRoute = () => {
     mutationFn: () => api.resumeMonitor(token, id!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["monitor", id] });
+      queryClient.invalidateQueries({ queryKey: ["monitors"] });
+    },
+  });
+
+  const runMutation = useMutation({
+    mutationFn: () => api.runMonitor(token, id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["monitor", id] });
+      queryClient.invalidateQueries({ queryKey: ["monitor-history", id] });
       queryClient.invalidateQueries({ queryKey: ["monitors"] });
     },
   });
@@ -285,6 +294,10 @@ export const MonitorDetailRoute = () => {
                   {pauseMutation.isPending ? t("loading") : t("pause")}
                 </Button>
               )}
+              <Button variant="ghost" onClick={() => runMutation.mutate()} disabled={runMutation.isPending || (monitor as any).paused} className="text-xs sm:text-sm">
+                <PlayCircle className="h-4 w-4 mr-2" />
+                {runMutation.isPending ? t("executing") : t("runNow")}
+              </Button>
               <Button variant="ghost" onClick={handleEdit} className="text-xs sm:text-sm">
                 <Edit2 className="h-4 w-4 mr-2" />
                 {t("edit")}

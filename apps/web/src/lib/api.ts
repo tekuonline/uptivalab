@@ -57,6 +57,8 @@ export const api = {
     request<Monitor>(`/api/monitors/${id}/pause`, { method: "POST", token }),
   resumeMonitor: (token: string | null, id: string) =>
     request<Monitor>(`/api/monitors/${id}/resume`, { method: "POST", token }),
+  runMonitor: (token: string | null, id: string) =>
+    request<{ message: string }>(`/api/monitors/${id}/run`, { method: "POST", token }),
   getMonitorHistory: (token: string | null, id: string, limit = 50) =>
     request<{
       checks: Array<{ id: string; status: string; latencyMs: number | null; checkedAt: string }>;
