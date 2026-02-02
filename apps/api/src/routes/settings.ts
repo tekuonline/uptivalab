@@ -38,10 +38,29 @@ interface ProxyConfig {
   password?: string;
 }
 
-// Helper function to get array value from a setting
+/**
+ * Helper function to get array value from a setting.
+ * 
+ * @param key - The setting key
+ * @returns The array value, or empty array if setting doesn't exist
+ * @note This assumes the setting value is stored as an array in the database.
+ *       Settings that use this helper should maintain array values.
+ */
 async function getSettingArrayValue<T = unknown>(key: string): Promise<T[]> {
   const setting = await prisma.setting.findUnique({ where: { key } });
-  return (setting?.value as T[]) || [];
+  
+  // If setting doesn't exist or value is null/undefined, return empty array
+  if (!setting?.value) {
+    return [];
+  }
+  
+  // Runtime validation: ensure the value is actually an array
+  if (!Array.isArray(setting.value)) {
+    log.warn(`Setting '${key}' is not an array, returning empty array`);
+    return [];
+  }
+  
+  return setting.value as T[];
 }
 
 // Helper function to find item by id in a setting array
@@ -236,7 +255,7 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
   // Docker Hosts management
   fastify.get("/settings/docker-hosts", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async (request) => {
     
-    return await getSettingArrayValue("dockerHosts");
+    return await getSettingArrayValue<DockerHost>("dockerHosts");
   });
 
   fastify.post<{ Body: { name: string; url: string } }>("/settings/docker-hosts", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request) => {
