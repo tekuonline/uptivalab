@@ -114,7 +114,37 @@ export const NotificationsRoute = () => {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.deleteNotification(token, id),
-    onSuccess: () => {
+    onMutate: async (deletedId) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["notifications", currentPage, pageSize] });
+      
+      // Snapshot the previous value
+      const previousNotifications = queryClient.getQueryData(["notifications", currentPage, pageSize]);
+      
+      // Optimistically update by removing the notification
+      queryClient.setQueryData(["notifications", currentPage, pageSize], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          data: old.data.filter((n: NotificationChannel) => n.id !== deletedId),
+          meta: {
+            ...old.meta,
+            total: old.meta.total - 1,
+          },
+        };
+      });
+      
+      // Return a context object with the snapshotted value
+      return { previousNotifications };
+    },
+    onError: (_err, _deletedId, context) => {
+      // Rollback to previous value on error
+      if (context?.previousNotifications) {
+        queryClient.setQueryData(["notifications", currentPage, pageSize], context.previousNotifications);
+      }
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure consistency
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
