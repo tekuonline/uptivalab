@@ -6,19 +6,25 @@ import { useAuth } from "../providers/auth-context.js";
 import { useTranslation } from "../hooks/use-translation.js";
 import { Card } from "../components/ui/card.js";
 import { Button } from "../components/ui/button.js";
+import { PaginationControls } from "../components/pagination-controls.js";
 import { Trash2, Mail, Bell, Webhook, MessageSquare, Send, TestTube, CheckCircle, XCircle, Plus, X, Edit } from "lucide-react";
 
 export const NotificationsRoute = () => {
   const { token } = useAuth();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(20);
+  
   const { data: notificationsResponse, isLoading } = useQuery({ 
-    queryKey: ["notifications"], 
-    queryFn: () => api.listNotifications(token), 
-    enabled: Boolean(token) 
+    queryKey: ["notifications", currentPage, pageSize], 
+    queryFn: () => api.listNotifications(token, currentPage, pageSize), 
+    enabled: Boolean(token),
+    placeholderData: (previousData) => previousData,
   });
   
   const data = notificationsResponse?.data;
+  const meta = notificationsResponse?.meta;
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<{ 
@@ -108,7 +114,37 @@ export const NotificationsRoute = () => {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.deleteNotification(token, id),
-    onSuccess: () => {
+    onMutate: async (deletedId) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["notifications", currentPage, pageSize] });
+      
+      // Snapshot the previous value
+      const previousNotifications = queryClient.getQueryData(["notifications", currentPage, pageSize]);
+      
+      // Optimistically update by removing the notification
+      queryClient.setQueryData(["notifications", currentPage, pageSize], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          data: old.data.filter((n: NotificationChannel) => n.id !== deletedId),
+          meta: {
+            ...old.meta,
+            total: old.meta.total - 1,
+          },
+        };
+      });
+      
+      // Return a context object with the snapshotted value
+      return { previousNotifications };
+    },
+    onError: (_err, _deletedId, context) => {
+      // Rollback to previous value on error
+      if (context?.previousNotifications) {
+        queryClient.setQueryData(["notifications", currentPage, pageSize], context.previousNotifications);
+      }
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure consistency
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
@@ -273,7 +309,16 @@ export const NotificationsRoute = () => {
     }
   };
 
-  if (isLoading) return <p className="text-slate-400">{t("loading")}</p>;
+  if (isLoading) {
+    return (
+      <div className="p-8">
+        <h2 className="mb-6 text-3xl font-bold text-slate-900 dark:text-white">{t("notifications")}</h2>
+        <Card className="p-6">
+          <SkeletonList items={3} />
+        </Card>
+      </div>
+    );
+  }
 
   const configFields = getConfigFields(form.type);
 
@@ -536,6 +581,17 @@ export const NotificationsRoute = () => {
             <p className="text-sm text-slate-600 dark:text-slate-400">{t("noNotifications")}</p>
           )}
         </div>
+        
+        {/* Pagination Controls */}
+        {meta && (
+          <PaginationControls
+            currentPage={meta.page}
+            totalPages={meta.totalPages}
+            totalItems={meta.total}
+            pageSize={meta.limit}
+            onPageChange={setCurrentPage}
+          />
+        )}
       </Card>
     </div>
   );

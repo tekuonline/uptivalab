@@ -33,7 +33,6 @@ export const MonitorsRoute = () => {
   
   // Docker state
   const [dockerHosts, setDockerHosts] = useState<any[]>([]);
-  const [selectedDockerHost, setSelectedDockerHost] = useState("");
   const [dockerResources, setDockerResources] = useState<any>(null);
   const [loadingDockerResources, setLoadingDockerResources] = useState(false);
   

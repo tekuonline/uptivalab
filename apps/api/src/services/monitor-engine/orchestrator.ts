@@ -37,7 +37,7 @@ const serializeJson = (value: unknown): any => {
  */
 
 // Global flag to prevent concurrent browser installations
-let browserInstallationInProgress = false;
+let browserInstallationPromise: Promise<void> | null = null;
 let browsersInstalled = false;
 
 export const ensurePlaywrightBrowsersInstalled = async (): Promise<void> => {
@@ -46,68 +46,80 @@ export const ensurePlaywrightBrowsersInstalled = async (): Promise<void> => {
     return;
   }
 
-  // If installation is in progress, wait for it to complete
-  if (browserInstallationInProgress) {
-    while (browserInstallationInProgress) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+  // If installation is in progress, wait for the existing promise
+  if (browserInstallationPromise) {
+    await browserInstallationPromise;
+    return;
+  }
+
+  // Start installation process
+  browserInstallationPromise = (async () => {
+    const fs = await import("fs");
+    const path = await import("path");
+    const { exec } = await import("child_process");
+    const { promisify } = await import("util");
+    const execAsync = promisify(exec);
+
+    const playwrightBrowsersPath = process.env.PLAYWRIGHT_BROWSERS_PATH || "/ms-playwright";
+
+    // Check if browsers are already installed - look for firefox directory
+    const browsersExist = fs.existsSync(playwrightBrowsersPath) &&
+      fs.readdirSync(playwrightBrowsersPath).some(file =>
+        file.includes('firefox')
+      );
+
+    if (browsersExist) {
+      browsersInstalled = true;
+      return;
     }
-    return;
-  }
 
-  const fs = await import("fs");
-  const path = await import("path");
-  const { exec } = await import("child_process");
-  const { promisify } = await import("util");
-  const execAsync = promisify(exec);
+    // Check system dependencies
+    const systemDepsInstalled = fs.existsSync("/usr/lib/x86_64-linux-gnu/libnss3.so") ||
+                                fs.existsSync("/usr/lib/aarch64-linux-gnu/libnss3.so");
 
-  const playwrightBrowsersPath = process.env.PLAYWRIGHT_BROWSERS_PATH || "/ms-playwright";
+    if (!systemDepsInstalled) {
+      try {
+        log.info('[Browser Installation] Installing system dependencies...');
+        // Install system dependencies (these are already installed in Dockerfile, but just in case)
+        await execAsync("apt-get update && apt-get install -y --no-install-recommends libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2");
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        log.error('[Browser Installation] Failed to install system dependencies:', { error: errorMessage });
+        throw new Error("Failed to install system dependencies for Playwright");
+      }
+    }
 
-  // Check if browsers are already installed - look for firefox directory
-  const browsersExist = fs.existsSync(playwrightBrowsersPath) &&
-    fs.readdirSync(playwrightBrowsersPath).some(file =>
-      file.includes('firefox')
-    );
-
-  if (browsersExist) {
-    browsersInstalled = true;
-    return;
-  }
-
-  // Check system dependencies
-  const systemDepsInstalled = fs.existsSync("/usr/lib/x86_64-linux-gnu/libnss3.so") ||
-                              fs.existsSync("/usr/lib/aarch64-linux-gnu/libnss3.so");
-
-  if (!systemDepsInstalled) {
+    // Install browsers
     try {
-      // Install system dependencies (these are already installed in Dockerfile, but just in case)
-      await execAsync("apt-get update && apt-get install -y --no-install-recommends libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2");
+      log.info('[Browser Installation] Starting browser installation...');
+      // Create browsers directory if it doesn't exist
+      if (!fs.existsSync(playwrightBrowsersPath)) {
+        fs.mkdirSync(playwrightBrowsersPath, { recursive: true });
+      }
+
+      // Install browsers using npx playwright install
+      await execAsync(`npx playwright@1.57.0 install chromium firefox webkit --with-deps`, {
+        env: {
+          ...process.env,
+          PLAYWRIGHT_BROWSERS_PATH: playwrightBrowsersPath
+        },
+        timeout: 300000 // 5 minutes timeout
+      });
+
+      browsersInstalled = true;
+      log.info('[Browser Installation] Browsers installed successfully');
     } catch (error) {
-      throw new Error("Failed to install system dependencies for Playwright");
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      log.error('[Browser Installation] Failed to install Playwright browsers:', { error: errorMessage });
+      throw new Error("Failed to install Playwright browsers");
     }
-  }
+  })();
 
-  // Install browsers
-  browserInstallationInProgress = true;
   try {
-    // Create browsers directory if it doesn't exist
-    if (!fs.existsSync(playwrightBrowsersPath)) {
-      fs.mkdirSync(playwrightBrowsersPath, { recursive: true });
-    }
-
-    // Install browsers using npx playwright install
-    await execAsync(`npx playwright@1.57.0 install chromium firefox webkit --with-deps`, {
-      env: {
-        ...process.env,
-        PLAYWRIGHT_BROWSERS_PATH: playwrightBrowsersPath
-      },
-      timeout: 300000 // 5 minutes timeout
-    });
-
-    browsersInstalled = true;
-  } catch (error) {
-    throw new Error("Failed to install Playwright browsers");
+    await browserInstallationPromise;
   } finally {
-    browserInstallationInProgress = false;
+    // Clear the promise after completion (success or failure)
+    browserInstallationPromise = null;
   }
 };
 

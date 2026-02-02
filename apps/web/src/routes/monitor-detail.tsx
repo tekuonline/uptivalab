@@ -206,7 +206,8 @@ export const MonitorDetailRoute = () => {
           browser: formData.browser,
           useLocalBrowser: formData.useLocalBrowser,
           baseUrl: formData.baseUrl || undefined,
-          steps: formData.steps.map(({ id, ...step }) => step),
+          // Remove the temporary `id` field used for React keys
+          steps: formData.steps.map(({ id: _id, ...step }) => step),
         };
       case "http":
       default:

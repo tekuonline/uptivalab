@@ -10,6 +10,16 @@ export interface PaginationParams {
   sort?: string;
 }
 
+/**
+ * Type for query parameters that include pagination
+ */
+export interface PaginationQuery {
+  page?: string | number;
+  limit?: string | number;
+  cursor?: string;
+  [key: string]: unknown;
+}
+
 export interface PaginationMeta {
   currentPage: number;
   pageSize: number;
@@ -27,12 +37,12 @@ export interface PaginatedResponse<T> {
 /**
  * Parse and validate pagination parameters with sensible defaults
  */
-export function parsePaginationParams(query: any): {
+export function parsePaginationParams(query: PaginationQuery): {
   page: number;
   limit: number;
 } {
-  const page = Math.max(1, parseInt(query.page || '1'));
-  const limit = Math.min(100, Math.max(1, parseInt(query.limit || '20'))); // Cap at 100 for performance
+  const page = Math.max(1, parseInt(String(query.page || '1')));
+  const limit = Math.min(100, Math.max(1, parseInt(String(query.limit || '20')))); // Cap at 100 for performance
 
   return { page, limit };
 }
@@ -41,14 +51,14 @@ export function parsePaginationParams(query: any): {
  * Get pagination parameters with custom defaults (NEW)
  */
 export function getPaginationParams(
-  query: any, 
+  query: PaginationQuery, 
   options: { defaultLimit?: number; maxLimit?: number } = {}
 ): { page: number; limit: number; cursor?: string } {
   const defaultLimit = options.defaultLimit || 20;
   const maxLimit = options.maxLimit || 100;
 
-  const page = Math.max(1, parseInt(query.page || '1'));
-  const limit = Math.min(maxLimit, Math.max(1, parseInt(query.limit || defaultLimit.toString())));
+  const page = Math.max(1, parseInt(String(query.page || '1')));
+  const limit = Math.min(maxLimit, Math.max(1, parseInt(String(query.limit || defaultLimit))));
   const cursor = query.cursor as string | undefined;
 
   return { page, limit, cursor };

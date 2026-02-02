@@ -14,23 +14,58 @@ const statusResponse = z.array(
   })
 );
 
-type FetchOptions = RequestInit & { token?: string | null };
+type FetchOptions = RequestInit & { token?: string | null; retries?: number };
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const request = async <T>(path: string, options: FetchOptions = {}) => {
-  const headers = new Headers(options.headers ?? {});
-  if (!(options.body instanceof FormData)) {
-    headers.set("Accept", "application/json");
+  const { retries = 3, ...fetchOptions } = options;
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const headers = new Headers(fetchOptions.headers ?? {});
+      if (!(fetchOptions.body instanceof FormData)) {
+        headers.set("Accept", "application/json");
+      }
+      if (fetchOptions.token) {
+        headers.set("Authorization", `Bearer ${fetchOptions.token}`);
+      }
+      const response = await fetch(`${API_BASE}${path}`, { ...fetchOptions, headers });
+      if (!response.ok) {
+        const body = (await response.json().catch(() => ({}))) as { message?: string };
+        const error = new Error(body.message ?? `Request failed: ${response.status}`);
+        
+        // Don't retry on client errors (4xx) except 408, 429
+        if (response.status >= 400 && response.status < 500 && response.status !== 408 && response.status !== 429) {
+          throw error;
+        }
+        
+        lastError = error;
+        
+        // Exponential backoff: wait longer between each retry
+        if (attempt < retries) {
+          await sleep(Math.min(1000 * Math.pow(2, attempt), 10000));
+          continue;
+        }
+        throw error;
+      }
+      if (response.status === 204) return null as T;
+      return (await response.json()) as T;
+    } catch (error) {
+      lastError = error as Error;
+      
+      // Don't retry on network errors if we've exhausted retries
+      if (attempt >= retries) {
+        throw lastError;
+      }
+      
+      // Wait before retrying
+      await sleep(Math.min(1000 * Math.pow(2, attempt), 10000));
+    }
   }
-  if (options.token) {
-    headers.set("Authorization", `Bearer ${options.token}`);
-  }
-  const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
-  if (!response.ok) {
-    const body = (await response.json().catch(() => ({}))) as { message?: string };
-    throw new Error(body.message ?? `Request failed: ${response.status}`);
-  }
-  if (response.status === 204) return null as T;
-  return (await response.json()) as T;
+  
+  throw lastError ?? new Error("Request failed");
 };
 
 export const api = {
@@ -83,7 +118,7 @@ export const api = {
       stats: { totalChecks: number; upChecks: number; downChecks: number; uptimePercentage: number; avgResponseTime: number | null };
       days: Array<{ date: string; uptimePercentage: number }>;
     }>(`/api/monitors/${id}/uptime?days=${days}`, { token }),
-  listNotifications: (token: string | null) => request<{ data: NotificationChannel[]; meta: any }>("/api/notifications", { token }),
+  listNotifications: (token: string | null, page = 1, limit = 20) => request<{ data: NotificationChannel[]; meta: { page: number; limit: number; total: number; totalPages: number } }>(`/api/notifications?page=${page}&limit=${limit}`, { token }),
   createNotification: (token: string | null, payload: { name: string; type: string; config: Record<string, string> }) =>
     request<NotificationChannel>("/api/notifications", {
       method: "POST",
@@ -100,7 +135,7 @@ export const api = {
     }),
   deleteNotification: (token: string | null, id: string) =>
     request<void>(`/api/notifications/${id}`, { method: "DELETE", token }),
-  listIncidents: (token: string | null) => request<{ data: IncidentWithRelations[]; meta: any }>("/api/incidents", { token }),
+  listIncidents: (token: string | null, page = 1, limit = 15) => request<{ data: IncidentWithRelations[]; meta: { page: number; limit: number; total: number; totalPages: number } }>(`/api/incidents?page=${page}&limit=${limit}`, { token }),
   updateIncidentStatus: (token: string | null, incidentId: string, status: string) =>
     request<IncidentWithRelations>(`/api/incidents/${incidentId}`, {
       method: "PATCH",
@@ -135,7 +170,7 @@ export const api = {
       monitors: Array<{ id: string; name: string; status: string; uptimePercentage: number; lastCheck: string | null }>;
     }>(`/api/public/status/${slug}`),
   fetchPublicStatus: (slug: string) => request(`/api/status/public/${slug}`),
-  listMaintenance: (token: string | null) => request<{ data: any[]; meta: any }>("/api/maintenance", { token }),
+  listMaintenance: (token: string | null, page = 1, limit = 20) => request<{ data: any[]; meta: { page: number; limit: number; total: number; totalPages: number } }>(`/api/maintenance?page=${page}&limit=${limit}`, { token }),
   createMaintenance: (token: string | null, payload: { name: string; startsAt: string; endsAt: string; monitorIds: string[] }) =>
     request("/api/maintenance", {
       method: "POST",

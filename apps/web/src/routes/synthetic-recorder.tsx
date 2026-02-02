@@ -1,8 +1,5 @@
-import { useState } from "react";
-
 export default function SyntheticRecorder() {
-  const [test, setTest] = useState("test");
-
+  // TODO: Implement synthetic test recorder
   return (
     <div>test</div>
   );
