@@ -5,11 +5,7 @@ import { prisma } from "../db/prisma.js";
 import { advancedCache } from "../utils/advanced-cache.js";
 import { hashPassword, verifyPassword } from "../auth/password.js";
 import { log } from "../utils/logger.js";
-
-const authRateLimit = {
-  max: 50,
-  timeWindow: '1 minute'
-};
+import { RATE_LIMITS, createRateLimitOptions } from "../utils/rate-limits.js";
 
 const authPlugin = async (fastify: FastifyInstance) => {
   // Check if any users exist (for setup flow)
@@ -35,7 +31,7 @@ const authPlugin = async (fastify: FastifyInstance) => {
     method: 'POST',
     url: '/auth/setup',
     config: {
-      rateLimit: authRateLimit,
+      rateLimit: createRateLimitOptions(RATE_LIMITS.AUTH_REGISTER),
     },
     handler: async (request, reply) => {
       try {
@@ -109,7 +105,7 @@ const authPlugin = async (fastify: FastifyInstance) => {
     method: 'POST',
     url: '/auth/login',
     config: {
-      rateLimit: authRateLimit,
+      rateLimit: createRateLimitOptions(RATE_LIMITS.AUTH_LOGIN),
     },
     handler: async (request, reply) => {
       try {
