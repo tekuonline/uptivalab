@@ -687,6 +687,46 @@ docker compose ps
 
 ---
 
+## 🔧 Troubleshooting
+
+### Common Issues
+
+#### ESLint Compatibility Issues
+**Issue**: ESLint 9.0.0 with eslint-plugin-react-hooks v4.6.0 compatibility
+**Solution**: The react-hooks plugin rules are temporarily disabled in the ESLint configuration. They will be re-enabled when the plugin is updated for ESLint 9 compatibility.
+
+#### Database Connection Errors
+**Issue**: `Connection refused` or `ECONNREFUSED` when connecting to PostgreSQL
+**Solution**: 
+- Ensure PostgreSQL container is running: `docker compose ps`
+- Check database credentials in `.env` file
+- Wait for database to be ready: `docker compose logs postgres | grep "ready to accept connections"`
+
+#### Playwright Browser Installation
+**Issue**: Synthetic monitoring tests fail with browser not found
+**Solution**: 
+- API container has embedded Playwright browsers by default
+- If using remote browser: `docker compose --profile remote-browser up -d playwright`
+- Check browser installation logs: `docker compose logs api | grep playwright`
+
+#### Port Already in Use
+**Issue**: `Error: listen EADDRINUSE: address already in use :::4173`
+**Solution**:
+- Change ports in `.env` file:
+  ```bash
+  WEB_PORT=4174
+  API_PORT=8081
+  ```
+- Or stop the conflicting process: `lsof -ti:4173 | xargs kill -9`
+
+#### Memory Issues with Redis
+**Issue**: Redis crashes or becomes unresponsive
+**Solution**: 
+- Increase Docker memory allocation (minimum 2GB recommended)
+- Monitor Redis memory: `docker compose exec redis redis-cli INFO memory`
+
+---
+
 <div align="center">
 
 **Built with ❤️ for the homelab community**

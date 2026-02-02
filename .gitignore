@@ -75,3 +75,14 @@ prisma/dev.db-journal
 *.backup
 .eslintcache
 functional-test.sh
+
+# Husky v9+
+.husky/_
+
+# TypeScript
+*.tsbuildinfo
+.tsbuildinfo
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
