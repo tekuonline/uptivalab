@@ -279,7 +279,16 @@ export const NotificationsRoute = () => {
     }
   };
 
-  if (isLoading) return <p className="text-slate-400">{t("loading")}</p>;
+  if (isLoading) {
+    return (
+      <div className="p-8">
+        <h2 className="mb-6 text-3xl font-bold text-slate-900 dark:text-white">{t("notifications")}</h2>
+        <Card className="p-6">
+          <SkeletonList items={3} />
+        </Card>
+      </div>
+    );
+  }
 
   const configFields = getConfigFields(form.type);
 

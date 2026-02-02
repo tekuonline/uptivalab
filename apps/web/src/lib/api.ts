@@ -14,23 +14,58 @@ const statusResponse = z.array(
   })
 );
 
-type FetchOptions = RequestInit & { token?: string | null };
+type FetchOptions = RequestInit & { token?: string | null; retries?: number };
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const request = async <T>(path: string, options: FetchOptions = {}) => {
-  const headers = new Headers(options.headers ?? {});
-  if (!(options.body instanceof FormData)) {
-    headers.set("Accept", "application/json");
+  const { retries = 3, ...fetchOptions } = options;
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const headers = new Headers(fetchOptions.headers ?? {});
+      if (!(fetchOptions.body instanceof FormData)) {
+        headers.set("Accept", "application/json");
+      }
+      if (fetchOptions.token) {
+        headers.set("Authorization", `Bearer ${fetchOptions.token}`);
+      }
+      const response = await fetch(`${API_BASE}${path}`, { ...fetchOptions, headers });
+      if (!response.ok) {
+        const body = (await response.json().catch(() => ({}))) as { message?: string };
+        const error = new Error(body.message ?? `Request failed: ${response.status}`);
+        
+        // Don't retry on client errors (4xx) except 408, 429
+        if (response.status >= 400 && response.status < 500 && response.status !== 408 && response.status !== 429) {
+          throw error;
+        }
+        
+        lastError = error;
+        
+        // Exponential backoff: wait longer between each retry
+        if (attempt < retries) {
+          await sleep(Math.min(1000 * Math.pow(2, attempt), 10000));
+          continue;
+        }
+        throw error;
+      }
+      if (response.status === 204) return null as T;
+      return (await response.json()) as T;
+    } catch (error) {
+      lastError = error as Error;
+      
+      // Don't retry on network errors if we've exhausted retries
+      if (attempt >= retries) {
+        throw lastError;
+      }
+      
+      // Wait before retrying
+      await sleep(Math.min(1000 * Math.pow(2, attempt), 10000));
+    }
   }
-  if (options.token) {
-    headers.set("Authorization", `Bearer ${options.token}`);
-  }
-  const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
-  if (!response.ok) {
-    const body = (await response.json().catch(() => ({}))) as { message?: string };
-    throw new Error(body.message ?? `Request failed: ${response.status}`);
-  }
-  if (response.status === 204) return null as T;
-  return (await response.json()) as T;
+  
+  throw lastError ?? new Error("Request failed");
 };
 
 export const api = {
