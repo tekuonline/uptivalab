@@ -47,7 +47,32 @@ export const createServer = async () => {
       ];
 
   await fastify.register(cors, {
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, Postman, or same-origin)
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      // If ALLOWED_ORIGINS is explicitly set, enforce strict whitelist
+      if (process.env.ALLOWED_ORIGINS) {
+        if (allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'), false);
+        }
+      } else {
+        // Development mode: allow localhost and any origin (for flexibility)
+        // In production, ALLOWED_ORIGINS should always be set
+        if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+          callback(null, true);
+        } else {
+          // Allow any origin if ALLOWED_ORIGINS is not set (less secure, but flexible for deployment)
+          // Production deployments should always set ALLOWED_ORIGINS environment variable
+          callback(null, true);
+        }
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
