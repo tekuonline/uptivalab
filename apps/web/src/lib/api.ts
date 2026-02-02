@@ -8,7 +8,7 @@ const statusResponse = z.array(
   z.object({
     id: z.string(),
     name: z.string(),
-    status: z.union([z.literal("up"), z.literal("down"), z.literal("pending")]),
+    status: z.union([z.literal("up"), z.literal("down"), z.literal("pending"), z.literal("paused")]),
     lastCheck: z.string().nullable(),
     incident: z.any().nullable(),
   })
@@ -35,7 +35,7 @@ const request = async <T>(path: string, options: FetchOptions = {}) => {
 
 export const api = {
   listStatus: (token: string | null) => request<{ id: string; name: string; status: Monitor["status"]; lastCheck: string | null }[]>("/api/status", { token }),
-  listMonitors: (token: string | null) => request<Monitor[]>("/api/monitors", { token }),
+  listMonitors: (token: string | null, page = 1, limit = 50) => request<{ data: Monitor[]; meta: { page: number; limit: number; total: number; totalPages: number } }>(`/api/monitors?page=${page}&limit=${limit}`, { token }),
   getMonitor: (token: string | null, id: string) => request<Monitor>(`/api/monitors/${id}`, { token }),
   createMonitor: (token: string | null, payload: Partial<Monitor> & { config: Record<string, unknown>; kind: string; notificationIds?: string[] }) =>
     request<Monitor>("/api/monitors", {
@@ -59,17 +59,31 @@ export const api = {
     request<Monitor>(`/api/monitors/${id}/resume`, { method: "POST", token }),
   runMonitor: (token: string | null, id: string) =>
     request<{ message: string }>(`/api/monitors/${id}/run`, { method: "POST", token }),
-  getMonitorHistory: (token: string | null, id: string, limit = 50) =>
+  getMonitorHistory: (token: string | null, id: string, limit = 50, includePayload = false) =>
     request<{
-      checks: Array<{ id: string; status: string; latencyMs: number | null; checkedAt: string }>;
+      checks: Array<{ id: string; status: string; latencyMs: number | null; checkedAt: string; payload?: any }>;
       stats: { totalChecks: number; upChecks: number; downChecks: number; uptimePercentage: number; avgResponseTime: number | null };
-    }>(`/api/monitors/${id}/history?limit=${limit}`, { token }),
+    }>(`/api/monitors/${id}/history?limit=${limit}${includePayload ? '&includePayload=true' : ''}`, { token }),
+  getMonitorScreenshots: (token: string | null, id: string) =>
+    request<{
+      checkId: string;
+      checkedAt: string;
+      status: string;
+      screenshots: Array<{ id: string; stepLabel: string; stepIndex: number | null; capturedAt: string; data: string }>;
+    }>(`/api/monitors/${id}/screenshots`, { token }),
+  getCheckScreenshots: (token: string | null, monitorId: string, checkId: string) =>
+    request<{
+      checkId: string;
+      checkedAt: string;
+      status: string;
+      screenshots: Array<{ id: string; stepLabel: string; capturedAt: string; data: string }>;
+    }>(`/api/monitors/${monitorId}/checks/${checkId}/screenshots`, { token }),
   getMonitorUptime: (token: string | null, id: string, days = 30) =>
     request<{
       stats: { totalChecks: number; upChecks: number; downChecks: number; uptimePercentage: number; avgResponseTime: number | null };
       days: Array<{ date: string; uptimePercentage: number }>;
     }>(`/api/monitors/${id}/uptime?days=${days}`, { token }),
-  listNotifications: (token: string | null) => request<NotificationChannel[]>("/api/notifications", { token }),
+  listNotifications: (token: string | null) => request<{ data: NotificationChannel[]; meta: any }>("/api/notifications", { token }),
   createNotification: (token: string | null, payload: { name: string; type: string; config: Record<string, string> }) =>
     request<NotificationChannel>("/api/notifications", {
       method: "POST",
@@ -77,9 +91,16 @@ export const api = {
       headers: jsonHeaders,
       body: JSON.stringify(payload),
     }),
+  updateNotification: (token: string | null, id: string, payload: { name: string; type: string; config: Record<string, string> }) =>
+    request<NotificationChannel>(`/api/notifications/${id}`, {
+      method: "PUT",
+      token,
+      headers: jsonHeaders,
+      body: JSON.stringify(payload),
+    }),
   deleteNotification: (token: string | null, id: string) =>
     request<void>(`/api/notifications/${id}`, { method: "DELETE", token }),
-  listIncidents: (token: string | null) => request<IncidentWithRelations[]>("/api/incidents", { token }),
+  listIncidents: (token: string | null) => request<{ data: IncidentWithRelations[]; meta: any }>("/api/incidents", { token }),
   updateIncidentStatus: (token: string | null, incidentId: string, status: string) =>
     request<IncidentWithRelations>(`/api/incidents/${incidentId}`, {
       method: "PATCH",
@@ -114,7 +135,7 @@ export const api = {
       monitors: Array<{ id: string; name: string; status: string; uptimePercentage: number; lastCheck: string | null }>;
     }>(`/api/public/status/${slug}`),
   fetchPublicStatus: (slug: string) => request(`/api/status/public/${slug}`),
-  listMaintenance: (token: string | null) => request<any[]>("/api/maintenance", { token }),
+  listMaintenance: (token: string | null) => request<{ data: any[]; meta: any }>("/api/maintenance", { token }),
   createMaintenance: (token: string | null, payload: { name: string; startsAt: string; endsAt: string; monitorIds: string[] }) =>
     request("/api/maintenance", {
       method: "POST",
@@ -327,6 +348,14 @@ export const api = {
       headers: jsonHeaders,
       body: JSON.stringify({ data, password }),
     }),
+  // Embedded browser dependencies
+  installEmbeddedDeps: (token: string | null) =>
+    request<{ success: boolean; message: string; alreadyInstalled?: boolean; installed?: { systemDeps: boolean; browsers: boolean } }>("/api/monitors/install-embedded-deps", {
+      method: "POST",
+      token
+    }),
+  getEmbeddedDepsStatus: (token: string | null) =>
+    request<{ installed: boolean; browsersInstalled: boolean; systemDepsInstalled: boolean }>("/api/monitors/embedded-deps-status", { token }),
 };
 
 export type StatusSummary = z.infer<typeof statusResponse>[number];

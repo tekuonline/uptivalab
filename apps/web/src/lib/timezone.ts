@@ -23,6 +23,11 @@ export const formatRelativeTime = (date: Date | string, timezone?: string): stri
   const diffHour = Math.floor(diffMin / 60);
   const diffDay = Math.floor(diffHour / 24);
 
+  // If date is in the future or more than 7 days ago, show full date
+  if (diffSec < 0 || diffDay >= 7) {
+    return formatDateWithTimezone(dateObj, timezone);
+  }
+
   if (diffSec < 60) return `${diffSec}s ago`;
   if (diffMin < 60) return `${diffMin}m ago`;
   if (diffHour < 24) return `${diffHour}h ago`;

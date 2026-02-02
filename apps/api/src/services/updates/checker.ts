@@ -1,4 +1,5 @@
 import { settingsService } from "../settings/service.js";
+import { log } from "../../utils/logger.js";
 
 interface VersionInfo {
   current: string;
@@ -78,7 +79,7 @@ class UpdateChecker {
       return this.cachedVersion;
 
     } catch (error) {
-      console.error("Failed to check for updates:", error);
+      log.error("Failed to check for updates:", error);
       
       // Return current version on error
       return {

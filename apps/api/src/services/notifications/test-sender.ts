@@ -5,6 +5,7 @@
 import { emailNotifier } from "./smtp.js";
 import { webhookNotifier } from "./webhook.js";
 import { ntfyNotifier } from "./ntfy.js";
+import { log } from "../../utils/logger.js";
 
 type NotificationType = "email" | "ntfy" | "webhook" | "discord" | "slack" | "telegram" | "gotify" | "pushover" | "apprise";
 
@@ -74,7 +75,7 @@ export async function sendTestNotification(
 
     return { success: true };
   } catch (error: any) {
-    console.error("Test notification failed:", error);
+    log.error("Test notification failed:", { error });
     return { 
       success: false, 
       error: error.message || "Unknown error occurred" 

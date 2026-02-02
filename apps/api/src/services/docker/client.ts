@@ -1,8 +1,9 @@
+import Docker from "dockerode";
+import { log } from "../../utils/logger.js";
+
 /**
  * Docker client service for connecting to Docker hosts and retrieving information
  */
-
-import http from 'http';
 
 interface DockerContainer {
   Id: string;
@@ -62,7 +63,7 @@ export class DockerClient {
       const response = await this.request('/_ping');
       return response === 'OK' || response === true;
     } catch (error) {
-      console.error('Docker ping failed:', error);
+      log.error('Docker ping failed:', error);
       return false;
     }
   }
@@ -74,7 +75,7 @@ export class DockerClient {
     try {
       return await this.request('/version');
     } catch (error) {
-      console.error('Failed to get Docker version:', error);
+      log.error('Failed to get Docker version:', error);
       throw error;
     }
   }
@@ -87,7 +88,7 @@ export class DockerClient {
       const params = all ? '?all=true' : '';
       return await this.request(`/containers/json${params}`);
     } catch (error) {
-      console.error('Failed to list containers:', error);
+      log.error('Failed to list containers:', error);
       return [];
     }
   }
@@ -99,7 +100,7 @@ export class DockerClient {
     try {
       return await this.request('/networks');
     } catch (error) {
-      console.error('Failed to list networks:', error);
+      log.error('Failed to list networks:', error);
       return [];
     }
   }
@@ -112,7 +113,7 @@ export class DockerClient {
       const response = await this.request('/volumes');
       return response.Volumes || [];
     } catch (error) {
-      console.error('Failed to list volumes:', error);
+      log.error('Failed to list volumes:', error);
       return [];
     }
   }
@@ -136,7 +137,7 @@ export class DockerClient {
         serverVersion: version.Version || 'unknown',
       };
     } catch (error) {
-      console.error('Failed to get Docker info:', error);
+      log.error('Failed to get Docker info:', error);
       throw error;
     }
   }
@@ -148,7 +149,7 @@ export class DockerClient {
     try {
       return await this.request(`/containers/${containerId}/json`);
     } catch (error) {
-      console.error(`Failed to inspect container ${containerId}:`, error);
+      log.error(`Failed to inspect container ${containerId}:`, error);
       throw error;
     }
   }
@@ -160,7 +161,7 @@ export class DockerClient {
     try {
       return await this.request(`/containers/${containerId}/stats?stream=false`);
     } catch (error) {
-      console.error(`Failed to get container stats ${containerId}:`, error);
+      log.error(`Failed to get container stats ${containerId}:`, error);
       throw error;
     }
   }

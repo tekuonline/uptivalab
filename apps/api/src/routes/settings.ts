@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "../db/prisma.js";
 import { hashPassword, verifyPassword } from "../auth/password.js";
 import { settingsService } from "../services/settings/service.js";
+import { log } from "../utils/logger.js";
 
 const settingsPlugin = async (fastify: FastifyInstance) => {
   // Get all settings
@@ -148,10 +149,9 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
       return reply.code(403).send({ message: "Viewers can only create read-only API keys" });
     }
 
-    // Generate a random API key
-    const token = `ulk_${Array.from({ length: 32 }, () =>
-      Math.random().toString(36).charAt(2)
-    ).join("")}`;
+    // Generate a random API key using cryptographically secure random bytes
+    const crypto = await import('crypto');
+    const token = `ulk_${crypto.randomBytes(24).toString('hex')}`;
 
     // Hash the token before storing
     const tokenHash = await hashPassword(token);
@@ -209,7 +209,8 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
     });
 
     const hosts = (setting?.value as any[]) || [];
-    const newHost = { id: Date.now().toString(), ...body };
+    const { randomUUID } = await import('crypto');
+    const newHost = { id: randomUUID(), ...body };
     hosts.push(newHost);
 
     await prisma.setting.upsert({
@@ -342,7 +343,8 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
     });
 
     const browsers = (setting?.value as any[]) || [];
-    const newBrowser = { id: Date.now().toString(), ...body };
+    const { randomUUID } = await import('crypto');
+    const newBrowser = { id: randomUUID(), ...body };
     browsers.push(newBrowser);
 
     await prisma.setting.upsert({
@@ -403,7 +405,7 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
         message: `Connected successfully! Browser version: ${version}`,
       };
     } catch (error) {
-      console.error("Failed to connect to remote browser:", error);
+      log.error("Failed to connect to remote browser:", error);
       return reply.code(400).send({
         success: false,
         message: error instanceof Error ? error.message : "Connection failed",
@@ -444,7 +446,8 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
       });
 
       const proxies = (setting?.value as any[]) || [];
-      const newProxy = { id: Date.now().toString(), ...body };
+      const { randomUUID } = await import('crypto');
+      const newProxy = { id: randomUUID(), ...body };
       proxies.push(newProxy);
 
       await prisma.setting.upsert({
@@ -599,7 +602,7 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
           id: inv.id,
           email: inv.email,
           role: inv.role,
-          token: inv.token, // Note: This might be sensitive
+          // Token excluded for security - user can recreate invitations if needed
           expiresAt: inv.expiresAt,
           createdByEmail: inv.createdBy.email,
           createdAt: inv.createdAt,
@@ -635,7 +638,7 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
         .header("Content-Disposition", `attachment; filename="uptivalab-settings-${new Date().toISOString().split('T')[0]}.json"`)
         .send(jsonData);
     } catch (error) {
-      console.error("Export error:", error);
+      log.error("Export error:", error);
       return reply.code(500).send({ message: "Failed to export settings" });
     }
   });
@@ -890,8 +893,8 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
       return { success: true, message: "Settings imported successfully" };
     } catch (error) {
       const err = error as any;
-      console.error("Import error details:", err);
-      console.error("Error stack:", err.stack);
+      log.error("Import error details:", err);
+      log.error("Error stack:", err.stack);
       return reply.code(500).send({ message: "Failed to import settings", details: err.message });
     }
   });
@@ -919,6 +922,29 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
     settingsService.clearCache("language");
 
     return { language: setting.value };
+  });
+
+  // Database cleanup management endpoints
+  fastify.get("/settings/database/stats", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async (request) => {
+    const { databaseCleanupService } = await import("../services/database-cleanup.js");
+    return await databaseCleanupService.getStats();
+  });
+
+  fastify.post("/settings/database/cleanup", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request) => {
+    const { databaseCleanupService } = await import("../services/database-cleanup.js");
+    return await databaseCleanupService.runCleanup();
+  });
+
+  fastify.get("/settings/database/cleanup-config", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async (request) => {
+    const { databaseCleanupService } = await import("../services/database-cleanup.js");
+    // Return the current configuration (this is a simple implementation)
+    return {
+      keepSuccessfulChecksDays: 30,
+      keepFailedChecksDays: 90,
+      keepScreenshotsDays: 30,
+      maxChecksPerMonitor: 1000,
+      cleanupIntervalHours: 24,
+    };
   });
 };
 

@@ -125,6 +125,7 @@ export interface SyntheticConfig {
   remoteBrowserId?: string; // ID of remote browser from settings
   useLocalBrowser?: boolean; // Force local browser usage
   ignoreHTTPSErrors?: boolean; // Ignore HTTPS/SSL certificate errors
+  captureScreenshots?: boolean; // Capture screenshots for each step (default: false)
 }
 
 export interface GrpcConfig {

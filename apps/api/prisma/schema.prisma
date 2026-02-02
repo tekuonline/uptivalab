@@ -47,6 +47,9 @@ model ApiKey {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId       String
   createdAt    DateTime @default(now())
+  
+  @@index([userId])
+  @@index([tokenHash])
 }
 
 model Monitor {
@@ -69,6 +72,10 @@ model Monitor {
   statusPages PublicStatusPage[] @relation("StatusPageMonitors")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  
+  @@index([paused, createdAt])
+  @@index([kind, paused])
+  @@index([groupId])
 }
 
 enum MonitorKind {
@@ -114,6 +121,9 @@ model NotificationChannel {
   config    Json
   monitors  Monitor[]       @relation("MonitorNotifications")
   createdAt DateTime        @default(now())
+  
+  @@index([type])
+  @@index([createdAt])
 }
 
 enum NotificationType {
@@ -145,6 +155,9 @@ model Incident {
   startedAt   DateTime        @default(now())
   resolvedAt  DateTime?
   events      IncidentEvent[]
+  
+  @@index([monitorId, status])
+  @@index([status, startedAt])
 }
 
 enum IncidentStatus {
@@ -168,8 +181,26 @@ model CheckResult {
   monitorId   String
   status      String
   latencyMs   Float?
-  payload     Json?
+  payload     Json?    // Simplified payload - no large binary data
   checkedAt   DateTime @default(now())
+  screenshots CheckScreenshot[] // Reference to screenshots
+
+  @@index([monitorId, checkedAt])
+  @@index([checkedAt])
+  @@index([status, checkedAt]) // For cleanup queries
+}
+
+model CheckScreenshot {
+  id            String     @id @default(cuid())
+  checkResult   CheckResult @relation(fields: [checkResultId], references: [id], onDelete: Cascade)
+  checkResultId String
+  stepLabel     String?    // Which step this screenshot is for
+  stepIndex     Int?       // Index of the step (0-based) for more accurate matching
+  screenshotData String    // Base64 encoded PNG data
+  capturedAt    DateTime   @default(now())
+
+  @@index([checkResultId])
+  @@index([capturedAt]) // For cleanup queries
 }
 
 model PublicStatusPage {

@@ -51,9 +51,9 @@ export const IncidentsRoute = () => {
   const [selectedIncident, setSelectedIncident] = useState<IncidentWithRelations | null>(null);
 
   const filteredIncidents = useMemo(() => {
-    if (!incidents) return [];
+    if (!incidents?.data) return [];
     
-    let filtered = [...incidents];
+    let filtered = [...incidents.data];
     
     // Apply filters
     if (filters.status !== "all") {
@@ -117,7 +117,7 @@ export const IncidentsRoute = () => {
             onChange={(e) => setFilters({ ...filters, monitorId: e.target.value })}
           >
             <option value="all">{t("allMonitors")}</option>
-            {monitors?.map((m: any) => (
+            {monitors?.data?.map((m: any) => (
               <option key={m.id} value={m.id}>{m.name}</option>
             ))}
           </select>

@@ -231,7 +231,7 @@ export const StatusPagesRoute = () => {
             <div>
               <label className="text-sm text-slate-600 dark:text-slate-400 block mb-2">{t("monitorsToInclude")}</label>
               <div className="space-y-2">
-                {monitors?.map((monitor) => (
+                {monitors?.data?.map((monitor: any) => (
                   <label key={monitor.id} className="flex items-center gap-3 rounded-lg border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-2 cursor-pointer hover:bg-slate-200 dark:hover:bg-white/10">
                     <input
                       type="checkbox"
@@ -242,7 +242,7 @@ export const StatusPagesRoute = () => {
                     <span className="text-sm text-slate-900 dark:text-white">{monitor.name}</span>
                   </label>
                 ))}
-                {(!monitors || monitors.length === 0) && (
+                {(!monitors?.data || monitors.data.length === 0) && (
                   <p className="text-sm text-slate-600 dark:text-slate-500">{t("noMonitorsAvailable")}</p>
                 )}
               </div>

@@ -6,6 +6,7 @@ import { emailNotifier } from "../notifications/smtp.js";
 import { webhookNotifier } from "../notifications/webhook.js";
 import { ntfyNotifier } from "../notifications/ntfy.js";
 import { settingsService } from "../settings/service.js";
+import { log } from "../../utils/logger.js";
 
 type IncidentStatus = "OPEN" | "INVESTIGATING" | "MITIGATED" | "RESOLVED";
 type MonitorShape = { id: string; name: string };
@@ -58,7 +59,7 @@ const shouldSendNotification = async (
   const now = Date.now();
   
   if (lastTime && (now - lastTime) < minInterval * 60 * 1000) {
-    console.log(`[Notification] Rate limited for monitor ${monitorId}`);
+    log.info(`[Notification] Rate limited for monitor ${monitorId}`);
     return false;
   }
   
@@ -69,7 +70,7 @@ const shouldSendNotification = async (
     const quietHoursEnd = await settingsService.get<string>("quietHoursEnd", "08:00") ?? "08:00";
     
     if (isInQuietHours(quietHoursStart, quietHoursEnd)) {
-      console.log(`[Notification] Suppressed due to quiet hours`);
+      log.info(`[Notification] Suppressed due to quiet hours`);
       return false;
     }
   }
@@ -89,11 +90,11 @@ const sendNotification = async (
     // Check if notification should be sent based on global settings
     const shouldSend = await shouldSendNotification(monitorId, status);
     if (!shouldSend) {
-      console.log(`[Incident Manager] Notification suppressed for monitor ${monitorId} (status: ${status})`);
+      log.info(`[Incident Manager] Notification suppressed for monitor ${monitorId} (status: ${status})`);
       return;
     }
     
-    console.log(`[Incident Manager] Processing notification for monitor ${monitorId} (status: ${status})`);
+    log.info(`[Incident Manager] Processing notification for monitor ${monitorId} (status: ${status})`);
     
     // Fetch monitor with notification channels
     const fullMonitor = await prisma.monitor.findUnique({
@@ -104,16 +105,16 @@ const sendNotification = async (
     });
 
     if (!fullMonitor) {
-      console.warn(`[Incident Manager] Monitor ${monitorId} not found`);
+      log.warn(`[Incident Manager] Monitor ${monitorId} not found`);
       return;
     }
 
     if (fullMonitor.notificationChannels.length === 0) {
-      console.warn(`[Incident Manager] No notification channels configured for monitor ${monitorId}`);
+      log.warn(`[Incident Manager] No notification channels configured for monitor ${monitorId}`);
       return;
     }
 
-    console.log(`[Incident Manager] Sending incident notifications to ${fullMonitor.notificationChannels.length} channel(s) for monitor ${monitorId}`);
+    log.info(`[Incident Manager] Sending incident notifications to ${fullMonitor.notificationChannels.length} channel(s) for monitor ${monitorId}`);
 
     // Map incident status to emoji
     const statusEmoji = {
@@ -145,19 +146,19 @@ const sendNotification = async (
       fullMonitor.notificationChannels.map(async (channel: any) => {
         const adapter = adapters[channel.type as keyof typeof adapters];
         if (!adapter) {
-          console.warn(`[Incident Manager] No adapter found for channel type: ${channel.type}`);
+          log.warn(`[Incident Manager] No adapter found for channel type: ${channel.type}`);
           return;
         }
         try {
           await adapter.send(channel, notificationResult);
-          console.log(`[Incident Manager] Successfully sent incident notification via ${channel.type} (${channel.name})`);
+          log.info(`[Incident Manager] Successfully sent incident notification via ${channel.type} (${channel.name})`);
         } catch (error) {
-          console.error(`[Incident Manager] Failed to send incident notification via ${channel.type} (${channel.name}):`, error);
+          log.error(`[Incident Manager] Failed to send incident notification via ${channel.type} (${channel.name}):`, { error });
         }
       })
     );
   } catch (error) {
-    console.error("[Incident Notification] Failed to send:", error);
+    log.error("[Incident Notification] Failed to send:", { error });
   }
 };
 

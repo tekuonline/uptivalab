@@ -1,7 +1,7 @@
-import { exec, spawn, ChildProcess } from "child_process";
+import { spawn, type ChildProcess, exec } from "child_process";
 import { promisify } from "util";
-import { prisma } from "../../db/prisma.js";
 import { settingsService } from "../settings/service.js";
+import { log } from "../../utils/logger.js";
 
 const execAsync = promisify(exec);
 
@@ -63,31 +63,30 @@ class CloudflareTunnelService {
       // Store token
       this.token = token;
 
-      // Start cloudflared process
+      // Start cloudflared process with token via environment variable (more secure than CLI)
       this.cloudflaredProcess = spawn("cloudflared", [
         "tunnel",
         "--no-autoupdate",
         "--protocol",
         "http2",
         "run",
-        "--token",
-        token,
       ], {
         stdio: ["ignore", "pipe", "pipe"],
         detached: false,
+        env: { ...process.env, TUNNEL_TOKEN: token },
       });
 
       // Handle stdout
       this.cloudflaredProcess.stdout?.on("data", (data) => {
         const output = data.toString().trim();
         if (output.includes("ERR") || output.includes("Registered")) {
-          console.log(`[cloudflared] ${output}`);
+          log.info(`[cloudflared] ${output}`);
         }
       });
 
       // Handle stderr
       this.cloudflaredProcess.stderr?.on("data", (data) => {
-        console.error(`[cloudflared] ${data.toString().trim()}`);
+        log.error(`[cloudflared] ${data.toString().trim()}`);
       });
 
       // Handle process exit
@@ -98,7 +97,7 @@ class CloudflareTunnelService {
 
       // Handle errors
       this.cloudflaredProcess.on("error", (error) => {
-        console.error(`[cloudflared] Process error:`, error);
+        log.error(`[cloudflared] Process error:`, error);
         this.isRunning = false;
         this.cloudflaredProcess = null;
       });
@@ -111,7 +110,7 @@ class CloudflareTunnelService {
 
       return { success: true, message: "Cloudflare Tunnel started successfully" };
     } catch (error) {
-      console.error("Failed to start cloudflared:", error);
+      log.error("Failed to start cloudflared:", error);
       return {
         success: false,
         message: error instanceof Error ? error.message : "Failed to start tunnel",
@@ -145,7 +144,7 @@ class CloudflareTunnelService {
 
       return { success: true, message: "Cloudflare Tunnel stopped successfully" };
     } catch (error) {
-      console.error("Failed to stop cloudflared:", error);
+      log.error("Failed to stop cloudflared:", error);
       return {
         success: false,
         message: error instanceof Error ? error.message : "Failed to stop tunnel",
@@ -181,11 +180,11 @@ class CloudflareTunnelService {
       if (token) {
         const result = await this.start();
         if (!result.success) {
-          console.error("Failed to start Cloudflare Tunnel:", result.message);
+          log.error("Failed to start Cloudflare Tunnel:", result.message);
         }
       }
     } catch (error) {
-      console.error("Failed to initialize Cloudflare Tunnel:", error);
+      log.error("Failed to initialize Cloudflare Tunnel:", error);
     }
   }
 }

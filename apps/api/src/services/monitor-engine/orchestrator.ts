@@ -1,13 +1,15 @@
-import { MonitorEngine, type MonitorResult } from "@uptivalab/monitoring";
-import { Queue, Worker } from "bullmq";
+import { Queue, Worker, type Job } from "bullmq";
 import { Redis } from "ioredis";
 import { prisma } from "../../db/prisma.js";
+import { type Monitor } from "@prisma/client";
+import { MonitorEngine, type MonitorResult } from "@uptivalab/monitoring";
 import { appConfig } from "../../config.js";
-import { broadcastBus } from "../../realtime/events.js";
-import { notificationRouter } from "../notifications/router.js";
-import { maintenanceService } from "../maintenance/suppressor.js";
-import { incidentManager } from "../incidents/manager.js";
 import { settingsService } from "../settings/service.js";
+import { maintenanceService } from "../maintenance/suppressor.js";
+import { notificationRouter } from "../notifications/router.js";
+import { incidentManager } from "../incidents/manager.js";
+import { broadcastBus } from "../../realtime/events.js";
+import { log } from "../../utils/logger.js";
 
 const toConfigObject = (value: unknown): Record<string, unknown> => {
   if (value && typeof value === "object" && !Array.isArray(value)) {
@@ -18,6 +20,95 @@ const toConfigObject = (value: unknown): Record<string, unknown> => {
 
 const serializeJson = (value: unknown): any => {
   return value === undefined ? {} : JSON.parse(JSON.stringify(value));
+};
+
+/**
+ * Playwright Browser Installation Strategy
+ *
+ * The ensurePlaywrightBrowsersInstalled() function is called:
+ * 1. EARLY: During server startup in index.ts (pre-installation phase)
+ * 2. FALLBACK: During synthetic monitor execution if pre-installation failed
+ *
+ * This two-phase approach prevents race conditions where multiple concurrent
+ * synthetic monitor jobs would attempt simultaneous browser installation.
+ *
+ * Browser installation only happens once, subsequent calls return immediately
+ * using the global `browsersInstalled` flag.
+ */
+
+// Global flag to prevent concurrent browser installations
+let browserInstallationInProgress = false;
+let browsersInstalled = false;
+
+export const ensurePlaywrightBrowsersInstalled = async (): Promise<void> => {
+  // If already installed, return immediately
+  if (browsersInstalled) {
+    return;
+  }
+
+  // If installation is in progress, wait for it to complete
+  if (browserInstallationInProgress) {
+    while (browserInstallationInProgress) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    return;
+  }
+
+  const fs = await import("fs");
+  const path = await import("path");
+  const { exec } = await import("child_process");
+  const { promisify } = await import("util");
+  const execAsync = promisify(exec);
+
+  const playwrightBrowsersPath = process.env.PLAYWRIGHT_BROWSERS_PATH || "/ms-playwright";
+
+  // Check if browsers are already installed - look for firefox directory
+  const browsersExist = fs.existsSync(playwrightBrowsersPath) &&
+    fs.readdirSync(playwrightBrowsersPath).some(file =>
+      file.includes('firefox')
+    );
+
+  if (browsersExist) {
+    browsersInstalled = true;
+    return;
+  }
+
+  // Check system dependencies
+  const systemDepsInstalled = fs.existsSync("/usr/lib/x86_64-linux-gnu/libnss3.so") ||
+                              fs.existsSync("/usr/lib/aarch64-linux-gnu/libnss3.so");
+
+  if (!systemDepsInstalled) {
+    try {
+      // Install system dependencies (these are already installed in Dockerfile, but just in case)
+      await execAsync("apt-get update && apt-get install -y --no-install-recommends libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2");
+    } catch (error) {
+      throw new Error("Failed to install system dependencies for Playwright");
+    }
+  }
+
+  // Install browsers
+  browserInstallationInProgress = true;
+  try {
+    // Create browsers directory if it doesn't exist
+    if (!fs.existsSync(playwrightBrowsersPath)) {
+      fs.mkdirSync(playwrightBrowsersPath, { recursive: true });
+    }
+
+    // Install browsers using npx playwright install
+    await execAsync(`npx playwright@1.57.0 install chromium firefox webkit --with-deps`, {
+      env: {
+        ...process.env,
+        PLAYWRIGHT_BROWSERS_PATH: playwrightBrowsersPath
+      },
+      timeout: 300000 // 5 minutes timeout
+    });
+
+    browsersInstalled = true;
+  } catch (error) {
+    throw new Error("Failed to install Playwright browsers");
+  } finally {
+    browserInstallationInProgress = false;
+  }
 };
 
 const connection = new Redis(appConfig.REDIS_URL, { maxRetriesPerRequest: null });
@@ -58,6 +149,14 @@ const worker = new Worker(
       pushConfig.lastHeartbeatAt = monitor.heartbeats.lastHeartbeat?.toISOString() ?? undefined;
     }
     const suppressed = await maintenanceService.isSuppressed(monitor.id);
+
+    // Note: Playwright browsers are now pre-installed at server startup to avoid race conditions
+    // If pre-installation failed, it will be retried here as fallback for on-demand monitors
+    if (monitor.kind === "synthetic" && config.useLocalBrowser === true && !browsersInstalled) {
+      log.info(`[Monitor Orchestrator] Attempting on-demand browser installation for monitor ${monitor.id}`);
+      await ensurePlaywrightBrowsersInstalled();
+    }
+
     const result = await monitorEngine.runMonitor({
       id: monitor.id,
       name: monitor.name,
@@ -77,11 +176,11 @@ const worker = new Worker(
 
     await handleResult(enrichedResult, { id: monitor.id, name: monitor.name }, { suppressed });
   },
-  { connection }
+  { connection, concurrency: 2 } // Limit to 2 concurrent monitor executions to prevent resource exhaustion
 );
 
 worker.on("failed", async (job, err) => {
-  console.error("Monitor job failed", job?.id, err);
+  log.error("Monitor job failed", job?.id, err);
 
   // Create a failed check result when monitor execution fails
   if (job?.data?.monitorId) {
@@ -102,14 +201,14 @@ worker.on("failed", async (job, err) => {
         await handleResult(failureResult, monitor, { suppressed: false });
       }
     } catch (handleError) {
-      console.error("Failed to handle monitor job failure:", handleError);
+      log.error("Failed to handle monitor job failure:", handleError);
     }
   }
 });
 
 const scheduleMonitor = async (monitorId: string, interval: number) => {
   try {
-    console.log(`[Monitor Orchestrator] Scheduling monitor ${monitorId} with interval ${interval}ms`);
+    log.info(`[Monitor Orchestrator] Scheduling monitor ${monitorId} with interval ${interval}ms`);
     await monitorQueue.add(
       "monitor",
       { monitorId },
@@ -119,9 +218,9 @@ const scheduleMonitor = async (monitorId: string, interval: number) => {
         removeOnComplete: true,
       }
     );
-    console.log(`[Monitor Orchestrator] Successfully scheduled monitor ${monitorId}`);
+    log.info(`[Monitor Orchestrator] Successfully scheduled monitor ${monitorId}`);
   } catch (error) {
-    console.error(`[Monitor Orchestrator] Failed to schedule monitor ${monitorId}:`, error);
+    log.error(`[Monitor Orchestrator] Failed to schedule monitor ${monitorId}:`, error);
     throw error;
   }
 };
@@ -188,16 +287,16 @@ const runMonitorCheck = async (monitorId: string): Promise<MonitorResult> => {
 };
 
 const bootstrapMonitors = async () => {
-  console.log('[Monitor Orchestrator] Starting bootstrap process...');
+  log.info('[Monitor Orchestrator] Starting bootstrap process...');
   const monitors = await prisma.monitor.findMany({ 
     where: { paused: false },
     select: { id: true, name: true, interval: true } 
   });
-  console.log(`[Monitor Orchestrator] Found ${monitors.length} active monitors to schedule`);
+  log.info(`[Monitor Orchestrator] Found ${monitors.length} active monitors to schedule`);
   
   const results = await Promise.allSettled(
     monitors.map(({ id, name, interval }: { id: string; name: string; interval: number }) => {
-      console.log(`[Monitor Orchestrator] Scheduling monitor: ${name} (${id})`);
+      log.info(`[Monitor Orchestrator] Scheduling monitor: ${name} (${id})`);
       return scheduleMonitor(id, interval);
     })
   );
@@ -206,14 +305,14 @@ const bootstrapMonitors = async () => {
   const failed = results.filter(r => r.status === 'rejected').length;
   
   if (failed > 0) {
-    console.error(`[Monitor Orchestrator] Bootstrap completed with errors: ${successful} succeeded, ${failed} failed`);
+    log.error(`[Monitor Orchestrator] Bootstrap completed with errors: ${successful} succeeded, ${failed} failed`);
     results.forEach((result, idx) => {
       if (result.status === 'rejected') {
-        console.error(`[Monitor Orchestrator] Failed to schedule ${monitors[idx].name}:`, result.reason);
+        log.error(`[Monitor Orchestrator] Failed to schedule ${monitors[idx].name}:`, result.reason);
       }
     });
   } else {
-    console.log(`[Monitor Orchestrator] Bootstrap completed successfully: ${successful} monitors scheduled`);
+    log.info(`[Monitor Orchestrator] Bootstrap completed successfully: ${successful} monitors scheduled`);
   }
 };
 
@@ -222,21 +321,55 @@ const handleResult = async (
   monitor?: { id: string; name: string },
   options?: { suppressed?: boolean }
 ) => {
-  await prisma.checkResult.create({
+  // Extract screenshots from journey steps before storing
+  const journeySteps = result.meta?.journeySteps || [];
+  const screenshots: Array<{ stepIndex: number; stepLabel: string; screenshotData: string }> = [];
+
+  // Extract screenshots from failed steps only
+  journeySteps.forEach((step: any, index: number) => {
+    if (step.status === 'down' && step.screenshot) {
+      screenshots.push({
+        stepIndex: index,
+        stepLabel: step.label,
+        screenshotData: step.screenshot,
+      });
+    }
+  });
+
+  // Create check result with simplified payload (no large binary data)
+  const checkResult = await prisma.checkResult.create({
     data: {
       monitorId: result.monitorId,
       status: result.status,
       latencyMs: result.meta?.latencyMs ?? null,
-      payload: serializeJson(result.meta ?? {}),
+      payload: serializeJson({
+        ...result.meta,
+        journeySteps: journeySteps.map((step: any) => ({
+          ...step,
+          screenshot: undefined, // Remove screenshot from payload
+        })),
+      }),
     },
   });
 
+  // Store screenshots separately if any exist
+  if (screenshots.length > 0) {
+    await prisma.checkScreenshot.createMany({
+      data: screenshots.map(screenshot => ({
+        checkResultId: checkResult.id,
+        stepIndex: screenshot.stepIndex,
+        stepLabel: screenshot.stepLabel,
+        screenshotData: screenshot.screenshotData,
+      })),
+    });
+  }
+
   broadcastBus.emitResult(result);
-  
+
   if (!options?.suppressed) {
     await notificationRouter.route(result);
   }
-  
+
   await incidentManager.process(result, monitor, options);
 };
 

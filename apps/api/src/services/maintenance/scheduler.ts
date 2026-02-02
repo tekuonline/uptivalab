@@ -3,6 +3,7 @@ import { Redis } from "ioredis";
 import { appConfig } from "../../config.js";
 import { prisma } from "../../db/prisma.js";
 import { maintenanceNotifier } from "./notifier.js";
+import { log } from "../../utils/logger.js";
 
 const connection = new Redis(appConfig.REDIS_URL, { maxRetriesPerRequest: null });
 
@@ -25,7 +26,7 @@ const worker = new Worker(
 );
 
 worker.on("failed", (job, err) => {
-  console.error("[Maintenance Scheduler] Job failed:", job?.name, err);
+  log.error("[Maintenance Scheduler] Job failed:", { jobName: job?.name, error: err });
 });
 
 // Check for maintenance windows that are starting or ending soon

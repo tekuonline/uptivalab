@@ -34,6 +34,11 @@ export function useTimezone() {
     const diffHour = Math.floor(diffMin / 60);
     const diffDay = Math.floor(diffHour / 24);
 
+    // If date is in the future, always show full date
+    if (diffSec < 0) {
+      return formatDate(dateObj);
+    }
+
     if (diffSec < 60) return `${diffSec}s ago`;
     if (diffMin < 60) return `${diffMin}m ago`;
     if (diffHour < 24) return `${diffHour}h ago`;

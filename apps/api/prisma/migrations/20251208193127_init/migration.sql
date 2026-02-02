@@ -278,3 +278,30 @@ ALTER TABLE "_MaintenanceMonitors" ADD CONSTRAINT "_MaintenanceMonitors_A_fkey" 
 
 -- AddForeignKey
 ALTER TABLE "_MaintenanceMonitors" ADD CONSTRAINT "_MaintenanceMonitors_B_fkey" FOREIGN KEY ("B") REFERENCES "Monitor"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- CreateIndex
+CREATE INDEX "ApiKey_userId_idx" ON "ApiKey"("userId");
+
+-- CreateIndex
+CREATE INDEX "ApiKey_tokenHash_idx" ON "ApiKey"("tokenHash");
+
+-- CreateIndex
+CREATE INDEX "Monitor_paused_createdAt_idx" ON "Monitor"("paused", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "Monitor_kind_paused_idx" ON "Monitor"("kind", "paused");
+
+-- CreateIndex
+CREATE INDEX "Monitor_groupId_idx" ON "Monitor"("groupId");
+
+-- CreateIndex
+CREATE INDEX "Incident_monitorId_status_idx" ON "Incident"("monitorId", "status");
+
+-- CreateIndex
+CREATE INDEX "Incident_status_startedAt_idx" ON "Incident"("status", "startedAt");
+
+-- CreateIndex
+CREATE INDEX "NotificationChannel_type_idx" ON "NotificationChannel"("type");
+
+-- CreateIndex
+CREATE INDEX "NotificationChannel_createdAt_idx" ON "NotificationChannel"("createdAt");

@@ -3,6 +3,7 @@ import { emailNotifier } from "../notifications/smtp.js";
 import { webhookNotifier } from "../notifications/webhook.js";
 import { ntfyNotifier } from "../notifications/ntfy.js";
 import type { MonitorResult } from "@uptivalab/monitoring";
+import { log } from "../../utils/logger.js";
 
 export const maintenanceNotifier = {
   async notifyWindowStart(windowId: string) {
@@ -29,10 +30,12 @@ export const maintenanceNotifier = {
     for (const monitor of window.monitors) {
       if (monitor.notificationChannels.length === 0) continue;
 
+      const startDate = window.startsAt.toISOString().split('T')[0];
+      const endDate = window.endsAt.toISOString().split('T')[0];
       const notificationResult: MonitorResult = {
         monitorId: monitor.id,
         status: "up",
-        message: `🔧 Maintenance window started: "${window.name}" (${new Date(window.startsAt).toLocaleString()} - ${new Date(window.endsAt).toLocaleString()})`,
+        message: `🔧 Maintenance window started: "${window.name}" (${startDate} - ${endDate})`,
         checkedAt: new Date().toISOString(),
         meta: {
           maintenanceWindow: window.name,
@@ -48,7 +51,7 @@ export const maintenanceNotifier = {
           try {
             await adapter.send(channel, notificationResult);
           } catch (error) {
-            console.error(`[Maintenance Notifier] Failed to send start notification:`, error);
+            log.error(`[Maintenance Notifier] Failed to send start notification:`, { error });
           }
         })
       );
@@ -98,7 +101,7 @@ export const maintenanceNotifier = {
           try {
             await adapter.send(channel, notificationResult);
           } catch (error) {
-            console.error(`[Maintenance Notifier] Failed to send end notification:`, error);
+            log.error(`[Maintenance Notifier] Failed to send end notification:`, { error });
           }
         })
       );

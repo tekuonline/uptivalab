@@ -10,4 +10,4 @@ Dockerfile
 README.md
 docs
 coverage
-playwright-report
+playwright-reportdist/

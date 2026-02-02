@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "../components/ui/button.js";
 import { Input } from "../components/ui/input.js";
 import { Label } from "../components/ui/label.js";
+import { FormattedDate } from "../components/formatted-date.js";
 import { useSettings } from "../providers/settings-context.js";
 import { useTranslation } from "../hooks/use-translation.js";
 import { setLanguage } from "../lib/i18n.js";
@@ -1360,9 +1361,9 @@ export const SettingsRoute = () => {
                             </>
                           ) : (
                             <>
-                              <span>{t("created")}: {new Date(key.createdAt).toLocaleDateString()}</span>
+                              <span>{t("created")}: <FormattedDate date={key.createdAt} relative={false} /></span>
                               {key.lastUsedAt && (
-                                <span>• {t("lastUsed")}: {new Date(key.lastUsedAt).toLocaleDateString()}</span>
+                                <span>• {t("lastUsed")}: <FormattedDate date={key.lastUsedAt} relative={false} /></span>
                               )}
                               <span>• {t("apiKeyPermissions")} {key.permissions || 'READ'}</span>
                             </>
@@ -1546,7 +1547,7 @@ export const SettingsRoute = () => {
                           <div className="flex-1">
                             <p className="font-medium text-slate-900 dark:text-white">{user.email}</p>
                             <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
-                              <span>Created: {new Date(user.createdAt).toLocaleDateString()}</span>
+                              <span>Created: <FormattedDate date={user.createdAt} relative={false} /></span>
                               {user._count && <span>• {user._count.apiKeys} API key{user._count.apiKeys !== 1 ? 's' : ''}</span>}
                             </div>
                           </div>
@@ -1625,7 +1626,7 @@ export const SettingsRoute = () => {
                             <p className="font-medium text-slate-900 dark:text-white">{invitation.email}</p>
                             <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
                               <span>Role: {invitation.role}</span>
-                              <span>• Expires: {new Date(invitation.expiresAt).toLocaleDateString()}</span>
+                              <span>• Expires: <FormattedDate date={invitation.expiresAt} relative={false} /></span>
                               {invitation.createdBy && <span>• By: {invitation.createdBy.email}</span>}
                             </div>
                           </div>

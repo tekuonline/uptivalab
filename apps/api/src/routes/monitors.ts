@@ -2,67 +2,90 @@ import type { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
 import { z } from "zod";
 import { prisma } from "../db/prisma.js";
+import { queryCache } from "../utils/query-cache.js";
+import { advancedCache } from "../utils/advanced-cache.js";
+import { getPaginationParams, buildPaginatedResponse } from "../utils/pagination.js";
+import { buildSelectFields } from "../utils/field-filtering.js";
 import { monitorOrchestrator } from "../services/monitor-engine/orchestrator.js";
 import { handleApiError } from "../utils/error-handler.js";
+import { log } from "../utils/logger.js";
 
 const monitorsPlugin = async (fastify: FastifyInstance) => {
 
-  // GET /monitors - List monitors (with API key authentication)
+  // GET /monitors - List monitors with pagination & field filtering (with API key authentication)
   fastify.get("/monitors", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async (request, reply) => {
-    const { maintenanceService } = await import("../services/maintenance/suppressor.js");
+    try {
+      // Parse pagination parameters
+      const { page, limit } = getPaginationParams(request.query as any, {
+        defaultLimit: 20,
+        maxLimit: 100,
+      });
 
-    const monitors = await prisma.monitor.findMany({
-      include: {
-        checks: { orderBy: { checkedAt: "desc" }, take: 1 },
-        incidents: { orderBy: { startedAt: "desc" }, take: 1 },
-        group: true,
-        tags: true,
-        notificationChannels: true,
-      },
-    });
+      // Calculate skip for offset-based pagination
+      const skip = (page - 1) * limit;
 
-    const results = await Promise.all(
-      monitors.map(async (monitor: typeof monitors[number]) => {
-        const inMaintenance = await maintenanceService.isSuppressed(monitor.id);
+      // Optimized query with latest check status (matching /api/status logic)
+      const monitors = await prisma.monitor.findMany({
+        select: {
+          id: true,
+          name: true,
+          kind: true,
+          interval: true,
+          timeout: true,
+          paused: true,
+          createIncidents: true,
+          createdAt: true,
+          updatedAt: true,
+          checks: {
+            orderBy: { checkedAt: "desc" },
+            take: 100, // Get last 100 checks for uptime bar
+            select: {
+              status: true,
+              checkedAt: true,
+            }
+          }
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      });
+
+      // Return monitor status: paused if paused, otherwise use latest check status or default to 'pending'
+      const results = monitors.map((monitor) => {
         const latestCheck = monitor.checks[0];
-        const payload = latestCheck?.payload as any;
-
-        // Extract certificate metadata - it's directly in payload, not payload.meta
-        const meta = monitor.kind === 'certificate' && payload ? {
-          certificateExpiresAt: payload.certificateExpiresAt,
-          certificateDaysLeft: payload.certificateDaysLeft,
-        } : null;
-
         return {
           id: monitor.id,
           name: monitor.name,
           kind: monitor.kind,
-          config: monitor.config,
           interval: monitor.interval,
           timeout: monitor.timeout,
           paused: monitor.paused,
-          createIncidents: (monitor as any).createIncidents,
-          status: monitor.paused ? "paused" : (latestCheck?.status ?? "pending"),
-          group: monitor.group,
-          tags: monitor.tags,
-          notificationChannels: monitor.notificationChannels,
-          latestCheck: latestCheck ? {
-            id: latestCheck.id,
-            status: latestCheck.status,
-            latencyMs: latestCheck.latencyMs,
-            checkedAt: latestCheck.checkedAt,
-            payload: latestCheck.payload,
-          } : null,
-          incident: monitor.incidents[0] ?? null,
-          inMaintenance,
-          meta,
+          createIncidents: monitor.createIncidents,
           createdAt: monitor.createdAt,
           updatedAt: monitor.updatedAt,
+          status: monitor.paused ? "paused" : (latestCheck?.status ?? "pending"),
+          recentChecks: monitor.checks.map(check => ({
+            status: check.status,
+            checkedAt: check.checkedAt.toISOString(),
+          })),
         };
-      })
-    );
+      });
 
-    return results;
+      // Get total count for pagination metadata
+      const totalCount = await prisma.monitor.count();
+
+      // Build paginated response
+      const response = buildPaginatedResponse(results, {
+        page,
+        limit,
+        total: totalCount,
+      });
+
+      return response;
+    } catch (error) {
+      log.error("Error fetching monitors:", { error });
+      return reply.code(500).send({ error: "Failed to fetch monitors" });
+    }
   });
 
   // Validation schema for synthetic monitor steps
@@ -175,7 +198,7 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
         try {
           await monitorOrchestrator.scheduleMonitor(monitor.id, monitor.interval);
         } catch (error) {
-          console.error("Failed to schedule monitor:", error);
+          log.error("Failed to schedule monitor:", { error });
           // Don't fail the creation if scheduling fails
         }
       }
@@ -403,7 +426,7 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
           await monitorOrchestrator.scheduleMonitor(id, monitor.interval);
         }
       } catch (error) {
-        console.error("Failed to update monitor scheduling:", error);
+        log.error("Failed to update monitor scheduling:", { error });
         // Don't fail the update if scheduling fails
       }
 
@@ -423,7 +446,7 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
   // GET /monitors/:id/history - Get monitor check history
   fastify.get("/monitors/:id/history", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const { limit = '50' } = request.query as { limit?: string };
+    const { limit = '50', includePayload = 'false' } = request.query as { limit?: string; includePayload?: string };
 
     const monitor = await prisma.monitor.findUnique({
       where: { id },
@@ -434,6 +457,7 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
     }
 
     const limitNum = Math.min(parseInt(limit || '50'), 1000); // Cap at 1000
+    const shouldIncludePayload = includePayload === 'true';
 
     const checks = await prisma.checkResult.findMany({
       where: { monitorId: id },
@@ -457,7 +481,7 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
         status: check.status,
         latencyMs: check.latencyMs,
         checkedAt: check.checkedAt,
-        payload: check.payload,
+        ...(shouldIncludePayload && { payload: check.payload }),
       })),
       stats: {
         totalChecks,
@@ -574,7 +598,7 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
       try {
         await monitorOrchestrator.cancelMonitor(id);
       } catch (error) {
-        console.error("Failed to cancel monitor scheduling:", error);
+        log.error("Failed to cancel monitor scheduling:", { error });
         // Don't fail the pause operation if scheduling cancellation fails
       }
 
@@ -616,7 +640,7 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
       try {
         await monitorOrchestrator.scheduleMonitor(id, monitor.interval);
       } catch (error) {
-        console.error("Failed to schedule monitor:", error);
+        log.error("Failed to schedule monitor:", { error });
         // Don't fail the resume operation if scheduling fails
       }
 
@@ -681,7 +705,7 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
       try {
         await monitorOrchestrator.cancelMonitor(id);
       } catch (error) {
-        console.error("Failed to cancel monitor scheduling:", error);
+        log.error("Failed to cancel monitor scheduling:", { error });
         // Don't fail the deletion if scheduling cancellation fails
       }
 
@@ -697,9 +721,156 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
         where: { id }
       });
 
-      return { success: true, message: "Monitor deleted successfully" };
+      return reply.send({ success: true, message: "Monitor deleted successfully" });
     } catch (error) {
       const apiError = handleApiError(error, "delete monitor");
+      return reply.code(500).send(apiError);
+    }
+  });
+
+  // POST /monitors/install-embedded-deps - Install embedded browser dependencies
+  fastify.post("/monitors/install-embedded-deps", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request, reply) => {
+    try {
+      // Check if dependencies are already installed
+      const fs = await import("fs");
+      const path = await import("path");
+      const { exec } = await import("child_process");
+
+      const playwrightBrowsersPath = process.env.PLAYWRIGHT_BROWSERS_PATH || path.join(process.cwd(), "ms-playwright");
+      const depsInstalled = fs.existsSync(path.join(playwrightBrowsersPath, "chromium"));
+      const systemDepsInstalled = fs.existsSync("/usr/lib/x86_64-linux-gnu/libnss3.so");
+
+      if (depsInstalled && systemDepsInstalled) {
+        return reply.send({ success: true, message: "Embedded browser dependencies already installed", alreadyInstalled: true });
+      }
+
+      // System dependencies are now pre-installed in Dockerfile, only install Playwright browsers
+      if (!depsInstalled) {
+        fastify.log.info("Installing Playwright browsers in background...");
+        
+        // Start installation asynchronously
+        exec(`npx playwright install chromium firefox webkit`, (error, stdout, stderr) => {
+          if (error) {
+            fastify.log.error("Failed to install Playwright browsers:", error);
+          } else {
+            fastify.log.info("Playwright browsers installed successfully");
+          }
+        });
+
+        return reply.send({
+          success: true,
+          message: "Embedded browser dependencies installation started in background",
+          installing: true,
+          systemDepsInstalled
+        });
+      }
+
+      return reply.send({
+        success: true,
+        message: "Embedded browser dependencies installed successfully",
+        installed: {
+          systemDeps: systemDepsInstalled, // Always true now since pre-installed
+          browsers: !depsInstalled
+        }
+      });
+    } catch (error) {
+      fastify.log.error("Failed to install embedded browser dependencies:", error);
+      const apiError = handleApiError(error, "install embedded browser dependencies");
+      return reply.code(500).send(apiError);
+    }
+  });
+
+  // GET /monitors/:id/screenshots - Get screenshots for a monitor's latest failed check
+  fastify.get("/monitors/:id/screenshots", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async (request, reply) => {
+    const params = z.object({ id: z.string() }).parse(request.params);
+
+    // Get the latest failed check result for this monitor
+    const latestFailedCheck = await prisma.checkResult.findFirst({
+      where: {
+        monitorId: params.id,
+        status: { not: "up" }, // Get any non-successful check
+      },
+      orderBy: { checkedAt: "desc" },
+      include: {
+        screenshots: true,
+      },
+    });
+
+    if (!latestFailedCheck) {
+      return reply.code(404).send({
+        error: "No failed checks found for this monitor",
+        message: "This monitor has no recent failed checks with screenshots available"
+      });
+    }
+
+    return {
+      checkId: latestFailedCheck.id,
+      checkedAt: latestFailedCheck.checkedAt,
+      status: latestFailedCheck.status,
+      screenshots: latestFailedCheck.screenshots.map(screenshot => ({
+        id: screenshot.id,
+        stepLabel: screenshot.stepLabel,
+        capturedAt: screenshot.capturedAt,
+        data: screenshot.screenshotData, // Base64 encoded PNG
+      })),
+    };
+  });
+
+  // GET /monitors/:id/checks/:checkId/screenshots - Get screenshots for a specific check
+  fastify.get("/monitors/:id/checks/:checkId/screenshots", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async (request, reply) => {
+    const params = z.object({
+      id: z.string(),
+      checkId: z.string()
+    }).parse(request.params);
+
+    // Verify the check belongs to the monitor
+    const check = await prisma.checkResult.findFirst({
+      where: {
+        id: params.checkId,
+        monitorId: params.id,
+      },
+      include: {
+        screenshots: true,
+      },
+    });
+
+    if (!check) {
+      return reply.code(404).send({
+        error: "Check not found",
+        message: "The specified check does not exist or does not belong to this monitor"
+      });
+    }
+
+    return {
+      checkId: check.id,
+      checkedAt: check.checkedAt,
+      status: check.status,
+      screenshots: check.screenshots.map(screenshot => ({
+        id: screenshot.id,
+        stepLabel: screenshot.stepLabel,
+        capturedAt: screenshot.capturedAt,
+        data: screenshot.screenshotData, // Base64 encoded PNG
+      })),
+    };
+  });
+
+  // GET /monitors/embedded-deps-status - Check if embedded browser dependencies are installed
+  fastify.get("/monitors/embedded-deps-status", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async (request, reply) => {
+    try {
+      const fs = await import("fs");
+      const path = await import("path");
+
+      const playwrightBrowsersPath = process.env.PLAYWRIGHT_BROWSERS_PATH || path.join(process.cwd(), "ms-playwright");
+      const browsersInstalled = fs.existsSync(path.join(playwrightBrowsersPath, "chromium"));
+      const systemDepsInstalled = fs.existsSync("/usr/lib/x86_64-linux-gnu/libnss3.so");
+
+      return reply.send({
+        installed: browsersInstalled && systemDepsInstalled,
+        browsersInstalled,
+        systemDepsInstalled
+      });
+    } catch (error) {
+      const apiError = handleApiError(error, "check embedded browser dependencies status");
       return reply.code(500).send(apiError);
     }
   });

@@ -1,5 +1,5 @@
 import type { Monitor } from "@uptivalab/shared";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { api } from "../lib/api.js";
@@ -9,7 +9,7 @@ import { Card } from "../components/ui/card.js";
 import { Button } from "../components/ui/button.js";
 import { StatusBadge } from "../components/status-badge.js";
 import { UptimeBar } from "../components/uptime-bar.js";
-import { Eye, Trash2, ChevronDown, ChevronUp, RefreshCw, Copy, Edit, X } from "lucide-react";
+import { Eye, Trash2, ChevronDown, ChevronUp, RefreshCw, Copy, Edit, X, ChevronLeft, ChevronRight } from "lucide-react";
 
 export const MonitorsRoute = () => {
   const { token } = useAuth();
@@ -17,7 +17,14 @@ export const MonitorsRoute = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const { data } = useQuery({ queryKey: ["monitors"], queryFn: () => api.listMonitors(token), enabled: Boolean(token) });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(50);
+  const { data } = useQuery({ 
+    queryKey: ["monitors", currentPage, pageSize], 
+    queryFn: () => api.listMonitors(token, currentPage, pageSize), 
+    enabled: Boolean(token),
+    placeholderData: (previousData) => previousData,
+  });
   const { data: notifications } = useQuery({ queryKey: ["notifications"], queryFn: () => api.listNotifications(token), enabled: Boolean(token) });
   
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -29,6 +36,12 @@ export const MonitorsRoute = () => {
   const [selectedDockerHost, setSelectedDockerHost] = useState("");
   const [dockerResources, setDockerResources] = useState<any>(null);
   const [loadingDockerResources, setLoadingDockerResources] = useState(false);
+  
+  // Embedded browser warning dialog state
+  const [showEmbeddedBrowserWarning, setShowEmbeddedBrowserWarning] = useState(false);
+  
+  // Track previous browser mode to detect switches to embedded
+  const prevUseLocalBrowserRef = useRef(false);
   
   const [form, setForm] = useState({ 
     name: "", 
@@ -76,6 +89,11 @@ export const MonitorsRoute = () => {
     useLocalBrowser: false,  // synthetic - use local vs remote
     steps: "",               // synthetic - JSON string of steps array
   });
+  
+  // Update ref when form changes
+  useEffect(() => {
+    prevUseLocalBrowserRef.current = form.useLocalBrowser;
+  }, [form.useLocalBrowser]);
   
   const buildConfig = (formData: typeof form) => {
     const baseConfig: Record<string, unknown> = {};
@@ -792,7 +810,18 @@ export const MonitorsRoute = () => {
                     <select
                       className="w-full rounded-2xl border border-slate-300 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-4 py-3 text-sm text-slate-900 dark:text-white h-[46px]"
                       value={form.useLocalBrowser ? 'local' : 'remote'}
-                      onChange={(e) => setForm((prev) => ({ ...prev, useLocalBrowser: e.target.value === 'local' }))}
+                      onChange={(e) => {
+                        const isLocal = e.target.value === 'local';
+                        const wasRemote = !prevUseLocalBrowserRef.current;
+                        
+                        if (isLocal && wasRemote) {
+                          // User is switching to embedded browser - show warning
+                          setShowEmbeddedBrowserWarning(true);
+                        } else {
+                          // Direct update for other changes
+                          setForm((prev) => ({ ...prev, useLocalBrowser: isLocal }));
+                        }
+                      }}
                     >
                       <option value="local">{t("localBrowser")}</option>
                       <option value="remote">{t("remoteBrowserRecommended")}</option>
@@ -1094,13 +1123,13 @@ export const MonitorsRoute = () => {
           </div>
           
           {/* Notifications */}
-          {notifications && notifications.length > 0 && (
+          {notifications?.data && notifications.data.length > 0 && (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-slate-300">
                 {t("notificationChannels")} ({t("optional")})
               </label>
               <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
-                {notifications.map((channel) => (
+                {notifications.data.map((channel: { id: string; type: string; name: string; config?: Record<string, unknown> }) => (
                   <label
                     key={channel.id}
                     className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 cursor-pointer hover:bg-white/10 transition"
@@ -1137,7 +1166,7 @@ export const MonitorsRoute = () => {
         
         {/* Mobile Card View */}
         <div className="block lg:hidden space-y-3">
-          {data?.map((monitor: Monitor & { recentChecks?: Array<{ status: string; checkedAt: string }>; inMaintenance?: boolean }) => (
+          {data?.data?.map((monitor: Monitor & { recentChecks?: Array<{ status: string; checkedAt: string }>; inMaintenance?: boolean }) => (
             <div key={monitor.id} className="rounded-xl border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/5 p-4 space-y-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
@@ -1184,6 +1213,9 @@ export const MonitorsRoute = () => {
               </div>
             </div>
           ))}
+          {(!data?.data || data.data.length === 0) && (
+            <p className="py-8 text-center text-slate-500">No monitors yet. Create one to get started.</p>
+          )}
         </div>
         
         {/* Desktop Table View */}
@@ -1200,7 +1232,7 @@ export const MonitorsRoute = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {data?.map((monitor: Monitor & { recentChecks?: Array<{ status: string; checkedAt: string }>; inMaintenance?: boolean }) => (
+              {data?.data?.map((monitor: Monitor & { recentChecks?: Array<{ status: string; checkedAt: string }>; inMaintenance?: boolean }) => (
                 <tr key={monitor.id}>
                   <td className="py-3 font-semibold text-slate-900 dark:text-white">{monitor.name}</td>
                   <td className="py-3 capitalize text-slate-400">{monitor.kind}</td>
@@ -1274,8 +1306,91 @@ export const MonitorsRoute = () => {
               ))}
             </tbody>
           </table>
+          {(!data?.data || data.data.length === 0) && (
+            <p className="py-8 text-center text-slate-500">No monitors yet. Create one to get started.</p>
+          )}
         </div>
+        
+        {/* Pagination Controls */}
+        {data?.meta && data.meta.totalPages > 1 && (
+          <div className="mt-4 flex items-center justify-between border-t border-slate-200 dark:border-white/5 pt-4">
+            <div className="text-sm text-slate-600 dark:text-slate-400">
+              Showing {((data.meta.page - 1) * data.meta.limit) + 1}-{Math.min(data.meta.page * data.meta.limit, data.meta.total)} of {data.meta.total}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-2 text-sm"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+              <span className="text-sm text-slate-600 dark:text-slate-400">
+                Page {data.meta.page} of {data.meta.totalPages}
+              </span>
+              <Button
+                variant="outline"
+                onClick={() => setCurrentPage(p => Math.min(data.meta.totalPages, p + 1))}
+                disabled={currentPage === data.meta.totalPages}
+                className="px-3 py-2 text-sm"
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
+
+      {/* Embedded Browser Warning Dialog */}
+      {showEmbeddedBrowserWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="mx-4 w-full max-w-md rounded-2xl bg-white dark:bg-slate-800 p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                {t("embeddedBrowserWarningTitle")}
+              </h3>
+              <button
+                onClick={() => setShowEmbeddedBrowserWarning(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                {t("embeddedBrowserWarningMessage")}
+              </p>
+            </div>
+
+            <div className="flex space-x-3">
+              <Button
+                onClick={() => {
+                  setShowEmbeddedBrowserWarning(false);
+                  // Revert back to remote browser mode when cancelled
+                  setForm((prev) => ({ ...prev, useLocalBrowser: false }));
+                }}
+                variant="outline"
+                className="flex-1"
+              >
+                {t("cancel")}
+              </Button>
+              <Button
+                onClick={() => {
+                  setForm((prev) => ({ ...prev, useLocalBrowser: true }));
+                  setShowEmbeddedBrowserWarning(false);
+                }}
+                className="flex-1"
+              >
+                {t("continue")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

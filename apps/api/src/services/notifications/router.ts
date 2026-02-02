@@ -4,6 +4,7 @@ import { appConfig } from "../../config.js";
 import { emailNotifier } from "./smtp.js";
 import { webhookNotifier } from "./webhook.js";
 import { ntfyNotifier } from "./ntfy.js";
+import { log } from "../../utils/logger.js";
 
 const adapters = {
   email: emailNotifier,
@@ -33,11 +34,11 @@ export const notificationRouter = {
                          (previousChecks.length === 2 && previousChecks[1].status !== result.status);
     
     if (!statusChanged) {
-      console.log(`[Notification Router] Status unchanged for monitor ${result.monitorId}, skipping notification`);
+      log.info(`[Notification Router] Status unchanged for monitor ${result.monitorId}, skipping notification`);
       return; // Skip notification - status hasn't changed
     }
 
-    console.log(`[Notification Router] Status changed for monitor ${result.monitorId}: ${result.status}`);
+    log.info(`[Notification Router] Status changed for monitor ${result.monitorId}: ${result.status}`);
 
     const bindings = await prisma.notificationChannel.findMany({
       where: {
@@ -46,11 +47,11 @@ export const notificationRouter = {
     });
 
     if (bindings.length === 0) {
-      console.warn(`[Notification Router] No notification channels configured for monitor ${result.monitorId}`);
+      log.warn(`[Notification Router] No notification channels configured for monitor ${result.monitorId}`);
       return;
     }
 
-    console.log(`[Notification Router] Sending notifications to ${bindings.length} channel(s) for monitor ${result.monitorId}`);
+    log.info(`[Notification Router] Sending notifications to ${bindings.length} channel(s) for monitor ${result.monitorId}`);
 
     // Add emoji to the message based on status
     const statusEmoji = result.status === "up" ? "🟢" : "🔴";
@@ -65,14 +66,14 @@ export const notificationRouter = {
       bindings.map(async (channel: any) => {
         const adapter = adapters[channel.type as keyof typeof adapters];
         if (!adapter) {
-          console.warn(`[Notification Router] No adapter found for channel type: ${channel.type}`);
+          log.warn(`[Notification Router] No adapter found for channel type: ${channel.type}`);
           return;
         }
         try {
           await adapter.send(channel, enrichedResult);
-          console.log(`[Notification Router] Successfully sent notification via ${channel.type} (${channel.name})`);
+          log.info(`[Notification Router] Successfully sent notification via ${channel.type} (${channel.name})`);
         } catch (error) {
-          console.error(`[Notification Router] Failed to send notification via ${channel.type} (${channel.name}):`, error);
+          log.error(`[Notification Router] Failed to send notification via ${channel.type} (${channel.name}):`, { error });
         }
       })
     );

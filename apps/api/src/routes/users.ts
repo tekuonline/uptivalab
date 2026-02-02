@@ -3,6 +3,7 @@ import fp from "fastify-plugin";
 import { z } from "zod";
 import { prisma } from "../db/prisma.js";
 import { hashPassword } from "../auth/password.js";
+import { log } from "../utils/logger.js";
 
 const usersPlugin = async (fastify: FastifyInstance) => {
   // Get current user
@@ -49,7 +50,7 @@ const usersPlugin = async (fastify: FastifyInstance) => {
 
         return user;
       } catch (error) {
-        console.error("Failed to fetch user:", error);
+        log.error("Failed to fetch user:", error);
         return reply.code(500).send({
           error: "Failed to fetch user",
           message: "An error occurred while fetching the user",
@@ -81,7 +82,7 @@ const usersPlugin = async (fastify: FastifyInstance) => {
 
         return users;
       } catch (error) {
-        console.error("Failed to fetch users:", error);
+        log.error("Failed to fetch users:", error);
         return reply.code(500).send({
           error: "Failed to fetch users",
           message: "An error occurred while fetching users",
@@ -142,7 +143,7 @@ const usersPlugin = async (fastify: FastifyInstance) => {
               details: error.errors,
             });
           }
-          console.error("Failed to create user:", error);
+          log.error("Failed to create user:", error);
           return reply.code(500).send({
             error: "Failed to create user",
             message: "An error occurred while creating the user",
@@ -185,7 +186,7 @@ const usersPlugin = async (fastify: FastifyInstance) => {
               details: error.errors,
             });
           }
-          console.error("Failed to update user role:", error);
+          log.error("Failed to update user role:", error);
           return reply.code(500).send({
             error: "Failed to update user",
             message: "An error occurred while updating the user role",
@@ -231,7 +232,7 @@ const usersPlugin = async (fastify: FastifyInstance) => {
 
         return { success: true };
       } catch (error) {
-        console.error("Failed to delete user:", error);
+        log.error("Failed to delete user:", error);
         return reply.code(500).send({
           error: "Failed to delete user",
           message: "An error occurred while deleting the user",

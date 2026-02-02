@@ -2,7 +2,14 @@ import type { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
 import { z } from "zod";
 import { prisma } from "../db/prisma.js";
+import { advancedCache } from "../utils/advanced-cache.js";
 import { hashPassword, verifyPassword } from "../auth/password.js";
+import { log } from "../utils/logger.js";
+
+const authRateLimit = {
+  max: 50,
+  timeWindow: '1 minute'
+};
 
 const authPlugin = async (fastify: FastifyInstance) => {
   // Check if any users exist (for setup flow)
@@ -14,7 +21,7 @@ const authPlugin = async (fastify: FastifyInstance) => {
         const userCount = await prisma.user.count();
         return { setupNeeded: userCount === 0 };
       } catch (error) {
-        console.error("Failed to check user count:", error);
+        log.error("Failed to check user count", { error });
         return reply.code(500).send({
           error: "Database error",
           message: "Unable to check setup status"
@@ -27,6 +34,9 @@ const authPlugin = async (fastify: FastifyInstance) => {
   fastify.route({
     method: 'POST',
     url: '/auth/setup',
+    config: {
+      rateLimit: authRateLimit,
+    },
     handler: async (request, reply) => {
       try {
         // Check if any users already exist
@@ -71,7 +81,7 @@ const authPlugin = async (fastify: FastifyInstance) => {
             details: error.errors
           });
         }
-        console.error("Failed to create admin user:", error);
+        log.error("Failed to create admin user", { error });
         return reply.code(500).send({
           error: "Setup failed",
           message: "An unexpected error occurred during setup"
@@ -84,6 +94,9 @@ const authPlugin = async (fastify: FastifyInstance) => {
   fastify.route({
     method: 'POST',
     url: '/auth/register',
+    config: {
+      rateLimit: authRateLimit,
+    },
     handler: async (request, reply) => {
       return reply.code(403).send({
         error: "Registration disabled",
@@ -95,6 +108,9 @@ const authPlugin = async (fastify: FastifyInstance) => {
   fastify.route({
     method: 'POST',
     url: '/auth/login',
+    config: {
+      rateLimit: authRateLimit,
+    },
     handler: async (request, reply) => {
       try {
         const body = z
@@ -123,6 +139,56 @@ const authPlugin = async (fastify: FastifyInstance) => {
         }
 
         const token = fastify.jwt.sign({ userId: user.id, email: user.email });
+
+        // Warm cache on login - pre-fetch user's monitors, incidents, channels
+        // This ensures first few API calls hit cache instead of database
+        try {
+          advancedCache.warm('monitors', async () => {
+            return await prisma.monitor.findMany({
+              where: { userId: user.id },
+              select: {
+                id: true,
+                name: true,
+                kind: true,
+                paused: true,
+                createdAt: true,
+              },
+              orderBy: { createdAt: "desc" },
+              take: 50, // Warm top 50
+            });
+          });
+
+          advancedCache.warm('incidents', async () => {
+            return await prisma.incident.findMany({
+              where: { monitor: { userId: user.id } },
+              select: {
+                id: true,
+                status: true,
+                startedAt: true,
+                monitorId: true,
+              },
+              orderBy: { startedAt: "desc" },
+              take: 50,
+            });
+          });
+
+          advancedCache.warm('notificationChannels', async () => {
+            return await prisma.notificationChannel.findMany({
+              where: { userId: user.id },
+              select: {
+                id: true,
+                name: true,
+                type: true,
+              },
+              orderBy: { createdAt: "desc" },
+              take: 20,
+            });
+          });
+        } catch (warmError) {
+          log.warn("Cache warming failed during login", { error: warmError });
+          // Don't fail login if cache warming fails
+        }
+
         return { token, user: { id: user.id, email: user.email, role: user.role } };
       } catch (error) {
         if (error instanceof z.ZodError) {
