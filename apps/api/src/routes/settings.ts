@@ -6,6 +6,38 @@ import { hashPassword, verifyPassword } from "../auth/password.js";
 import { settingsService } from "../services/settings/service.js";
 import { log } from "../utils/logger.js";
 
+// Type for settings map (key-value pairs where value can be any JSON)
+type SettingsMap = Record<string, unknown>;
+
+// Type for a setting from database
+interface Setting {
+  key: string;
+  value: unknown;
+}
+
+// Docker host configuration
+interface DockerHost {
+  id: string;
+  name: string;
+  url: string;
+}
+
+// Remote browser configuration
+interface RemoteBrowser {
+  id: string;
+  name: string;
+  wsEndpoint: string;
+}
+
+// Proxy configuration
+interface ProxyConfig {
+  id: string;
+  name: string;
+  url: string;
+  username?: string;
+  password?: string;
+}
+
 // Helper function to get array value from a setting
 async function getSettingArrayValue<T = unknown>(key: string): Promise<T[]> {
   const setting = await prisma.setting.findUnique({ where: { key } });
@@ -27,10 +59,10 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
   fastify.get("/settings", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async (request) => {
     
     const settings = await prisma.setting.findMany();
-    const settingsMap = settings.reduce((acc: Record<string, any>, s: any) => {
+    const settingsMap: SettingsMap = settings.reduce((acc: SettingsMap, s: Setting) => {
       acc[s.key] = s.value;
       return acc;
-    }, {} as Record<string, any>);
+    }, {});
 
     return settingsMap;
   });
@@ -65,7 +97,7 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
   });
 
   // Batch update settings
-  fastify.post<{ Body: Record<string, any> }>("/settings/batch", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request) => {
+  fastify.post<{ Body: SettingsMap }>("/settings/batch", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request) => {
 
     const updates = Object.entries(request.body);
     
@@ -220,9 +252,9 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
       where: { key: "dockerHosts" },
     });
 
-    const hosts = (setting?.value as any[]) || [];
+    const hosts = (setting?.value as DockerHost[]) || [];
     const { randomUUID } = await import('crypto');
-    const newHost = { id: randomUUID(), ...body };
+    const newHost: DockerHost = { id: randomUUID(), ...body };
     hosts.push(newHost);
 
     await prisma.setting.upsert({
@@ -244,8 +276,8 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
       return { success: true };
     }
 
-    const hosts = ((setting.value as any[]) || []).filter(
-      (h: any) => h.id !== request.params.id
+    const hosts = ((setting.value as DockerHost[]) || []).filter(
+      (h) => h.id !== request.params.id
     );
 
     await prisma.setting.update({
@@ -264,8 +296,8 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
         where: { key: "dockerHosts" },
       });
 
-      const hosts = (setting?.value as any[]) || [];
-      const host = hosts.find((h: any) => h.id === request.params.id);
+      const hosts = (setting?.value as DockerHost[]) || [];
+      const host = hosts.find((h) => h.id === request.params.id);
 
       if (!host) {
         return reply.code(404).send({ message: "Docker host not found" });
@@ -281,8 +313,9 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
 
       const version = await client.version();
       return { success: true, version: version.Version, apiVersion: version.ApiVersion };
-    } catch (error: any) {
-      return reply.code(500).send({ message: error.message || "Failed to connect to Docker host" });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to connect to Docker host";
+      return reply.code(500).send({ message: errorMessage });
     }
   });
 
@@ -354,9 +387,9 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
       where: { key: "remoteBrowsers" },
     });
 
-    const browsers = (setting?.value as any[]) || [];
+    const browsers = (setting?.value as RemoteBrowser[]) || [];
     const { randomUUID } = await import('crypto');
-    const newBrowser = { id: randomUUID(), ...body };
+    const newBrowser: RemoteBrowser = { id: randomUUID(), ...body };
     browsers.push(newBrowser);
 
     await prisma.setting.upsert({
@@ -378,8 +411,8 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
       return { success: true };
     }
 
-    const browsers = ((setting.value as any[]) || []).filter(
-      (b: any) => b.id !== request.params.id
+    const browsers = ((setting.value as RemoteBrowser[]) || []).filter(
+      (b) => b.id !== request.params.id
     );
 
     await prisma.setting.update({
@@ -457,9 +490,9 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
         where: { key: "proxies" },
       });
 
-      const proxies = (setting?.value as any[]) || [];
+      const proxies = (setting?.value as ProxyConfig[]) || [];
       const { randomUUID } = await import('crypto');
-      const newProxy = { id: randomUUID(), ...body };
+      const newProxy: ProxyConfig = { id: randomUUID(), ...body };
       proxies.push(newProxy);
 
       await prisma.setting.upsert({
@@ -482,8 +515,8 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
       return { success: true };
     }
 
-    const proxies = ((setting.value as any[]) || []).filter(
-      (p: any) => p.id !== request.params.id
+    const proxies = ((setting.value as ProxyConfig[]) || []).filter(
+      (p) => p.id !== request.params.id
     );
 
     await prisma.setting.update({
@@ -602,7 +635,7 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
       const exportData = {
         version: "1.0",
         exportedAt: new Date().toISOString(),
-        settings: settings.reduce((acc: Record<string, any>, s: any) => {
+        settings: settings.reduce((acc: SettingsMap, s: Setting) => {
           acc[s.key] = s.value;
           return acc;
         }, {}),
