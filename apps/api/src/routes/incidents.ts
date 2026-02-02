@@ -4,7 +4,7 @@ import { z } from "zod";
 import { prisma } from "../db/prisma.js";
 import { log } from "../utils/logger.js";
 import { advancedCache } from "../utils/advanced-cache.js";
-import { getPaginationParams, buildPaginatedResponse } from "../utils/pagination.js";
+import { getPaginationParams, buildPaginatedResponse, type PaginationQuery } from "../utils/pagination.js";
 import { buildSelectFields } from "../utils/field-filtering.js";
 import { incidentManager } from "../services/incidents/manager.js";
 
@@ -24,13 +24,13 @@ const incidentsPlugin = async (fastify: FastifyInstance) => {
       const query = incidentSchema.parse(request.query);
       
       // Parse pagination parameters
-      const { page, limit } = getPaginationParams(request.query as any, {
+      const { page, limit } = getPaginationParams(request.query as PaginationQuery, {
         defaultLimit: 15,
         maxLimit: 100,
       });
 
       // Parse field filtering parameters
-      const fieldsParam = (request.query as any).fields as string | undefined;
+      const fieldsParam = (request.query as Record<string, unknown>).fields as string | undefined;
       const selectFields = buildSelectFields('incident', fieldsParam);
 
       // Build cache key
@@ -88,13 +88,13 @@ const incidentsPlugin = async (fastify: FastifyInstance) => {
       const query = incidentSchema.parse(request.query);
       
       // Parse pagination parameters
-      const { page, limit } = getPaginationParams(request.query as any, {
+      const { page, limit } = getPaginationParams(request.query as PaginationQuery, {
         defaultLimit: 15,
         maxLimit: 100,
       });
 
       // Parse field filtering parameters
-      const fieldsParam = (request.query as any).fields as string | undefined;
+      const fieldsParam = (request.query as Record<string, unknown>).fields as string | undefined;
       const selectFields = buildSelectFields('incident', fieldsParam);
 
       // Build cache key

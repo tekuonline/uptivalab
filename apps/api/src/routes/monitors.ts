@@ -4,7 +4,7 @@ import { z } from "zod";
 import { prisma } from "../db/prisma.js";
 import { queryCache } from "../utils/query-cache.js";
 import { advancedCache } from "../utils/advanced-cache.js";
-import { getPaginationParams, buildPaginatedResponse } from "../utils/pagination.js";
+import { getPaginationParams, buildPaginatedResponse, type PaginationQuery } from "../utils/pagination.js";
 import { buildSelectFields } from "../utils/field-filtering.js";
 import { monitorOrchestrator } from "../services/monitor-engine/orchestrator.js";
 import { handleApiError } from "../utils/error-handler.js";
@@ -16,7 +16,7 @@ const monitorsPlugin = async (fastify: FastifyInstance) => {
   fastify.get("/monitors", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async (request, reply) => {
     try {
       // Parse pagination parameters
-      const { page, limit } = getPaginationParams(request.query as any, {
+      const { page, limit } = getPaginationParams(request.query as PaginationQuery, {
         defaultLimit: 20,
         maxLimit: 100,
       });
