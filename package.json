@@ -16,7 +16,7 @@
     "coverage": "pnpm --filter uptivalab-api coverage && pnpm --filter uptivalab-web coverage",
     "format": "pnpm -r format",
     "e2e": "pnpm --filter uptivalab-e2e test",
-    "prepare": "husky install"
+    "prepare": "husky"
   },
   "devDependencies": {
     "@changesets/cli": "2.27.1",

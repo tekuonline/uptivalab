@@ -6,6 +6,22 @@ import { hashPassword, verifyPassword } from "../auth/password.js";
 import { settingsService } from "../services/settings/service.js";
 import { log } from "../utils/logger.js";
 
+// Helper function to get array value from a setting
+async function getSettingArrayValue<T = unknown>(key: string): Promise<T[]> {
+  const setting = await prisma.setting.findUnique({ where: { key } });
+  return (setting?.value as T[]) || [];
+}
+
+// Helper function to find item by id in a setting array
+async function findSettingArrayItem<T extends { id: string }>(
+  key: string,
+  id: string
+): Promise<{ items: T[]; item: T | undefined }> {
+  const items = await getSettingArrayValue<T>(key);
+  const item = items.find((i) => i.id === id);
+  return { items, item };
+}
+
 const settingsPlugin = async (fastify: FastifyInstance) => {
   // Get all settings
   fastify.get("/settings", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async (request) => {
@@ -188,11 +204,7 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
   // Docker Hosts management
   fastify.get("/settings/docker-hosts", { preHandler: fastify.authenticateAnyWithPermission('READ') }, async (request) => {
     
-    const setting = await prisma.setting.findUnique({
-      where: { key: "dockerHosts" },
-    });
-
-    return setting?.value || [];
+    return await getSettingArrayValue("dockerHosts");
   });
 
   fastify.post<{ Body: { name: string; url: string } }>("/settings/docker-hosts", { preHandler: fastify.authenticateAnyWithPermission('WRITE') }, async (request) => {
@@ -510,7 +522,10 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
         users,
         invitations,
       ] = await Promise.all([
-        prisma.setting.findMany().catch(() => []),
+        prisma.setting.findMany().catch((error) => {
+          log.error("Failed to fetch settings for export:", error);
+          return [];
+        }),
         prisma.monitor.findMany({
           include: {
             tags: { include: { tag: true } },
@@ -518,22 +533,52 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
             statusPages: true,
             group: true,
           },
-        }).catch(() => []),
-        prisma.monitorGroup.findMany().catch(() => []),
-        prisma.tag.findMany().catch(() => []),
-        prisma.notificationChannel.findMany().catch(() => []),
+        }).catch((error) => {
+          log.error("Failed to fetch monitors for export:", error);
+          return [];
+        }),
+        prisma.monitorGroup.findMany().catch((error) => {
+          log.error("Failed to fetch monitor groups for export:", error);
+          return [];
+        }),
+        prisma.tag.findMany().catch((error) => {
+          log.error("Failed to fetch tags for export:", error);
+          return [];
+        }),
+        prisma.notificationChannel.findMany().catch((error) => {
+          log.error("Failed to fetch notification channels for export:", error);
+          return [];
+        }),
         prisma.maintenanceWindow.findMany({
           include: { monitors: true },
-        }).catch(() => []),
+        }).catch((error) => {
+          log.error("Failed to fetch maintenance windows for export:", error);
+          return [];
+        }),
         prisma.publicStatusPage.findMany({
           include: { monitors: true },
-        }).catch(() => []),
+        }).catch((error) => {
+          log.error("Failed to fetch status pages for export:", error);
+          return [];
+        }),
         prisma.apiKey.findMany({
           include: { user: { select: { email: true } } },
-        }).catch(() => []),
-        prisma.setting.findUnique({ where: { key: "dockerHosts" } }).catch(() => null),
-        prisma.setting.findUnique({ where: { key: "remoteBrowsers" } }).catch(() => null),
-        prisma.setting.findUnique({ where: { key: "proxies" } }).catch(() => null),
+        }).catch((error) => {
+          log.error("Failed to fetch API keys for export:", error);
+          return [];
+        }),
+        prisma.setting.findUnique({ where: { key: "dockerHosts" } }).catch((error) => {
+          log.error("Failed to fetch docker hosts setting for export:", error);
+          return null;
+        }),
+        prisma.setting.findUnique({ where: { key: "remoteBrowsers" } }).catch((error) => {
+          log.error("Failed to fetch remote browsers setting for export:", error);
+          return null;
+        }),
+        prisma.setting.findUnique({ where: { key: "proxies" } }).catch((error) => {
+          log.error("Failed to fetch proxies setting for export:", error);
+          return null;
+        }),
         prisma.user.findMany({
           select: {
             id: true,
@@ -542,10 +587,16 @@ const settingsPlugin = async (fastify: FastifyInstance) => {
             createdAt: true,
             updatedAt: true,
           },
-        }).catch(() => []),
+        }).catch((error) => {
+          log.error("Failed to fetch users for export:", error);
+          return [];
+        }),
         prisma.userInvitation.findMany({
           include: { createdBy: { select: { email: true } } },
-        }).catch(() => []),
+        }).catch((error) => {
+          log.error("Failed to fetch user invitations for export:", error);
+          return [];
+        }),
       ]);
 
       const exportData = {

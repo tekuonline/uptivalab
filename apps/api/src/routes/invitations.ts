@@ -12,7 +12,7 @@ const invitationsPlugin = async (fastify: FastifyInstance) => {
     preHandler: fastify.authenticateAnyWithPermission('READ'),
     handler: async (request, reply) => {
       try {
-        // @ts-ignore - UserInvitation model exists in runtime Prisma Client
+        // @ts-expect-error - UserInvitation model exists in runtime Prisma Client
         const invitations = await prisma.userInvitation.findMany({
           where: {
             usedAt: null,
