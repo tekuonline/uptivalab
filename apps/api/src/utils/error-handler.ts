@@ -1,5 +1,7 @@
 import { Prisma } from "@prisma/client";
 
+import { log } from "../utils/logger.js";
+
 export interface ApiError {
   error: string;
   message: string;
@@ -10,7 +12,7 @@ export interface ApiError {
  * Converts various error types into user-friendly API error responses
  */
 export function handleApiError(error: unknown, operation: string): ApiError {
-  console.error(`Failed to ${operation}:`, error);
+  log.error(`Failed to ${operation}:`, error);
 
   // Handle Prisma errors
   if (error instanceof Prisma.PrismaClientKnownRequestError) {

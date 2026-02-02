@@ -1,6 +1,7 @@
 import type { NotificationChannel } from "@prisma/client";
 import type { MonitorResult } from "@uptivalab/monitoring";
 import { type NotificationAdapter, readChannelConfig } from "./base.js";
+import { log } from "../../utils/logger.js";
 
 const send = async (channel: NotificationChannel, result: MonitorResult) => {
   const config = readChannelConfig<{
@@ -11,12 +12,12 @@ const send = async (channel: NotificationChannel, result: MonitorResult) => {
   const topic = config.topic;
   
   if (!topic) {
-    console.error(`[Ntfy Notifier] No topic configured for channel ${channel.name}`);
+    log.error(`[Ntfy Notifier] No topic configured for channel ${channel.name}`);
     throw new Error("Ntfy topic not configured");
   }
   
   const url = `https://ntfy.sh/${topic}`;
-  console.log(`[Ntfy Notifier] Sending notification to ${url}`);
+  log.info(`[Ntfy Notifier] Sending notification to ${url}`);
   
   try {
     const monitorName = (result as any).monitorName || "Unknown Monitor";
@@ -49,9 +50,9 @@ const send = async (channel: NotificationChannel, result: MonitorResult) => {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
     
-    console.log(`[Ntfy Notifier] Successfully sent notification to ${url}`);
+    log.info(`[Ntfy Notifier] Successfully sent notification to ${url}`);
   } catch (error) {
-    console.error(`[Ntfy Notifier] Failed to send notification to ${url}:`, error);
+    log.error(`[Ntfy Notifier] Failed to send notification to ${url}:`, { error });
     throw error;
   }
 };

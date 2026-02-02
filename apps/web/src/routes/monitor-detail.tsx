@@ -21,8 +21,9 @@ import { Card } from "../components/ui/card.js";
 import { Button } from "../components/ui/button.js";
 import { StatusBadge } from "../components/status-badge.js";
 import { UptimeBar } from "../components/uptime-bar.js";
+import { FormattedDate } from "../components/formatted-date.js";
 import { format } from "date-fns";
-import { ArrowLeft, Edit2, Trash2, Pause, Play, GripVertical } from "lucide-react";
+import { ArrowLeft, Edit2, Trash2, Pause, Play, GripVertical, PlayCircle } from "lucide-react";
 
 // Register Chart.js components
 ChartJS.register(
@@ -84,9 +85,9 @@ export const MonitorDetailRoute = () => {
   });
 
   const { data: history } = useQuery({
-    queryKey: ["monitor-history", id],
-    queryFn: () => api.getMonitorHistory(token, id!, 100),
-    enabled: Boolean(token && id),
+    queryKey: ["monitor-history", id, monitor?.kind],
+    queryFn: () => api.getMonitorHistory(token, id!, 100, monitor?.kind === "synthetic"),
+    enabled: Boolean(token && id && monitor),
     refetchInterval: 30000, // Refresh every 30s
   });
 
@@ -95,6 +96,12 @@ export const MonitorDetailRoute = () => {
     queryFn: () => api.getMonitorUptime(token, id!, 30),
     enabled: Boolean(token && id),
     refetchInterval: 30000,
+  });
+
+  const { data: screenshots } = useQuery({
+    queryKey: ["monitor-screenshots", id],
+    queryFn: () => api.getMonitorScreenshots(token, id!),
+    enabled: Boolean(token && id && monitor?.kind === "synthetic"),
   });
 
   const deleteMutation = useMutation({
@@ -117,6 +124,15 @@ export const MonitorDetailRoute = () => {
     mutationFn: () => api.resumeMonitor(token, id!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["monitor", id] });
+      queryClient.invalidateQueries({ queryKey: ["monitors"] });
+    },
+  });
+
+  const runMutation = useMutation({
+    mutationFn: () => api.runMonitor(token, id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["monitor", id] });
+      queryClient.invalidateQueries({ queryKey: ["monitor-history", id] });
       queryClient.invalidateQueries({ queryKey: ["monitors"] });
     },
   });
@@ -264,7 +280,7 @@ export const MonitorDetailRoute = () => {
                       ? 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border border-yellow-500/30'
                       : 'bg-green-500/20 text-green-600 dark:text-green-400 border border-green-500/30'
                 }`}>
-                  🔒 {t("expiresInDays").replace("{days}", String((monitor as any).meta.certificateDaysLeft)).replace("{date}", new Date((monitor as any).meta.certificateExpiresAt).toLocaleDateString())}
+                  🔒 {t("certificateExpiry")}: {(monitor as any).meta.certificateDaysLeft} {t("days")} (<FormattedDate date={(monitor as any).meta.certificateExpiresAt} relative={false} />)
                 </span>
               )}
             </div>
@@ -285,6 +301,10 @@ export const MonitorDetailRoute = () => {
                   {pauseMutation.isPending ? t("loading") : t("pause")}
                 </Button>
               )}
+              <Button variant="ghost" onClick={() => runMutation.mutate()} disabled={runMutation.isPending || (monitor as any).paused} className="text-xs sm:text-sm">
+                <PlayCircle className="h-4 w-4 mr-2" />
+                {runMutation.isPending ? t("executing") : t("runNow")}
+              </Button>
               <Button variant="ghost" onClick={handleEdit} className="text-xs sm:text-sm">
                 <Edit2 className="h-4 w-4 mr-2" />
                 {t("edit")}
@@ -307,8 +327,7 @@ export const MonitorDetailRoute = () => {
               <div className="flex-1 min-w-0">
                 <h3 className="text-lg sm:text-xl font-semibold text-slate-900 dark:text-white mb-2">{t("heartbeatUrl")}</h3>
                 <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mb-3 sm:mb-4">
-                  Send a POST request to this URL every <strong className="text-slate-900 dark:text-white">{(monitor as any).heartbeats.heartbeatEvery} seconds</strong> from your application, cron job, or script. 
-                  If we don't receive a heartbeat within the expected interval, we'll mark this monitor as down and send alerts.
+                  {t("sendPostRequest")} <strong className="text-slate-900 dark:text-white">{(monitor as any).heartbeats.heartbeatEvery} {t("seconds")}</strong>. {t("ifNoHeartbeat")}
                 </p>
                 
                 <div className="rounded-lg bg-slate-900 dark:bg-slate-900 p-3 sm:p-4 mb-3 sm:mb-4">
@@ -362,7 +381,7 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
                   {(monitor as any).heartbeats.lastHeartbeat && (
                     <div className="pt-3 border-t border-white/10">
                       <p className="text-xs text-slate-400">
-                        Last heartbeat received: <span className="text-white">{new Date((monitor as any).heartbeats.lastHeartbeat).toLocaleString()}</span>
+                        {t("lastHeartbeatReceived")} <span className="text-white"><FormattedDate date={(monitor as any).heartbeats.lastHeartbeat} relative={false} /></span>
                       </p>
                     </div>
                   )}
@@ -483,29 +502,37 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
                           )}
 
                           {/* Screenshot */}
-                          {step.screenshot && (
-                            <div className="mt-2">
-                              <details className="group">
-                                <summary className="cursor-pointer text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 flex items-center gap-1">
-                                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-                                  </svg>
-                                  {t("screenshot")}
-                                  <svg className="w-3 h-3 transition-transform group-open:rotate-180" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                                  </svg>
-                                </summary>
-                                <div className="mt-2 p-2 bg-slate-100 dark:bg-slate-800 rounded border">
-                                  <img
-                                    src={`data:image/png;base64,${step.screenshot}`}
-                                    alt={`Screenshot for step ${step.label}`}
-                                    className="max-w-full h-auto rounded border border-slate-300 dark:border-slate-600"
-                                    style={{ maxHeight: '400px' }}
-                                  />
-                                </div>
-                              </details>
-                            </div>
-                          )}
+                          {(() => {
+                            // Match by stepIndex if available, otherwise fall back to stepLabel
+                            const stepScreenshot = screenshots?.screenshots?.find(s => 
+                              s.stepIndex !== null && s.stepIndex !== undefined 
+                                ? s.stepIndex === index 
+                                : s.stepLabel === step.label
+                            );
+                            return stepScreenshot ? (
+                              <div className="mt-2">
+                                <details className="group">
+                                  <summary className="cursor-pointer text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 flex items-center gap-1">
+                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                                    </svg>
+                                    {t("screenshot")}
+                                    <svg className="w-3 h-3 transition-transform group-open:rotate-180" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                    </svg>
+                                  </summary>
+                                  <div className="mt-2 p-2 bg-slate-100 dark:bg-slate-800 rounded border">
+                                    <img
+                                      src={`data:image/png;base64,${stepScreenshot.data}`}
+                                      alt={`Screenshot for step ${step.label}`}
+                                      className="max-w-full h-auto rounded border border-slate-300 dark:border-slate-600"
+                                      style={{ maxHeight: '400px' }}
+                                    />
+                                  </div>
+                                </details>
+                              </div>
+                            ) : null;
+                          })()}
                         </div>
 
                         {/* Status Icon */}
@@ -662,8 +689,8 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
                   <div className="flex items-start gap-2">
                     <div className="text-purple-600 dark:text-purple-400 mt-0.5">🎭</div>
                     <div className="flex-1 text-sm text-slate-600 dark:text-slate-300">
-                      <p className="font-semibold text-slate-900 dark:text-white mb-1">Synthetic Monitor</p>
-                      <p>Add wait steps and drag to reorder steps below.</p>
+                      <p className="font-semibold text-slate-900 dark:text-white mb-1">{t("monitorTypeSynthetic")}</p>
+                      <p>{t("addWaitStep")} {t("journeySteps").toLowerCase()}</p>
                     </div>
                   </div>
                 </div>
@@ -677,9 +704,9 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
                       value={editForm.browser}
                       onChange={(e) => setEditForm((prev) => ({ ...prev, browser: e.target.value as typeof prev.browser }))}
                     >
-                      <option value="chromium">Chromium</option>
-                      <option value="firefox">Firefox</option>
-                      <option value="webkit">WebKit</option>
+                      <option value="chromium">{t("chromium")}</option>
+                      <option value="firefox">{t("firefox")}</option>
+                      <option value="webkit">{t("webkit")}</option>
                     </select>
                   </div>
                   <div>
@@ -703,7 +730,7 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
                     className="rounded"
                   />
                   <label htmlFor="useLocalBrowser" className="text-sm text-slate-600 dark:text-slate-400">
-                    Use local embedded browser
+                    {t("local")}
                   </label>
                 </div>
 
@@ -773,7 +800,7 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
                                 }}
                                 min="100"
                                 max="30000"
-                                placeholder="Wait time (ms)"
+                                placeholder={t("waitTimeMs")}
                               />
                             </div>
                           )}
@@ -800,7 +827,7 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
                           className="flex-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2 text-sm"
                           value={waitStepValue}
                           onChange={(e) => setWaitStepValue(e.target.value)}
-                          placeholder="Wait time (ms)"
+                          placeholder={t("waitTimeMs")}
                           min="100"
                           max="30000"
                         />
@@ -817,7 +844,7 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
                           }}
                           className="px-4"
                         >
-                          Add
+                          {t("add")}
                         </Button>
                         <Button
                           onClick={() => {
@@ -827,7 +854,7 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
                           variant="outline"
                           className="px-4"
                         >
-                          Cancel
+                          {t("cancel")}
                         </Button>
                       </div>
                     ) : (
@@ -835,7 +862,7 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
                         onClick={() => setShowAddWaitStep(true)}
                         className="w-full p-3 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-700 text-sm text-slate-600 dark:text-slate-400 hover:border-purple-400 dark:hover:border-purple-500 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
                       >
-                        + Add Wait Step
+                        {t("addWaitStep")}
                       </button>
                     )}
                   </div>
@@ -938,12 +965,6 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
         ) : (
           <div className="text-slate-400">
             <p>{t("noLatencyDataAvailable")}</p>
-            {history && (
-              <p className="text-xs mt-2">
-                Total checks: {history.checks?.length || 0} | 
-                Checks with latency: {history.checks?.filter(c => c.latencyMs != null && c.latencyMs > 0).length || 0}
-              </p>
-            )}
           </div>
         )}
       </Card>
@@ -1005,17 +1026,6 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
         ) : (
           <div className="text-slate-400">
             <p>{t("noUptimeDataAvailable")}</p>
-            {uptime && (
-              <div className="text-xs mt-2 space-y-1">
-                <p>Days with data: {uptime.days?.length || 0}</p>
-                <p>Days filtered: {uptimeData.length}</p>
-                {uptime.days && uptime.days.length > 0 && (
-                  <pre className="text-xs bg-slate-800 p-2 rounded mt-2 overflow-auto">
-                    {JSON.stringify(uptime.days.slice(0, 3), null, 2)}
-                  </pre>
-                )}
-              </div>
-            )}
           </div>
         )}
       </Card>
@@ -1075,17 +1085,17 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
               <div className="flex items-center gap-3">
                 <div className="w-4 h-4 rounded-full bg-green-500"></div>
                 <span className="text-sm text-slate-300">
-                  Up: {history.stats.upChecks} ({((history.stats.upChecks / history.stats.totalChecks) * 100).toFixed(1)}%)
+                  {t("up")}: {history.stats.upChecks} ({((history.stats.upChecks / history.stats.totalChecks) * 100).toFixed(1)}%)
                 </span>
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-4 h-4 rounded-full bg-red-500"></div>
                 <span className="text-sm text-slate-300">
-                  Down: {history.stats.downChecks} ({((history.stats.downChecks / history.stats.totalChecks) * 100).toFixed(1)}%)
+                  {t("down")}: {history.stats.downChecks} ({((history.stats.downChecks / history.stats.totalChecks) * 100).toFixed(1)}%)
                 </span>
               </div>
               <div className="text-sm text-slate-600 dark:text-slate-400 mt-2">
-                Total Checks: {history.stats.totalChecks}
+                {t("totalChecks")}: {history.stats.totalChecks}
               </div>
             </div>
           </div>
@@ -1127,7 +1137,7 @@ requests.post('${window.location.origin}/api/heartbeat/${(monitor as any).heartb
                                 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
                                 : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
                             }`}>
-                              {passedSteps}/{totalSteps} passed
+                              {passedSteps}/{totalSteps} {t("passed")}
                             </span>
                           ) : (
                             <span className="text-xs text-slate-500">-</span>

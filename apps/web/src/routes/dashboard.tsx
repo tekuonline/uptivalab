@@ -8,6 +8,8 @@ import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement
 import { api } from "../lib/api.js";
 import { useAuth } from "../providers/auth-context.js";
 import { useRealtime } from "../hooks/use-realtime.js";
+import { FormattedDate } from "../components/formatted-date.js";
+import { useTimezone } from "../hooks/use-timezone.js";
 import { Card } from "../components/ui/card.js";
 import { StatusBadge } from "../components/status-badge.js";
 import { useTranslation } from "../hooks/use-translation.js";
@@ -109,8 +111,8 @@ const CertificateExpiryWidget = () => {
   });
 
   const certificateMonitors = useMemo(() => {
-    if (!monitors) return [];
-    return (monitors as Monitor[])
+    if (!monitors?.data) return [];
+    return (monitors.data as Monitor[])
       .filter((m) => m.kind === "certificate")
       .map((m) => {
         const expiresAt = m.meta?.certificateExpiresAt;
@@ -148,7 +150,7 @@ const CertificateExpiryWidget = () => {
             <div className="min-w-0 flex-1">
               <p className="font-medium text-sm sm:text-base text-slate-900 dark:text-white truncate">{cert.name}</p>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Expires {cert.expiryDate.toLocaleDateString()}
+                Expires <FormattedDate date={cert.expiryDate} relative={false} />
               </p>
             </div>
             <div className={`text-right shrink-0 ${cert.color}`}>
@@ -258,7 +260,7 @@ export const DashboardRoute = () => {
               <div className="mt-2 sm:mt-3 space-y-1">
                 <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
                   <Clock className="h-3 w-3 shrink-0" />
-                  <span className="truncate">{monitor.lastCheck ? new Date(monitor.lastCheck).toLocaleTimeString() : "Pending"}</span>
+                  <span className="truncate">{monitor.lastCheck ? <FormattedDate date={monitor.lastCheck} /> : "Pending"}</span>
                 </div>
                 {monitor.kind === "certificate" && (
                   <div className="text-xs">
@@ -273,7 +275,7 @@ export const DashboardRoute = () => {
                         <span className="truncate">🔒 Expires in {monitor.meta.certificateDaysLeft} days</span>
                         {monitor.meta.certificateExpiresAt && (
                           <span className="hidden sm:inline text-slate-500 dark:text-slate-400">
-                            ({new Date(monitor.meta.certificateExpiresAt).toLocaleDateString()})
+                            (<FormattedDate date={monitor.meta.certificateExpiresAt} relative={false} />)
                           </span>
                         )}
                       </div>

@@ -6,18 +6,21 @@ import { useAuth } from "../providers/auth-context.js";
 import { useTranslation } from "../hooks/use-translation.js";
 import { Card } from "../components/ui/card.js";
 import { Button } from "../components/ui/button.js";
-import { Trash2, Mail, Bell, Webhook, MessageSquare, Send, TestTube, CheckCircle, XCircle, Plus, X } from "lucide-react";
+import { Trash2, Mail, Bell, Webhook, MessageSquare, Send, TestTube, CheckCircle, XCircle, Plus, X, Edit } from "lucide-react";
 
 export const NotificationsRoute = () => {
   const { token } = useAuth();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { data, isLoading } = useQuery({ 
+  const { data: notificationsResponse, isLoading } = useQuery({ 
     queryKey: ["notifications"], 
     queryFn: () => api.listNotifications(token), 
     enabled: Boolean(token) 
   });
+  
+  const data = notificationsResponse?.data;
 
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<{ 
     name: string; 
     type: "email" | "ntfy" | "webhook" | "discord" | "slack" | "telegram" | "gotify" | "pushover" | "apprise"; 
@@ -85,6 +88,21 @@ export const NotificationsRoute = () => {
       setTestStatus(null);
       setErrors({});
       setEmailErrors({});
+      setEditingId(null);
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: { name: string; type: string; config: Record<string, string> } }) => 
+      api.updateNotification(token, id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      setForm({ name: "", type: "email", config: {} });
+      setEmailRecipients([""]);
+      setTestStatus(null);
+      setErrors({});
+      setEmailErrors({});
+      setEditingId(null);
     },
   });
 
@@ -94,6 +112,49 @@ export const NotificationsRoute = () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
+
+  const handleEdit = (channel: NotificationChannel) => {
+    setEditingId(channel.id);
+    const config = { ...(channel.config || {}) } as Record<string, any>;
+    
+    // Extract emails from config if it's an email type
+    if (channel.type === "email" && typeof config.emails === "string") {
+      const emails = config.emails.split(",");
+      setEmailRecipients(emails.length > 0 ? emails : [""]);
+      delete config.emails; // Remove from config as we handle it separately
+    } else {
+      setEmailRecipients([""]);
+    }
+    
+    // Convert config values to strings, handling different types appropriately
+    const stringConfig: Record<string, string> = {};
+    for (const [key, value] of Object.entries(config)) {
+      if (value != null) {
+        stringConfig[key] = typeof value === 'object' ? JSON.stringify(value) : String(value);
+      }
+    }
+    
+    setForm({
+      name: channel.name,
+      type: channel.type as any,
+      config: stringConfig,
+    });
+    setTestStatus(null);
+    setErrors({});
+    setEmailErrors({});
+    
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setForm({ name: "", type: "email", config: {} });
+    setEmailRecipients([""]);
+    setTestStatus(null);
+    setErrors({});
+    setEmailErrors({});
+  };
 
   const handleDelete = (channel: NotificationChannel) => {
     if (confirm(`${t("delete")} "${channel.name}"?`)) {
@@ -156,7 +217,11 @@ export const NotificationsRoute = () => {
       }
     }
 
-    createMutation.mutate({ ...form, config });
+    if (editingId) {
+      updateMutation.mutate({ id: editingId, payload: { ...form, config } });
+    } else {
+      createMutation.mutate({ ...form, config });
+    }
   };
 
   const handleTest = async () => {
@@ -215,9 +280,19 @@ export const NotificationsRoute = () => {
   return (
     <div className="space-y-6">
       <Card className="space-y-4">
-        <div>
-          <h3 className="text-xl font-semibold text-slate-900 dark:text-white">{t("createNotificationChannel")}</h3>
-          <p className="text-sm text-slate-600 dark:text-slate-400">{t("notificationChannelDescription")}</p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 className="text-xl font-semibold text-slate-900 dark:text-white">
+              {editingId ? t("editNotificationChannel") : t("createNotificationChannel")}
+            </h3>
+            <p className="text-sm text-slate-600 dark:text-slate-400">{t("notificationChannelDescription")}</p>
+          </div>
+          {editingId && (
+            <Button variant="ghost" onClick={handleCancelEdit} className="text-xs">
+              <X className="h-4 w-4 mr-1" />
+              {t("cancel")}
+            </Button>
+          )}
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-2">
@@ -405,8 +480,11 @@ export const NotificationsRoute = () => {
               <TestTube className="h-4 w-4" />
               {isTesting ? t("testing") : t("testNotification")}
             </Button>
-            <Button type="submit" disabled={createMutation.isPending} className="gap-2">
-              {createMutation.isPending ? t("loading") : t("createNotificationChannel")}
+            <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} className="gap-2">
+              {editingId 
+                ? (updateMutation.isPending ? t("updating") : t("updateNotificationChannel"))
+                : (createMutation.isPending ? t("loading") : t("createNotificationChannel"))
+              }
             </Button>
           </div>
         </form>
@@ -415,7 +493,7 @@ export const NotificationsRoute = () => {
       <Card>
         <h3 className="mb-4 text-xl font-semibold text-slate-900 dark:text-white">{t("notificationChannels")}</h3>
         <div className="space-y-3">
-          {data?.map((channel: NotificationChannel) => (
+          {data && data.length > 0 ? data.map((channel: NotificationChannel) => (
             <div key={channel.id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-4">
               <div className="flex items-center gap-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-slate-400">
@@ -435,17 +513,28 @@ export const NotificationsRoute = () => {
                   )}
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                className="px-3 py-2 text-xs text-red-400 hover:bg-red-500/10"
-                onClick={() => handleDelete(channel)}
-                disabled={deleteMutation.isPending}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="ghost"
+                  className="px-3 py-2 text-xs text-blue-400 hover:bg-blue-500/10"
+                  onClick={() => handleEdit(channel)}
+                  disabled={deleteMutation.isPending}
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="px-3 py-2 text-xs text-red-400 hover:bg-red-500/10"
+                  onClick={() => handleDelete(channel)}
+                  disabled={deleteMutation.isPending}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-          ))}
-          {(data?.length ?? 0) === 0 && <p className="text-sm text-slate-600 dark:text-slate-400">{t("noNotifications")}</p>}
+          )) : (
+            <p className="text-sm text-slate-600 dark:text-slate-400">{t("noNotifications")}</p>
+          )}
         </div>
       </Card>
     </div>

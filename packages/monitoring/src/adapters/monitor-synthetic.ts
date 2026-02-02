@@ -1,4 +1,6 @@
-import { chromium, firefox, webkit, type BrowserType, type Page, type Browser } from "playwright-core";
+import { firefox, type BrowserType, type Page, type Browser } from "playwright-core";
+import { promises as fs } from "fs";
+import path from "path";
 import type {
   BaseMonitor,
   MonitorAdapter,
@@ -9,9 +11,7 @@ import type {
 } from "../types.js";
 
 const browsers: Record<string, BrowserType> = {
-  chromium,
   firefox,
-  webkit,
 };
 
 const toConfig = (config: Record<string, unknown>): SyntheticConfig => {
@@ -21,11 +21,12 @@ const toConfig = (config: Record<string, unknown>): SyntheticConfig => {
   }
   return {
     steps,
-    browser: (config.browser as SyntheticConfig["browser"]) ?? "chromium",
+    browser: "firefox",
     baseUrl: typeof config.baseUrl === "string" ? config.baseUrl : undefined,
     remoteBrowserId: typeof config.remoteBrowserId === "string" ? config.remoteBrowserId : undefined,
-    useLocalBrowser: typeof config.useLocalBrowser === "boolean" ? config.useLocalBrowser : false,
+    useLocalBrowser: typeof config.useLocalBrowser === "boolean" ? config.useLocalBrowser : true,
     ignoreHTTPSErrors: typeof config.ignoreHTTPSErrors === "boolean" ? config.ignoreHTTPSErrors : true,
+    captureScreenshots: typeof config.captureScreenshots === "boolean" ? config.captureScreenshots : false,
   };
 };
 
@@ -44,7 +45,6 @@ const getRemoteBrowserEndpoint = async (remoteBrowserId?: string): Promise<strin
     // In the future, this could fetch from database based on remoteBrowserId
     return playwrightWsEndpoint || null;
   } catch (error) {
-    console.error("Failed to get remote browser endpoint:", error);
     return null;
   }
 };
@@ -54,133 +54,57 @@ const connectToBrowser = async (
   config: SyntheticConfig,
   launchTimeout: number
 ): Promise<{ browser: Browser; isRemote: boolean }> => {
-  const browserType = browsers[config.browser ?? "chromium"] ?? chromium;
+  const browserType = firefox;
   
   // Check if USE_REMOTE_BROWSER env is explicitly set to force remote browser
   const forceRemote = process.env.USE_REMOTE_BROWSER === 'true';
   
   // Use local embedded browser by default (unless remote is forced or explicitly requested)
   if (!forceRemote && config.useLocalBrowser !== false) {
+    let executablePath = '';
     try {
-      console.log(`[Synthetic Monitor] Launching local ${config.browser} browser with timeout ${launchTimeout}ms`);
       
-      // Use different launch arguments based on browser type
-      let launchArgs: string[];
+      // Optimized Firefox launch arguments
+      const launchArgs = [
+        '--no-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-web-security',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
+        '--disable-popup-blocking',
+        '--hide-scrollbars',
+        '--mute-audio',
+        '--no-first-run',
+      ];
+
+      // Firefox browser executable path (set by playwright install)
+      // Find the firefox directory dynamically
+      const browsersPath = process.env.PLAYWRIGHT_BROWSERS_PATH || '/ms-playwright';
       
-      if (config.browser === 'firefox') {
-        // Firefox-specific arguments (more minimal)
-        launchArgs = [
-          '--no-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--disable-web-security',
-          '--disable-background-timer-throttling',
-          '--disable-backgrounding-occluded-windows',
-          '--disable-renderer-backgrounding',
-          '--disable-ipc-flooding-protection',
-          '--disable-popup-blocking',
-          '--disable-prompt-on-repost',
-          '--hide-scrollbars',
-          '--mute-audio',
-          '--no-first-run',
-          '--safebrowsing-disable-auto-update',
-          '--disable-background-networking',
-          '--disable-breakpad',
-          '--disable-client-side-phishing-detection',
-          '--disable-hang-monitor',
-          '--disable-sync',
-          '--disable-web-resources',
-          '--disable-logging',
-          '--disable-login-animations',
-          '--disable-notifications',
-          '--disable-permissions-api',
-          '--disable-session-crashed-bubble',
-          '--disable-infobars',
-          '--no-crash-upload',
-          '--disable-logging',
-          '--disable-dev-tools',
-          '--disable-software-rasterizer',
-        ];
-      } else {
-        // Chromium/WebKit arguments (more extensive)
-        launchArgs = [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--disable-gpu',
-          '--disable-web-security',
-          '--disable-features=VizDisplayCompositor',
-          '--disable-ipc-flooding-protection',
-          '--disable-background-timer-throttling',
-          '--disable-backgrounding-occluded-windows',
-          '--disable-renderer-backgrounding',
-          '--disable-field-trial-config',
-          '--disable-back-forward-cache',
-          '--disable-hang-monitor',
-          '--disable-ipc-flooding-protection',
-          '--disable-popup-blocking',
-          '--disable-prompt-on-repost',
-          '--force-color-profile=srgb',
-          '--metrics-recording-only',
-          '--no-default-browser-check',
-          '--password-store=basic',
-          '--use-mock-keychain',
-          '--disable-component-extensions-with-background-pages',
-          '--disable-extensions',
-          '--disable-plugins',
-          '--disable-default-apps',
-          '--disable-sync',
-          '--disable-translate',
-          '--hide-scrollbars',
-          '--metrics-recording-only',
-          '--mute-audio',
-          '--no-first-run',
-          '--safebrowsing-disable-auto-update',
-          '--disable-component-update',
-          '--disable-background-networking',
-          '--disable-breakpad',
-          '--disable-client-side-phishing-detection',
-          '--disable-component-extensions-with-background-pages',
-          '--disable-hang-monitor',
-          '--disable-prompt-on-repost',
-          '--disable-sync',
-          '--disable-web-resources',
-          '--disable-logging',
-          '--disable-login-animations',
-          '--disable-notifications',
-          '--disable-permissions-api',
-          '--disable-session-crashed-bubble',
-          '--disable-infobars',
-          '--disable-features=TranslateUI',
-          '--disable-features=BlinkGenPropertyTrees',
-          '--no-crash-upload',
-          '--disable-logging',
-          '--disable-dev-tools',
-          '--disable-software-rasterizer',
-          '--disable-background-timer-throttling',
-          '--disable-renderer-backgrounding',
-          '--disable-backgrounding-occluded-windows',
-          '--disable-ipc-flooding-protection',
-          '--disable-features=UserMediaScreenCapturing',
-          '--disable-blink-features=AutomationControlled',
-          '--disable-blink-features=AutomationControlledForTest',
-        ];
+      try {
+        const entries = await fs.readdir(browsersPath);
+        const firefoxDir = entries.find(f => f.startsWith('firefox-'));
+        if (firefoxDir) {
+          executablePath = path.join(browsersPath, firefoxDir, 'firefox', 'firefox');
+        }
+      } catch (e) {
+        // If directory read fails, use default path
       }
-      
-      console.log(`[Synthetic Monitor] Using ${launchArgs.length} launch arguments for ${config.browser}`);
-      const browser = await browserType.launch({ 
-        headless: true, 
+
+      if (!executablePath) {
+        executablePath = '/ms-playwright/firefox-1509/firefox/firefox';
+      }
+
+      const browser = await browserType.launch({
+        headless: true,
         timeout: launchTimeout,
-        // Playwright will use PLAYWRIGHT_BROWSERS_PATH env var automatically
+        executablePath,
         args: launchArgs,
       });
-      console.log(`[Synthetic Monitor] Successfully launched ${config.browser} browser`);
       return { browser, isRemote: false };
     } catch (error) {
-      console.warn(`[Synthetic Monitor] Failed to launch local ${config.browser} browser, trying remote fallback:`, error);
       // Fall through to try remote browser
     }
   }
@@ -231,24 +155,28 @@ export const syntheticAdapter: MonitorAdapter = {
     const start = Date.now();
 
     // Try different browsers if HTTP/2 errors persist
-    const browsersToTry = [config.browser ?? "chromium"];
-    if (config.browser === "chromium") {
-      browsersToTry.push("firefox", "webkit");
-    } else if (config.browser === "firefox") {
-      browsersToTry.push("chromium", "webkit");
-    } else {
-      browsersToTry.push("chromium", "firefox");
+    // Since we only have Firefox installed locally, prioritize it for local browser attempts
+    const browsersToTry = config.useLocalBrowser 
+      ? ["firefox"]  // Only try firefox if using local browser (it's the only one installed)
+      : [config.browser ?? "chromium"];  // For remote, try the requested browser or default to chromium
+    
+    if (!config.useLocalBrowser) {
+      if (config.browser === "chromium") {
+        browsersToTry.push("firefox", "webkit");
+      } else if (config.browser === "firefox") {
+        browsersToTry.push("chromium", "webkit");
+      } else {
+        browsersToTry.push("chromium", "firefox");
+      }
     }
 
     let lastBrowserError: Error | null = null;
 
     for (const browserType of browsersToTry) {
-      console.log(`[Synthetic Monitor] Trying browser: ${browserType}`);
       try {
         // Temporarily override browser for this attempt
         const attemptConfig = { ...config, browser: browserType };
         const { browser, isRemote } = await connectToBrowser(attemptConfig, launchTimeout);
-        console.log(`[Synthetic Monitor] Creating browser context for ${browserType}`);
         const context = await browser.newContext({
           ignoreHTTPSErrors: attemptConfig.ignoreHTTPSErrors ?? true, // Handle SSL/TLS certificate issues
           // Additional options to handle HTTP/2 issues and avoid detection
@@ -273,61 +201,39 @@ export const syntheticAdapter: MonitorAdapter = {
           locale: 'en-US',
           timezoneId: 'America/New_York',
         });
-        console.log(`[Synthetic Monitor] Created browser context, creating page`);
         const page = await context.newPage();
-        console.log(`[Synthetic Monitor] Created page, waiting for browser initialization`);
         
         // Add a small delay to let the browser initialize
         await page.waitForTimeout(1000);
-        console.log(`[Synthetic Monitor] Browser initialized, starting step execution`);
 
         let browserFailed = false;
-        console.log(`[Synthetic Monitor] Executing ${config.steps.length} steps`);
         for (const step of config.steps) {
           const label = step.action.toUpperCase();
-          console.log(`[Synthetic Monitor] Executing step: ${label}`);
           try {
             await runStep(page, step, config.baseUrl);
-            console.log(`[Synthetic Monitor] Step ${label} completed successfully`);
-            
-            // Capture screenshot after successful step
+
+            // Only capture screenshots on failure - not on success for performance
+            journeySteps.push({ label, status: "up" });
+          } catch (error) {
+            const stepError = error instanceof Error ? error : new Error(String(error));
+            // Capture screenshot on failure for debugging
             let screenshot: string | undefined;
             try {
-              const screenshotBuffer = await page.screenshot({ 
+              const screenshotBuffer = await page.screenshot({
                 type: 'png',
                 fullPage: false, // Capture viewport only for performance
                 timeout: 5000
               });
               screenshot = screenshotBuffer.toString('base64');
-              console.log(`[Synthetic Monitor] Captured screenshot for step ${label} (${screenshot.length} bytes)`);
             } catch (screenshotError) {
-              console.warn(`[Synthetic Monitor] Failed to capture screenshot for step ${label}:`, screenshotError);
+              // Failed to capture screenshot, continue
             }
-            
-            journeySteps.push({ label, status: "up", screenshot });
-          } catch (error) {
-            const stepError = error instanceof Error ? error : new Error(String(error));
-            console.error(`[Synthetic Monitor] Step ${label} failed:`, stepError.message);
-            
-            // Capture screenshot even on failure for debugging
-            let screenshot: string | undefined;
-            try {
-              const screenshotBuffer = await page.screenshot({ 
-                type: 'png',
-                fullPage: false,
-                timeout: 5000
-              });
-              screenshot = screenshotBuffer.toString('base64');
-              console.log(`[Synthetic Monitor] Captured failure screenshot for step ${label} (${screenshot.length} bytes)`);
-            } catch (screenshotError) {
-              console.warn(`[Synthetic Monitor] Failed to capture failure screenshot for step ${label}:`, screenshotError);
-            }
-            
+
             journeySteps.push({
               label,
               status: "down",
               detail: stepError.message,
-              screenshot,
+              screenshot: screenshot, // Include screenshot data for storage
             });
             
             // Check if this is an HTTP/2 error that should trigger browser fallback
@@ -337,7 +243,6 @@ export const syntheticAdapter: MonitorAdapter = {
             
             if (isHttp2Error && browserType !== browsersToTry[browsersToTry.length - 1]) {
               // This is an HTTP/2 error and we haven't tried all browsers yet
-              console.warn(`Browser ${browserType} failed with HTTP/2 error on step ${label}, trying next browser`);
               browserFailed = true;
               await browser.close();
               break; // Break out of step loop to try next browser
@@ -371,7 +276,6 @@ export const syntheticAdapter: MonitorAdapter = {
         
         // If we get here, browser failed with HTTP/2 error, continue to try next browser
         lastBrowserError = new Error(`Browser ${browserType} failed with HTTP/2 error`);
-        console.log(`[Synthetic Monitor] ${browserType} failed, trying next browser...`);
       } catch (error) {
         lastBrowserError = error instanceof Error ? error : new Error(String(error));
         
@@ -386,7 +290,6 @@ export const syntheticAdapter: MonitorAdapter = {
         }
         
         // Try next browser
-        console.warn(`Browser ${browserType} failed with HTTP/2 error, trying next browser:`, lastBrowserError.message);
       }
     }
 
@@ -415,17 +318,13 @@ const runStep = async (page: Page, step: SyntheticStep, baseUrl?: string) => {
       
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-          console.log(`[Synthetic Monitor] Attempting navigation to ${url} (attempt ${attempt}/${maxRetries})`);
           await page.goto(url, { 
             timeout,
             waitUntil: 'domcontentloaded', // More tolerant than 'load'
           });
-          console.log(`[Synthetic Monitor] Successfully navigated to ${url}`);
           return;
         } catch (error) {
           lastError = error instanceof Error ? error : new Error(String(error));
-          
-          console.warn(`[Synthetic Monitor] Navigation attempt ${attempt} failed:`, lastError.message);
           
           // Check if this is a retryable error
           const isRetryableError = lastError.message.includes('ERR_HTTP2_PROTOCOL_ERROR') ||
@@ -442,13 +341,11 @@ const runStep = async (page: Page, step: SyntheticStep, baseUrl?: string) => {
                                    lastError.message.includes('HTTP/2');
           
           if (!isRetryableError || attempt === maxRetries) {
-            console.error(`[Synthetic Monitor] Final failure after ${maxRetries} attempts:`, lastError.message);
             throw lastError;
           }
           
           // Wait before retry with exponential backoff
           const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
-          console.log(`[Synthetic Monitor] Retrying in ${waitTime}ms...`);
           await page.waitForTimeout(waitTime);
         }
       }

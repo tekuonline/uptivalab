@@ -4,6 +4,7 @@ import { Button } from "../components/ui/button.js";
 import { useTranslation } from "../hooks/use-translation.js";
 import { useAuth } from "../providers/auth-context.js";
 import { api } from "../lib/api.js";
+import { FormattedDate } from "../components/formatted-date.js";
 
 export const InviteAcceptRoute = () => {
   const { t, languageLoading } = useTranslation();
@@ -157,7 +158,7 @@ export const InviteAcceptRoute = () => {
         </form>
 
         <p className="text-center text-xs text-slate-600 dark:text-slate-400">
-          This invitation expires on {inviteInfo && new Date(inviteInfo.expiresAt).toLocaleDateString()}
+          This invitation expires on {inviteInfo && <FormattedDate date={inviteInfo.expiresAt} relative={false} />}
         </p>
       </div>
     </div>

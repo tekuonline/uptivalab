@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useTranslation } from "../hooks/use-translation.js";
+import { useTimezone } from "../hooks/use-timezone.js";
 
 interface UptimeBarProps {
   checks: Array<{ status: string; checkedAt: string }>;
@@ -8,6 +9,7 @@ interface UptimeBarProps {
 
 export const UptimeBar = ({ checks, hours = 24 }: UptimeBarProps) => {
   const { t } = useTranslation();
+  const { formatDate } = useTimezone();
   const segments = useMemo(() => {
     // Filter checks from the last X hours
     const now = new Date();
@@ -46,7 +48,7 @@ export const UptimeBar = ({ checks, hours = 24 }: UptimeBarProps) => {
               ? "bg-red-500"
               : "bg-gray-500"
           }`}
-          title={`${segment.status === "up" ? "✓ Up" : segment.status === "down" ? "✗ Down" : "● Pending"} - ${new Date(segment.checkedAt).toLocaleString()}`}
+          title={`${segment.status === "up" ? "✓ Up" : segment.status === "down" ? "✗ Down" : "● Pending"} - ${formatDate(segment.checkedAt)}`}
         />
       ))}
     </div>

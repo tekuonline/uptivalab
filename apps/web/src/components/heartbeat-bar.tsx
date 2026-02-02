@@ -1,4 +1,5 @@
 import { useSettings } from "../providers/settings-context.js";
+import { useTimezone } from "../hooks/use-timezone.js";
 
 interface HeartbeatBarProps {
   checks: Array<{ status: "up" | "down" | "pending"; timestamp: string }>;
@@ -7,6 +8,7 @@ interface HeartbeatBarProps {
 
 export const HeartbeatBar = ({ checks, className = "" }: HeartbeatBarProps) => {
   const { settings } = useSettings();
+  const { formatDate } = useTimezone();
   const theme = settings.heartbeatBarTheme || "normal";
   
   // Limit to last 50 checks for display
@@ -34,7 +36,7 @@ export const HeartbeatBar = ({ checks, className = "" }: HeartbeatBarProps) => {
         <div
           key={`${check.timestamp}-${index}`}
           className={`h-8 w-1 rounded-sm ${getStatusColor(check.status)} transition-all hover:h-10`}
-          title={`${check.status} - ${new Date(check.timestamp).toLocaleString()}`}
+          title={`${check.status} - ${formatDate(check.timestamp)}`}
         />
       ))}
     </div>

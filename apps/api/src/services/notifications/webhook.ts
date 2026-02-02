@@ -1,17 +1,18 @@
 import type { NotificationChannel } from "@prisma/client";
 import type { MonitorResult } from "@uptivalab/monitoring";
 import { type NotificationAdapter, readChannelConfig } from "./base.js";
+import { log } from "../../utils/logger.js";
 
 const send = async (channel: NotificationChannel, result: MonitorResult) => {
   const config = readChannelConfig<{ url?: string }>(channel);
   const url = config.url;
   
   if (!url) {
-    console.error(`[Webhook Notifier] No URL configured for channel ${channel.name}`);
+    log.error(`[Webhook Notifier] No URL configured for channel ${channel.name}`);
     throw new Error("Webhook URL not configured");
   }
   
-  console.log(`[Webhook Notifier] Sending notification to ${url}`);
+  log.info(`[Webhook Notifier] Sending notification to ${url}`);
   
   try {
     const monitorName = (result as any).monitorName || "Unknown Monitor";
@@ -31,9 +32,9 @@ const send = async (channel: NotificationChannel, result: MonitorResult) => {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
     
-    console.log(`[Webhook Notifier] Successfully sent notification to ${url}`);
+    log.info(`[Webhook Notifier] Successfully sent notification to ${url}`);
   } catch (error) {
-    console.error(`[Webhook Notifier] Failed to send notification to ${url}:`, error);
+    log.error(`[Webhook Notifier] Failed to send notification to ${url}:`, { error });
     throw error;
   }
 };

@@ -6,17 +6,20 @@ import { useTranslation } from "../hooks/use-translation.js";
 import { Card } from "../components/ui/card.js";
 import { Button } from "../components/ui/button.js";
 import { Trash2, Calendar, Clock, Edit2 } from "lucide-react";
+import { FormattedDate } from "../components/formatted-date.js";
 
 export const MaintenanceRoute = () => {
   const { token } = useAuth();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   
-  const { data: windows, isLoading } = useQuery({
+  const { data: maintenanceResponse, isLoading } = useQuery({
     queryKey: ["maintenance"],
     queryFn: () => api.listMaintenance(token),
     enabled: Boolean(token),
   });
+  
+  const windows = maintenanceResponse?.data;
 
   const { data: monitors } = useQuery({
     queryKey: ["monitors"],
@@ -213,7 +216,7 @@ export const MaintenanceRoute = () => {
               </div>
               {form.startsAt && form.startsAt.length >= 16 && (
                 <p className="mt-2 text-xs text-slate-400">
-                  📅 {new Date(form.startsAt).toLocaleString()}
+                  📅 <FormattedDate date={form.startsAt} />
                 </p>
               )}
             </div>
@@ -251,7 +254,7 @@ export const MaintenanceRoute = () => {
               </div>
               {form.endsAt && form.endsAt.length >= 16 && (
                 <p className="mt-2 text-xs text-slate-400">
-                  📅 {new Date(form.endsAt).toLocaleString()}
+                  📅 <FormattedDate date={form.endsAt} />
                 </p>
               )}
             </div>
@@ -408,7 +411,7 @@ export const MaintenanceRoute = () => {
               </p>
             )}
             <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-              {monitors?.map((monitor: any) => (
+              {monitors?.data?.map((monitor: any) => (
                 <label
                   key={monitor.id}
                   className="flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 hover:bg-white/10"
@@ -447,7 +450,7 @@ export const MaintenanceRoute = () => {
       <Card>
         <h3 className="mb-4 text-xl font-semibold text-slate-900 dark:text-white">{t("scheduledMaintenance")}</h3>
         <div className="space-y-3">
-          {windows?.map((window: any) => {
+          {windows && windows.length > 0 ? windows.map((window: any) => {
             const now = new Date();
             const startsAt = new Date(window.startsAt);
             const endsAt = new Date(window.endsAt);
@@ -492,10 +495,10 @@ export const MaintenanceRoute = () => {
                   <div className="mt-2 flex items-center gap-4 text-xs text-slate-600 dark:text-slate-400">
                     <span className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      {new Date(window.startsAt).toLocaleString()}
+                      <FormattedDate date={window.startsAt} />
                     </span>
                     <span>→</span>
-                    <span>{new Date(window.endsAt).toLocaleString()}</span>
+                    <span><FormattedDate date={window.endsAt} /></span>
                   </div>
                   <div className="mt-2 text-xs text-slate-600 dark:text-slate-400">
                     {window.monitors?.length || 0} {t("monitorsAffected")}
@@ -520,8 +523,7 @@ export const MaintenanceRoute = () => {
                 </div>
               </div>
             );
-          })}
-          {(windows?.length ?? 0) === 0 && (
+          }) : (
             <p className="text-sm text-slate-600 dark:text-slate-400">{t("noMaintenanceWindows")}</p>
           )}
         </div>

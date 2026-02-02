@@ -45,12 +45,13 @@ export const certificateAdapter: MonitorAdapter = {
           const isExpiringSoon = daysLeft !== undefined && daysLeft <= threshold;
           
           const status = !expiresAt || daysLeft === undefined || (daysLeft > 0 && !isExpiringSoon) ? "up" : "down";
+          const dateStr = expiresAt ? expiresAt.toISOString().split('T')[0] : '';
           const message = expiresAt
             ? daysLeft !== undefined && daysLeft <= 0
               ? `Certificate has EXPIRED (expired ${Math.abs(daysLeft)} day(s) ago)`
               : isExpiringSoon
-              ? `Certificate expires in ${daysLeft} day(s) (${expiresAt.toLocaleDateString()}) - threshold: ${threshold} days`
-              : `Certificate expires in ${daysLeft} day(s) (${expiresAt.toLocaleDateString()})`
+              ? `Certificate expires in ${daysLeft} day(s) (${dateStr}) - threshold: ${threshold} days`
+              : `Certificate expires in ${daysLeft} day(s) (${dateStr})`
             : "Certificate info unavailable";
 
           resolve({

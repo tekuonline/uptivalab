@@ -47,6 +47,7 @@ services:
       NODE_ENV: production
       USE_REMOTE_BROWSER: ${USE_REMOTE_BROWSER:-false}
       PLAYWRIGHT_WS_ENDPOINT: ${PLAYWRIGHT_WS_ENDPOINT:-}
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
     depends_on:
       - postgres
       - redis

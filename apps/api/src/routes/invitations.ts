@@ -3,6 +3,7 @@ import fp from "fastify-plugin";
 import { z } from "zod";
 import { prisma } from "../db/prisma.js";
 import { hashPassword } from "../auth/password.js";
+import { log } from "../utils/logger.js";
 import crypto from "crypto";
 
 const invitationsPlugin = async (fastify: FastifyInstance) => {
@@ -35,7 +36,7 @@ const invitationsPlugin = async (fastify: FastifyInstance) => {
 
         return invitations;
       } catch (error) {
-        console.error("Failed to fetch invitations:", error);
+        log.error("Failed to fetch invitations:", error);
         return reply.code(500).send({
           error: "Failed to fetch invitations",
           message: "An error occurred while fetching invitations",
@@ -79,7 +80,7 @@ const invitationsPlugin = async (fastify: FastifyInstance) => {
 
         return invitation;
       } catch (error) {
-        console.error("Failed to fetch invitation:", error);
+        log.error("Failed to fetch invitation:", error);
         return reply.code(500).send({
           error: "Failed to fetch invitation",
           message: "An error occurred while fetching the invitation",
@@ -164,7 +165,7 @@ const invitationsPlugin = async (fastify: FastifyInstance) => {
               details: error.errors,
             });
           }
-          console.error("Failed to create invitation:", error);
+          log.error("Failed to create invitation:", error);
           return reply.code(500).send({
             error: "Failed to create invitation",
             message: "An error occurred while creating the invitation",
@@ -185,7 +186,7 @@ const invitationsPlugin = async (fastify: FastifyInstance) => {
 
         return { success: true };
       } catch (error) {
-        console.error("Failed to delete invitation:", error);
+        log.error("Failed to delete invitation:", error);
         return reply.code(500).send({
           error: "Failed to delete invitation",
           message: "An error occurred while deleting the invitation",
@@ -292,7 +293,7 @@ const publicInvitationsPlugin = async (fastify: FastifyInstance) => {
             },
           };
         } catch (error) {
-          console.error("Failed to accept invitation:", error);
+          log.error("Failed to accept invitation:", error);
           return reply.code(500).send({
             error: "Failed to accept invitation",
             message: "An error occurred while accepting the invitation",
@@ -343,7 +344,7 @@ const publicInvitationsPlugin = async (fastify: FastifyInstance) => {
           expiresAt: invitation.expiresAt,
         };
       } catch (error) {
-        console.error("Failed to verify invitation:", error);
+        log.error("Failed to verify invitation:", error);
         return reply.code(500).send({
           error: "Failed to verify invitation",
           message: "An error occurred while verifying the invitation",

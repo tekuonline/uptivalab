@@ -3,6 +3,7 @@ import type { NotificationChannel } from "@prisma/client";
 import type { MonitorResult } from "@uptivalab/monitoring";
 import { appConfig } from "../../config.js";
 import { type NotificationAdapter, readChannelConfig } from "./base.js";
+import { log } from "../../utils/logger.js";
 
 interface EmailConfig {
   email?: string;
@@ -59,7 +60,7 @@ const send = async (channel: NotificationChannel, result: MonitorResult) => {
   const transport = createTransporter(config);
   
   if (!transport) {
-    console.error(`[Email Notifier] No SMTP configuration available for channel ${channel.name}`);
+    log.error(`[Email Notifier] No SMTP configuration available for channel ${channel.name}`);
     throw new Error("SMTP configuration not available");
   }
 
@@ -68,7 +69,7 @@ const send = async (channel: NotificationChannel, result: MonitorResult) => {
   // Support multiple email recipients
   const toEmails = config.emails || config.email || channel.name;
   
-  console.log(`[Email Notifier] Sending email notification to ${toEmails}`);
+  log.info(`[Email Notifier] Sending email notification to ${toEmails}`);
 
   try {
     const monitorName = (result as any).monitorName || "Unknown Monitor";
@@ -79,9 +80,9 @@ const send = async (channel: NotificationChannel, result: MonitorResult) => {
       text: result.message,
     });
     
-    console.log(`[Email Notifier] Successfully sent email notification to ${toEmails}`);
+    log.info(`[Email Notifier] Successfully sent email notification to ${toEmails}`);
   } catch (error) {
-    console.error(`[Email Notifier] Failed to send email notification to ${toEmails}:`, error);
+    log.error(`[Email Notifier] Failed to send email notification to ${toEmails}:`, { error });
     throw error;
   }
 };

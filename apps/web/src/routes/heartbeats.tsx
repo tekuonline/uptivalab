@@ -28,7 +28,7 @@ export const HeartbeatsRoute = () => {
   });
 
   // Filter to only show push monitors
-  const pushMonitors = monitors?.filter((monitor: any) => monitor.kind === "push") || [];
+  const pushMonitors = monitors?.data?.filter((monitor: any) => monitor.kind === "push") || [];
   
   // Filter out monitors that already have heartbeat tokens
   const availableMonitors = pushMonitors.filter((monitor: any) => 
