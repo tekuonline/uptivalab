@@ -83,7 +83,7 @@ export const api = {
       stats: { totalChecks: number; upChecks: number; downChecks: number; uptimePercentage: number; avgResponseTime: number | null };
       days: Array<{ date: string; uptimePercentage: number }>;
     }>(`/api/monitors/${id}/uptime?days=${days}`, { token }),
-  listNotifications: (token: string | null) => request<{ data: NotificationChannel[]; meta: any }>("/api/notifications", { token }),
+  listNotifications: (token: string | null, page = 1, limit = 20) => request<{ data: NotificationChannel[]; meta: { page: number; limit: number; total: number; totalPages: number } }>(`/api/notifications?page=${page}&limit=${limit}`, { token }),
   createNotification: (token: string | null, payload: { name: string; type: string; config: Record<string, string> }) =>
     request<NotificationChannel>("/api/notifications", {
       method: "POST",
@@ -100,7 +100,7 @@ export const api = {
     }),
   deleteNotification: (token: string | null, id: string) =>
     request<void>(`/api/notifications/${id}`, { method: "DELETE", token }),
-  listIncidents: (token: string | null) => request<{ data: IncidentWithRelations[]; meta: any }>("/api/incidents", { token }),
+  listIncidents: (token: string | null, page = 1, limit = 15) => request<{ data: IncidentWithRelations[]; meta: { page: number; limit: number; total: number; totalPages: number } }>(`/api/incidents?page=${page}&limit=${limit}`, { token }),
   updateIncidentStatus: (token: string | null, incidentId: string, status: string) =>
     request<IncidentWithRelations>(`/api/incidents/${incidentId}`, {
       method: "PATCH",
@@ -135,7 +135,7 @@ export const api = {
       monitors: Array<{ id: string; name: string; status: string; uptimePercentage: number; lastCheck: string | null }>;
     }>(`/api/public/status/${slug}`),
   fetchPublicStatus: (slug: string) => request(`/api/status/public/${slug}`),
-  listMaintenance: (token: string | null) => request<{ data: any[]; meta: any }>("/api/maintenance", { token }),
+  listMaintenance: (token: string | null, page = 1, limit = 20) => request<{ data: any[]; meta: { page: number; limit: number; total: number; totalPages: number } }>(`/api/maintenance?page=${page}&limit=${limit}`, { token }),
   createMaintenance: (token: string | null, payload: { name: string; startsAt: string; endsAt: string; monitorIds: string[] }) =>
     request("/api/maintenance", {
       method: "POST",

@@ -5,6 +5,7 @@ import { useAuth } from "../providers/auth-context.js";
 import { useTranslation } from "../hooks/use-translation.js";
 import { Card } from "../components/ui/card.js";
 import { Button } from "../components/ui/button.js";
+import { PaginationControls } from "../components/pagination-controls.js";
 import { Trash2, Calendar, Clock, Edit2 } from "lucide-react";
 import { FormattedDate } from "../components/formatted-date.js";
 
@@ -12,14 +13,18 @@ export const MaintenanceRoute = () => {
   const { token } = useAuth();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(20);
   
   const { data: maintenanceResponse, isLoading } = useQuery({
-    queryKey: ["maintenance"],
-    queryFn: () => api.listMaintenance(token),
+    queryKey: ["maintenance", currentPage, pageSize],
+    queryFn: () => api.listMaintenance(token, currentPage, pageSize),
     enabled: Boolean(token),
+    placeholderData: (previousData) => previousData,
   });
   
   const windows = maintenanceResponse?.data;
+  const meta = maintenanceResponse?.meta;
 
   const { data: monitors } = useQuery({
     queryKey: ["monitors"],
@@ -527,6 +532,17 @@ export const MaintenanceRoute = () => {
             <p className="text-sm text-slate-600 dark:text-slate-400">{t("noMaintenanceWindows")}</p>
           )}
         </div>
+        
+        {/* Pagination Controls */}
+        {meta && (
+          <PaginationControls
+            currentPage={meta.page}
+            totalPages={meta.totalPages}
+            totalItems={meta.total}
+            pageSize={meta.limit}
+            onPageChange={setCurrentPage}
+          />
+        )}
       </Card>
     </div>
   );

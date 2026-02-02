@@ -6,19 +6,25 @@ import { useAuth } from "../providers/auth-context.js";
 import { useTranslation } from "../hooks/use-translation.js";
 import { Card } from "../components/ui/card.js";
 import { Button } from "../components/ui/button.js";
+import { PaginationControls } from "../components/pagination-controls.js";
 import { Trash2, Mail, Bell, Webhook, MessageSquare, Send, TestTube, CheckCircle, XCircle, Plus, X, Edit } from "lucide-react";
 
 export const NotificationsRoute = () => {
   const { token } = useAuth();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(20);
+  
   const { data: notificationsResponse, isLoading } = useQuery({ 
-    queryKey: ["notifications"], 
-    queryFn: () => api.listNotifications(token), 
-    enabled: Boolean(token) 
+    queryKey: ["notifications", currentPage, pageSize], 
+    queryFn: () => api.listNotifications(token, currentPage, pageSize), 
+    enabled: Boolean(token),
+    placeholderData: (previousData) => previousData,
   });
   
   const data = notificationsResponse?.data;
+  const meta = notificationsResponse?.meta;
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<{ 
@@ -536,6 +542,17 @@ export const NotificationsRoute = () => {
             <p className="text-sm text-slate-600 dark:text-slate-400">{t("noNotifications")}</p>
           )}
         </div>
+        
+        {/* Pagination Controls */}
+        {meta && (
+          <PaginationControls
+            currentPage={meta.page}
+            totalPages={meta.totalPages}
+            totalItems={meta.total}
+            pageSize={meta.limit}
+            onPageChange={setCurrentPage}
+          />
+        )}
       </Card>
     </div>
   );

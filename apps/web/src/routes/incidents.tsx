@@ -7,6 +7,7 @@ import { api } from "../lib/api.js";
 import { Card } from "../components/ui/card.js";
 import { Button } from "../components/ui/button.js";
 import { StatusBadge } from "../components/status-badge.js";
+import { PaginationControls } from "../components/pagination-controls.js";
 import { useAuth } from "../providers/auth-context.js";
 import { useTranslation } from "../hooks/use-translation.js";
 import type { TranslationKey } from "../lib/i18n.js";
@@ -39,9 +40,20 @@ export const IncidentsRoute = () => {
   const { t } = useTranslation();
   const { token } = useAuth();
   const queryClient = useQueryClient();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(15);
+  
   const latestMessage = (incident: IncidentWithRelations) => incident.events?.[0]?.message ?? t("noUpdatesYet");
-  const { data: incidents, isLoading } = useQuery({ queryKey: ["incidents"], queryFn: () => api.listIncidents(token), enabled: Boolean(token) });
+  const { data: incidentsResponse, isLoading } = useQuery({ 
+    queryKey: ["incidents", currentPage, pageSize], 
+    queryFn: () => api.listIncidents(token, currentPage, pageSize), 
+    enabled: Boolean(token),
+    placeholderData: (previousData) => previousData,
+  });
   const { data: monitors } = useQuery({ queryKey: ["monitors"], queryFn: () => api.listMonitors(token), enabled: Boolean(token) });
+
+  const incidents = incidentsResponse?.data;
+  const meta = incidentsResponse?.meta;
 
   const [filters, setFilters] = useState({
     status: "all" as string,
@@ -234,6 +246,17 @@ export const IncidentsRoute = () => {
             </Button>
           </Card>
         </div>
+      )}
+      
+      {/* Pagination Controls */}
+      {!selectedIncident && meta && (
+        <PaginationControls
+          currentPage={meta.page}
+          totalPages={meta.totalPages}
+          totalItems={meta.total}
+          pageSize={meta.limit}
+          onPageChange={setCurrentPage}
+        />
       )}
     </div>
   );
